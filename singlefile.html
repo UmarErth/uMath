@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MAN Gaming</title>
+    
+    <base href="https://cdn.jsdelivr.net/gh/UmarErth/uMath@main/">
+    <script src="https://tailwindcss.com"></script>
+</head>
+<body class="p-6">
+    <div class="max-w-[200px] mx-auto">
+        <nav class="flex justify-between items-center mb-12">
+            <div class="flex items-center gap-4 cursor-pointer" onclick="location.reload()">
+                <img src="loading.png" alt="Logo" class="h-12 w-auto" loading="lazy">
+                <span class="text-xl font-black italic">MAN GAMING</span>
+            </div>
+        </nav>
+
+        <div id="search-container" class="flex justify-center mb-16">
+            <input type="text" id="search" onkeyup="filterGames()" placeholder="search zones..." class="search-bar">
+        </div>
+
+        <main id="content-area">
+            <div id="game-grid" class="game-grid"></div>
+        </main>
+    </div>
+
+    <!-- ASYNC LOADING TO PREVENT PAGE FREEZE -->
+    <script async src="https://cdn.jsdelivr.net/gh/UmarErth/uMath/loader.js?v=5"></script>
+</body>
+</html>
