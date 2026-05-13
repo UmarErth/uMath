@@ -5,9 +5,11 @@ document.head.appendChild(styleSheet);
 
 // 2. DATA WITH DEFERRED LOADING
 const games = [
-    { name: "NikeHub", icon: "🚀", url: "https://pages.dev" },
-    { name: "Snow Rider", icon: "🎯", url: "https://hoodamath.com" },
-    { name: "Cookie Clicker", icon: "🧬", type: "cc" }
+    { name: "NikeHub", icon: "🚀", url: "https://nikehub.pages.dev/a129x" },
+    { name: "Snow Rider", icon: "🎯", url: "https://www.hoodamath.com/games/snowrider3d.html#gsc.tab=0" },
+    { name: "Puppet Hockey", icon: "🎯", url: "https://www.mathplayground.com/pg_puppet_hockey.html" },
+    { name: "Google Doodles", icon: "🎯", url: "https://doodles.google/search/?form_tags=interactive%20game" },
+    { name: "Cookie Clicker NOT FIXED YET", icon: "🧬", type: "cc" }
 ];
 
 // 3. OPTIMIZED FUNCTIONS
