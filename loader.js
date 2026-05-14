@@ -143,27 +143,36 @@ styleSheet.innerText = `
 `;
 document.head.appendChild(styleSheet);
 
-// 2. DATA WITH DEFERRED LOADING
+// 2. FIXED DATA ARRAY WITH CORRECT SYNTAX
 const games = [
     { name: "NikeHub", icon: "🚀", url: "https://nikehub.pages.dev/a129x" },
     { name: "Snow Rider", icon: "🎯", url: "https://www.hoodamath.com/games/snowrider3d.html#gsc.tab=0" },
     { name: "Puppet Hockey", icon: "🎯", url: "https://www.mathplayground.com/pg_puppet_hockey.html" },
     { name: "Google Doodles", icon: "🎯", url: "https://doodles.google/search/?form_tags=interactive%20game" },
-    { name: "Vapor v4", icon: "🎯", url: "https://100.vaporized.help/" },
+    { name: "Vapor v4", icon: "🌌", url: "https://100.vaporized.help/" },
     { name: "Cookie Clicker NOT FIXED YET", icon: "🧬", type: "cc" }
-    
 ];
 
-// 3. FUNCTIONS WITH IMMERSIVE WAVE ENTRANCE
+// 3. FUNCTIONS WITH RECOVERY ACTIONS ON CLOSE
 window.renderGames = (list = games) => {
     const grid = document.getElementById('game-grid');
     if (!grid) return;
+    
+    // Safety verification: Reset search container display space upon re-rendering
+    const searchContainer = document.getElementById('search-container');
+    if (searchContainer) searchContainer.style.display = 'block';
     
     grid.innerHTML = list.map((g, i) => `
         <div class="game-card" onclick="launchGame(${i})" style="animation-delay: ${i * 0.04}s">
             <span style="font-size:40px; margin-bottom: 10px;">${g.icon}</span>
             <span style="font-size:10px; font-weight:800; color:#555; text-transform:uppercase; tracking-widest: 0.15em;">${g.name}</span>
         </div>`).join('');
+};
+
+window.goBackHome = () => {
+    // Soft clear the inner area to restore elements without hard page flashes
+    document.getElementById('content-area').innerHTML = '<div id="game-grid" class="game-grid"></div>';
+    renderGames();
 };
 
 window.launchGame = (i) => {
@@ -177,16 +186,16 @@ window.launchGame = (i) => {
     document.getElementById('content-area').innerHTML = `
         <div class="frame-container">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-                <button onclick="location.reload()" class="ui-btn">⬅ Back</button>
+                <button onclick="window.goBackHome()" class="ui-btn">⬅ Back</button>
                 <span style="font-weight:900; letter-spacing:4px; color:#333; font-size:11px; text-transform:uppercase;">Playing: ${g.name}</span>
             </div>
             <iframe ${src} sandbox="allow-scripts allow-forms allow-same-origin allow-downloads" allowfullscreen></iframe>
         </div>`;
 };
 
-// FULL COOKIE CLICKER BUILDER
+// RESTORED COMPACT COOKIE CLICKER DOM MATRIX BUILDER
 function getCC() {
-    const html = `https://cdn.jsdelivr.net/gh/UmarErth/uMath/Cookie_Clicker.html`;
+    const html = `<base href="https://cdn.jsdelivr.net/gh/UmarErth/uMath/Cookie_Clicker.html"><head><script>var VERSION=2.058,LOCAL=1;</script><link href="style.css" rel="stylesheet"><script src="base64.js"></script><script src="main2.js"></script></head><body style="margin:0;background:#000;"><div id="game"></div></body>`;
     return `srcdoc="${html.replace(/"/g, '&quot;')}"`;
 }
 
