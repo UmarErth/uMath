@@ -150,7 +150,7 @@ const games = [
     { name: "Snow Rider", icon: "🎯", url: "https://www.hoodamath.com/games/snowrider3d.html#gsc.tab=0", secure: true },
     { name: "Puppet Hockey", icon: "🏒", url: "https://www.mathplayground.com/pg_puppet_hockey.html", secure: true },
     { name: "Google Doodles", icon: "🎨", url: "https://doodles.google/search/?form_tags=interactive%20game", secure: true },
-    { name: "Vapor v4", icon: "🌌", url: "https://100.vaporized.help/", secure: false }, // Vapor bypasses sandbox restrictions completely
+    { name: "Vapor v4", icon: "🌌", url: "https://100.vaporized.help/", secure: true }, // Vapor bypasses sandbox restrictions completely
     { name: "Cookie Clicker NOT FIXED YET", icon: "🧬", type: "cc", secure: true }
 ];
 
@@ -183,14 +183,88 @@ window.launchGame = (i) => {
     // Core Fix: Remove sandbox restrictions ONLY for Vapor v4 to load successfully
     let sandboxAttr = g.secure ? `sandbox="allow-scripts allow-forms allow-same-origin allow-downloads"` : '';
     
-    document.getElementById('content-area').innerHTML = `
+    const gameHTML = `
         <div class="frame-container">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
                 <button onclick="window.renderGames()" class="ui-btn">⬅ Back</button>
-                <span style="font-weight:900; letter-spacing:4px; color:#555; font-size:11px; text-transform:uppercase;">Playing: ${g.name}</span>
+                <div style="display:flex; gap: 10px;">
+                    <button onclick="toggleFullscreen()" class="ui-btn" style="font-size: 12px;">⛶ Fullscreen</button>
+                    <button onclick="launchCloak(${i})" class="ui-btn" style="font-size: 12px;">👁️ Cloak</button>
+                </div>
             </div>
-            <iframe ${src} ${sandboxAttr} allowfullscreen></iframe>
+            <iframe id="active-game-frame" ${src} ${sandboxAttr} allowfullscreen></iframe>
         </div>`;
+
+    document.getElementById('content-area').innerHTML = gameHTML;
+};
+
+// Fullscreen Toggle Function
+window.toggleFullscreen = () => {
+    const iframe = document.getElementById('active-game-frame');
+    if (!iframe) return;
+
+    if (!document.fullscreenElement) {
+        if (iframe.requestFullscreen) {
+            iframe.requestFullscreen();
+        } else if (iframe.webkitRequestFullscreen) {
+            iframe.webkitRequestFullscreen();
+        } else if (iframe.mozRequestFullScreen) {
+            iframe.mozRequestFullScreen();
+        } else if (iframe.msRequestFullscreen) {
+            iframe.msRequestFullscreen();
+        }
+    } else {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        }
+    }
+};
+
+// Cloak Function: Opens about:blank and injects the same game
+window.launchCloak = (i) => {
+    const g = games[i];
+    let src = g.type === "cc" ? getCC() : `src="${g.url}"`;
+    let sandboxAttr = g.secure ? `sandbox="allow-scripts allow-forms allow-same-origin allow-downloads"` : '';
+    
+    // Create a new blank window
+    const cloakWin = window.open('about:blank', '_blank');
+    
+    if (!cloakWin) {
+        alert('Pop-up blocked! Please allow pop-ups for this site to use the Cloak feature.');
+        return;
+    }
+
+    // Inject the EXACT same HTML structure into the blank window
+    // We include the style tag again so the cloak window looks the same
+    cloakWin.document.open();
+    cloakWin.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>System</title>
+            <style>
+                body { margin: 0; padding: 0; background: #050505; overflow: hidden; }
+                iframe { width: 100vw; height: 100vh; border: none; display: block; }
+                /* Re-injecting your styles for the cloak window to ensure visual consistency */
+                body::before, body::after {
+                    content: ""; position: fixed; width: 600px; height: 600px; border-radius: 50%;
+                    background: radial-gradient(circle, rgba(168,85,247,0.06) 0%, rgba(0,0,0,0) 70%);
+                    z-index: -1; pointer-events: none; animation: floatGlow 12s infinite ease-in-out;
+                }
+                body::after {
+                    background: radial-gradient(circle, rgba(59,130,246,0.05) 0%, rgba(0,0,0,0) 70%);
+                    animation: floatGlow2 16s infinite ease-in-out;
+                }
+                @keyframes floatGlow { 0% { top: -10%; left: -10%; transform: translate(0, 0); } 50% { top: 20%; left: 60%; transform: translate(100px, 50px); } 100% { top: -10%; left: -10%; transform: translate(0, 0); } }
+                @keyframes floatGlow2 { 0% { bottom: -10%; right: -10%; transform: translate(0, 0); } 50% { bottom: 30%; right: 50%; transform: translate(-8px, -100px); } 100% { bottom: -10%; right: -10%; transform: translate(0, 0); } }
+            </style>
+        </head>
+        <body>
+            <iframe ${src} ${sandboxAttr} allowfullscreen></iframe>
+        </body>
+        </html>
+    `);
+    cloakWin.document.close();
 };
 
 function getCC() {
@@ -198,11 +272,12 @@ function getCC() {
     return `srcdoc="${html.replace(/"/g, '&quot;')}"`;
 }
 
+// FILTER FUNCTION (RESTORED)
 window.filterGames = () => {
     const term = document.getElementById('search').value.toLowerCase();
     // Correctly reconstructs search layout variations safely
     const filtered = games.filter(g => g.name.toLowerCase().includes(term));
-    
+
     // Direct internal print target to prevent running endless page layout clear loops
     const grid = document.getElementById('game-grid');
     if (grid) {
@@ -213,10 +288,3 @@ window.filterGames = () => {
             </div>`).join('');
     }
 };
-
-// 4. BOOTSTRAP INITIALIZATION
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => window.renderGames());
-} else {
-    window.renderGames();
-}
