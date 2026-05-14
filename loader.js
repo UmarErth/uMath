@@ -149,8 +149,9 @@ const games = [
     { name: "Snow Rider", icon: "🎯", url: "https://www.hoodamath.com/games/snowrider3d.html#gsc.tab=0" },
     { name: "Puppet Hockey", icon: "🎯", url: "https://www.mathplayground.com/pg_puppet_hockey.html" },
     { name: "Google Doodles", icon: "🎯", url: "https://doodles.google/search/?form_tags=interactive%20game" },
+    { name: "Vapor v4", icon: "🎯", url: "https://100.vaporized.help/" },
     { name: "Cookie Clicker NOT FIXED YET", icon: "🧬", type: "cc" }
-    { name: "Puppet Hockey", icon: "🎯", url: "https://100.vaporized.help/" },
+    
 ];
 
 // 3. FUNCTIONS WITH IMMERSIVE WAVE ENTRANCE
