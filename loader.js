@@ -7,6 +7,8 @@ styleSheet.innerText = `
         font-family: sans-serif; 
         overflow-x: hidden;
         position: relative;
+        margin: 0;
+        padding: 20px;
     }
     
     /* Dynamic Ambient Glow Layers in Background */
@@ -143,36 +145,41 @@ styleSheet.innerText = `
 `;
 document.head.appendChild(styleSheet);
 
-// 2. FIXED DATA ARRAY WITH CORRECT SYNTAX
+// 2. FIXED DATA ARRAY WITH ACCURATE EMBED FLAGS
 const games = [
-    { name: "NikeHub", icon: "🚀", url: "https://nikehub.pages.dev/a129x" },
-    { name: "Snow Rider", icon: "🎯", url: "https://www.hoodamath.com/games/snowrider3d.html#gsc.tab=0" },
-    { name: "Puppet Hockey", icon: "🎯", url: "https://www.mathplayground.com/pg_puppet_hockey.html" },
-    { name: "Google Doodles", icon: "🎯", url: "https://doodles.google/search/?form_tags=interactive%20game" },
-    { name: "Vapor v4", icon: "🌌", url: "https://100.vaporized.help/" },
-    { name: "Cookie Clicker NOT FIXED YET", icon: "🧬", type: "cc" }
+    { name: "NikeHub", icon: "🚀", url: "https://nikehub.pages.dev/a129x", secure: true },
+    { name: "Snow Rider", icon: "🎯", url: "https://www.mathplayground.com/pg_puppet_hockey.html", secure: true },
+    { name: "Puppet Hockey", icon: "🎯", url: "https://mathplayground.com", secure: true },
+    { name: "Google Doodles", icon: "🎯", url: "https://doodles.google/search/?form_tags=interactive%20game", secure: true },
+    { name: "Vapor v4", icon: "🌌", url: "https://100.vaporized.help", secure: false }, // Vapor requires sandbox to be completely disabled
+    { name: "Cookie Clicker NOT FIXED YET", icon: "🧬", type: "cc", secure: true }
 ];
 
-// 3. FUNCTIONS WITH RECOVERY ACTIONS ON CLOSE
+// 3. CORE FUNCTIONS (Fixed DOM replacement patterns)
 window.renderGames = (list = games) => {
-    const grid = document.getElementById('game-grid');
+    // If layout has been altered, restore the base structures automatically
+    let grid = document.getElementById('game-grid');
+    if (!grid) {
+        const contentArea = document.getElementById('content-area');
+        if (contentArea) {
+            contentArea.innerHTML = `<div id="game-grid" class="game-grid"></div>`;
+            grid = document.getElementById('game-grid');
+        }
+    }
     if (!grid) return;
     
-    // Safety verification: Reset search container display space upon re-rendering
     const searchContainer = document.getElementById('search-container');
     if (searchContainer) searchContainer.style.display = 'block';
     
     grid.innerHTML = list.map((g, i) => `
         <div class="game-card" onclick="launchGame(${i})" style="animation-delay: ${i * 0.04}s">
             <span style="font-size:40px; margin-bottom: 10px;">${g.icon}</span>
-            <span style="font-size:10px; font-weight:800; color:#555; text-transform:uppercase; tracking-widest: 0.15em;">${g.name}</span>
+            <span style="font-size:10px; font-weight:800; color:#aaa; text-transform:uppercase; tracking-widest: 0.15em;">${g.name}</span>
         </div>`).join('');
 };
 
 window.goBackHome = () => {
-    // Soft clear the inner area to restore elements without hard page flashes
-    document.getElementById('content-area').innerHTML = '<div id="game-grid" class="game-grid"></div>';
-    renderGames();
+    window.renderGames();
 };
 
 window.launchGame = (i) => {
@@ -182,20 +189,22 @@ window.launchGame = (i) => {
     
     let src = g.type === "cc" ? getCC() : `src="${g.url}"`;
     
-    // Completely isolated frames via sandboxing attributes
+    // FIX: Conditionally apply iframe isolation sandbox tags based on security properties
+    let sandboxAttr = g.secure ? `sandbox="allow-scripts allow-forms allow-same-origin allow-downloads"` : '';
+    
     document.getElementById('content-area').innerHTML = `
         <div class="frame-container">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
                 <button onclick="window.goBackHome()" class="ui-btn">⬅ Back</button>
-                <span style="font-weight:900; letter-spacing:4px; color:#333; font-size:11px; text-transform:uppercase;">Playing: ${g.name}</span>
+                <span style="font-weight:900; letter-spacing:4px; color:#555; font-size:11px; text-transform:uppercase;">Playing: ${g.name}</span>
             </div>
-            <iframe ${src} sandbox="allow-scripts allow-forms allow-same-origin allow-downloads" allowfullscreen></iframe>
+            <iframe ${src} ${sandboxAttr} allowfullscreen></iframe>
         </div>`;
 };
 
-// RESTORED COMPACT COOKIE CLICKER DOM MATRIX BUILDER
+// RESTORED COMPACT COOKIE CLICKER HTML GENERATOR
 function getCC() {
-    const html = `<base href="https://cdn.jsdelivr.net/gh/UmarErth/uMath/Cookie_Clicker.html"><head><script>var VERSION=2.058,LOCAL=1;</script><link href="style.css" rel="stylesheet"><script src="base64.js"></script><script src="main2.js"></script></head><body style="margin:0;background:#000;"><div id="game"></div></body>`;
+    const html = `<base href="https://jsdelivr.net"><head><script>var VERSION=2.058,LOCAL=1;</script><link href="style.css" rel="stylesheet"><script src="base64.js"></script><script src="main2.js"></script></head><body style="margin:0;background:#000;"><div id="game"></div></body>`;
     return `srcdoc="${html.replace(/"/g, '&quot;')}"`;
 }
 
@@ -204,9 +213,9 @@ window.filterGames = () => {
     renderGames(games.filter(g => g.name.toLowerCase().includes(term)));
 };
 
-// 4. BOOTSTRAP EXECUTOR
+// 4. INITIALIZER
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', renderGames);
+    document.addEventListener('DOMContentLoaded', () => window.renderGames());
 } else {
-    renderGames();
+    window.renderGames();
 }
