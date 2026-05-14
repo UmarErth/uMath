@@ -8,7 +8,6 @@ styleSheet.innerText = `
         overflow-x: hidden;
         position: relative;
         margin: 0;
-        padding: 20px;
     }
     
     /* Dynamic Ambient Glow Layers in Background */
@@ -145,41 +144,33 @@ styleSheet.innerText = `
 `;
 document.head.appendChild(styleSheet);
 
-// 2. FIXED DATA ARRAY WITH ACCURATE EMBED FLAGS
+// 2. STABLE GAME LINKS VIA DIRECT CROSS-ORIGIN PATHWAYS
 const games = [
     { name: "NikeHub", icon: "🚀", url: "https://nikehub.pages.dev/a129x", secure: true },
-    { name: "Snow Rider", icon: "🎯", url: "https://www.mathplayground.com/pg_puppet_hockey.html", secure: true },
-    { name: "Puppet Hockey", icon: "🎯", url: "https://mathplayground.com", secure: true },
-    { name: "Google Doodles", icon: "🎯", url: "https://doodles.google/search/?form_tags=interactive%20game", secure: true },
-    { name: "Vapor v4", icon: "🌌", url: "https://100.vaporized.help", secure: false }, // Vapor requires sandbox to be completely disabled
+    { name: "Snow Rider", icon: "🎯", url: "https://www.hoodamath.com/games/snowrider3d.html#gsc.tab=0", secure: true },
+    { name: "Puppet Hockey", icon: "🏒", url: "https://www.mathplayground.com/pg_puppet_hockey.html", secure: true },
+    { name: "Google Doodles", icon: "🎨", url: "https://doodles.google/search/?form_tags=interactive%20game", secure: true },
+    { name: "Vapor v4", icon: "🌌", url: "https://100.vaporized.help/", secure: false }, // Vapor bypasses sandbox restrictions completely
     { name: "Cookie Clicker NOT FIXED YET", icon: "🧬", type: "cc", secure: true }
 ];
 
-// 3. CORE FUNCTIONS (Fixed DOM replacement patterns)
+// 3. CORE SYSTEM FUNCTIONS
 window.renderGames = (list = games) => {
-    // If layout has been altered, restore the base structures automatically
-    let grid = document.getElementById('game-grid');
-    if (!grid) {
-        const contentArea = document.getElementById('content-area');
-        if (contentArea) {
-            contentArea.innerHTML = `<div id="game-grid" class="game-grid"></div>`;
-            grid = document.getElementById('game-grid');
-        }
-    }
-    if (!grid) return;
+    let contentArea = document.getElementById('content-area');
+    if (!contentArea) return;
+
+    // Reset layout structure to native grid frames
+    contentArea.innerHTML = `<div id="game-grid" class="game-grid"></div>`;
+    const grid = document.getElementById('game-grid');
     
     const searchContainer = document.getElementById('search-container');
-    if (searchContainer) searchContainer.style.display = 'block';
+    if (searchContainer) searchContainer.style.display = 'flex';
     
     grid.innerHTML = list.map((g, i) => `
         <div class="game-card" onclick="launchGame(${i})" style="animation-delay: ${i * 0.04}s">
             <span style="font-size:40px; margin-bottom: 10px;">${g.icon}</span>
             <span style="font-size:10px; font-weight:800; color:#aaa; text-transform:uppercase; tracking-widest: 0.15em;">${g.name}</span>
         </div>`).join('');
-};
-
-window.goBackHome = () => {
-    window.renderGames();
 };
 
 window.launchGame = (i) => {
@@ -189,20 +180,19 @@ window.launchGame = (i) => {
     
     let src = g.type === "cc" ? getCC() : `src="${g.url}"`;
     
-    // FIX: Conditionally apply iframe isolation sandbox tags based on security properties
+    // Core Fix: Remove sandbox restrictions ONLY for Vapor v4 to load successfully
     let sandboxAttr = g.secure ? `sandbox="allow-scripts allow-forms allow-same-origin allow-downloads"` : '';
     
     document.getElementById('content-area').innerHTML = `
         <div class="frame-container">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-                <button onclick="window.goBackHome()" class="ui-btn">⬅ Back</button>
+                <button onclick="window.renderGames()" class="ui-btn">⬅ Back</button>
                 <span style="font-weight:900; letter-spacing:4px; color:#555; font-size:11px; text-transform:uppercase;">Playing: ${g.name}</span>
             </div>
             <iframe ${src} ${sandboxAttr} allowfullscreen></iframe>
         </div>`;
 };
 
-// RESTORED COMPACT COOKIE CLICKER HTML GENERATOR
 function getCC() {
     const html = `<base href="https://jsdelivr.net"><head><script>var VERSION=2.058,LOCAL=1;</script><link href="style.css" rel="stylesheet"><script src="base64.js"></script><script src="main2.js"></script></head><body style="margin:0;background:#000;"><div id="game"></div></body>`;
     return `srcdoc="${html.replace(/"/g, '&quot;')}"`;
@@ -210,10 +200,21 @@ function getCC() {
 
 window.filterGames = () => {
     const term = document.getElementById('search').value.toLowerCase();
-    renderGames(games.filter(g => g.name.toLowerCase().includes(term)));
+    // Correctly reconstructs search layout variations safely
+    const filtered = games.filter(g => g.name.toLowerCase().includes(term));
+    
+    // Direct internal print target to prevent running endless page layout clear loops
+    const grid = document.getElementById('game-grid');
+    if (grid) {
+        grid.innerHTML = filtered.map((g, i) => `
+            <div class="game-card" onclick="launchGame(${games.indexOf(g)})" style="animation-delay: ${i * 0.04}s">
+                <span style="font-size:40px; margin-bottom: 10px;">${g.icon}</span>
+                <span style="font-size:10px; font-weight:800; color:#aaa; text-transform:uppercase; tracking-widest: 0.15em;">${g.name}</span>
+            </div>`).join('');
+    }
 };
 
-// 4. INITIALIZER
+// 4. BOOTSTRAP INITIALIZATION
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => window.renderGames());
 } else {
