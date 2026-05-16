@@ -184,7 +184,6 @@ const SUPREME_ENGINE = {
         
         document.body.innerHTML += `
             <div id="main-ui">
-                <div class="search-container"><input type="text" id="search" class="search-bar" placeholder="SEARCH DATABASE..."></div>
                 <div class="zones-grid" id="grid"></div>
             </div>
         `;
