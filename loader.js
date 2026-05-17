@@ -21,10 +21,26 @@ const supreme_engine = {
     // ==========================================
     registry: [
         { title: "Cookie Clicker", url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/Cookie_Clicker.html", desc: "Idle baking simulator." },
-        { title: "Slope 3D", url: "https://kdata1.com", desc: "Physics speed runner." },
-        { title: "Minecraft", url: "https://minecraft.net", desc: "Classic sandbox world." },
-        { title: "1v1.lol", url: "https://1v1.lol", desc: "Build and shoot combat." }
+        { title: "Brotato", url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/Brotato.html", desc: "Kill weird looking creatures" },
+        { title: "Minecraft", url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/EaglercraftX_1.8_u50_Offline_Signed.html", desc: "Classic sandbox world." },
+        { title: "Baldi's Basics Plus", url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/Baldi's-Basics-Plus.html", desc: "Escape from Baldi." }, 
+        { title: "Bank Robbery 3", url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/Bank-Robbery-3.html", desc: "Rob banks." },
+        { title: "Buckshot Roulette", url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/Buckshot%20Roulette.html", desc: "Take your chance of getting killed." },        
+        { title: "BuildNow", url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/BuildNow.html", desc: "Ripoff of 1v1.LoL." },
+        { title: "Five Nights at Epstein's", url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/Five-Nights-at-Epstein's.html", desc: "Survive 5 Nights with Epstein without getting caught." },
+        { title: "GTA Vice City", url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/GTA__Vice_City.html", desc: "It's GTA bro." },
+        { title: "Git-Hub Search", url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/Git-Hub_Search.html", desc: "Search Git-Hub" },
+        { title: "Pizza Tower", url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/Pizza-Tower.html", desc: "IDK never played it before." },
+        { title: "Subway Surfers", url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/Subway_Surfers.html", desc: "An addicting game about escaping a cop." },
+        { title: "Temple Run 2", url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/Temple-Run-2.html", desc: "Escaping a temple?" },
+        { title: "Snow Rider (Hooda Math)", url: "https://www.hoodamath.com/games/snowrider3d.html#gsc.tab=0", desc: "Ride in Snow!" },
+        { title: "Puppet Hockey (MathPG)", url: "https://www.mathplayground.com/pg_puppet_hockey.html", desc: "Play Puppet Hockey against other countries!" },
+        { title: "NikeHub", url: "https://nikehub.pages.dev/a129x", desc: "Another games hub." },
+        { title: "Vapor V4", url: "https://100.vaporized.help", desc: "A hub of general entertainment." },
+        { title: "Google Doodles", url: "https://doodles.google/search/?form_tags=interactive%20game", desc: "Google's own collection of games." },
+        { title: "1v1.lol", url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/1v1.LoL.html", desc: "Build and shoot combat." }
     ],
+
 
     cachedCards: [],
     renderedCount: 0,
@@ -279,7 +295,9 @@ const supreme_engine = {
                     <button class="close-btn" id="close-theater">Close Game</button>
                 </div>
             </div>
-            <div class="iframe-container" id="iframe-wrapper"><iframe id="game-frame" src="" allowfullscreen></iframe></div>
+            <div class="iframe-container" id="iframe-wrapper">
+                <iframe id="game-frame" src="" sandbox="allow-scripts allow-same-origin allow-downloads allow-forms allow-pointer-lock allow-storage-api allow-modals" allowfullscreen></iframe>
+            </div>
         `;
         document.body.appendChild(theater);
 
