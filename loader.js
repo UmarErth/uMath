@@ -405,6 +405,7 @@ const supreme_engine = {
             <div class="context-item" id="ctx-launch">⚡ Launch Game</div>
             <div class="context-item" id="ctx-fav">${isFav ? "❌ Remove Favorite" : "⭐ Add Favorite"}</div>
             <div class="context-item accent-item" id="ctx-cloak">🕵️‍♂️ Cloak Launch</div>
+            <div class="context-item" id="ctx-download">📥 Download File</div>
         `;
 
         menu.style.left = `${x}px`;
@@ -414,8 +415,55 @@ const supreme_engine = {
         document.getElementById("ctx-launch").onclick = () => this.launchGame(item.title, item.url);
         document.getElementById("ctx-cloak").onclick = () => this.executeCloakLaunch(item.url);
         document.getElementById("ctx-fav").onclick = () => this.toggleFavorite(item.title, cardElement);
+        
+        // 📥 HIGH-PERFORMANCE FORCED DOWNLOAD ENGINE (Fixes jsDelivr Raw Text Bug)
+        document.getElementById("ctx-download").onclick = () => {
+            const brand = document.querySelector(".brand");
+            const originalText = brand ? brand.innerText : "Nova Gaming";
+            if (brand) brand.innerText = "📥 Downloading...";
+
+            // 1. Fetch the file bytes directly from jsDelivr in the background
+            fetch(item.url)
+                .then(response => {
+                    if (!response.ok) throw new Error("Network download response failed");
+                    return response.blob(); // Convert raw web stream into a solid data blob
+                })
+                .then(fileBlob => {
+                    // 2. Wrap the background data into a secure virtual local file path
+                    const localUrl = URL.createObjectURL(fileBlob);
+                    const downloadLink = document.createElement("a");
+                    
+                    downloadLink.href = localUrl;
+                    
+                    // 3. Detect if it's an HTML file or a binary, and preserve the proper file extension
+                    const isHtml = item.url.includes(".html") || item.url.includes("jsdelivr");
+                    const extension = isHtml ? ".html" : ".zip";
+                    
+                    downloadLink.setAttribute("download", `${item.title.replace(/\s+/g, '_')}${extension}`);
+                    downloadLink.style.display = "none";
+                    
+                    // 4. Force browser window to execute immediate system save prompt
+                    document.body.appendChild(downloadLink);
+                    downloadLink.click();
+                    
+                    // 5. Instantly clean up temporary browser memory allocations
+                    document.body.removeChild(downloadLink);
+                    URL.revokeObjectURL(localUrl);
+                    if (brand) brand.innerText = originalText;
+                })
+                .catch(err => {
+                    console.error("Advanced downloader blocked by security settings. Using fallback window pop.", err);
+                    if (brand) brand.innerText = originalText;
+                    
+                    // Fallback option if local machine protocols block the background task
+                    window.open(item.url, "_blank");
+                });
+
+            this.hideContextMenu();
+        };
     },
 
+    /* --- KEEP THESE AS THEY ARE --- */
     hideContextMenu() {
         const menu = document.getElementById("custom-context-menu");
         if(menu) menu.classList.remove("active");
@@ -436,6 +484,7 @@ const supreme_engine = {
         this.applyFilters();
         this.hideContextMenu();
     },
+
 
     // ==========================================
     // 6. SEARCH & FILTER CONTROLLER CORE
