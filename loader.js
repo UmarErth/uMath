@@ -38,6 +38,9 @@ const supreme_engine = {
         { title: "NikeHub", url: "https://nikehub.pages.dev/a129x", desc: "Another games hub." },
         { title: "Vapor V4", url: "https://100.vaporized.help", desc: "A hub of general entertainment." },
         { title: "Google Doodles", url: "https://doodles.google/search/?form_tags=interactive%20game", desc: "Google's own collection of games." },
+        { title: "Friday Night Funkin", url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/Friday_Night_Funkin.html", desc: "A basic rhythm game about clicking notes." },
+        { title: "Friday Night Funkin VS Hex", url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/Friday_Night_Funkin'__Vs._Hex.html", desc: "A mod of FNF that's called Hex." },
+        { title: "Friday Night Funkin VS Whitty", url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/Friday_Night_Funkin'__V.S._Whitty.html", desc: "A mod of FNF that's called Whitty." },
         { title: "1v1.lol", url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/1v1.LoL.html", desc: "Build and shoot combat." }
     ],
 
