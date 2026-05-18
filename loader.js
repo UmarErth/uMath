@@ -13,7 +13,10 @@ const supreme_engine = {
         dotspacing: 35,
         itemsPerLoad: 30,
         // Target Form Link Isolated Fixed
-        requestFormUrl: "https://docs.google.com/forms/d/e/1FAIpQLScUplsBOvmVzOcef_Xh9p9XD4sYRlqvYJBzZBG2WSK6JS-MEA/viewform?usp=dialog"
+        requestFormUrl: "https://docs.google.com/forms/d/e/1FAIpQLScUplsBOvmVzOcef_Xh9p9XD4sYRlqvYJBzZBG2WSK6JS-MEA/viewform?usp=dialog",
+        // Save button download target
+        saveFileUrl: "https://cdn.jsdelivr.net/gh/UmarErth/uMath@main/singlefile.html",
+        saveFileName: "uMath_singlefile.html"
     },
 
     // ==========================================
@@ -58,6 +61,16 @@ const supreme_engine = {
     injectstyles() {
         const style = document.createElement("style");
         style.innerText = `
+            /* =============================================
+               RESPONSIVE NOVA GAMING — PHONE → 4K
+               Breakpoints:
+                 xs  : ≤ 480px   (phones)
+                 sm  : ≤ 768px   (large phones / small tablets)
+                 md  : ≤ 1024px  (tablets / small laptops)
+                 lg  : ≥ 1400px  (large desktops)
+                 xl  : ≥ 2560px  (4K / UHD)
+            ============================================= */
+
             :root {
                 --bg: #030303;
                 --accent: #ff0055;
@@ -68,35 +81,82 @@ const supreme_engine = {
                 --blur: blur(25px);
                 --transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
                 --spring: all 0.5s cubic-bezier(0.25, 1, 0.3, 1);
+
+                /* Fluid type scale — clamp(min, preferred, max) */
+                --fs-brand:   clamp(1rem,   2.5vw, 1.6rem);
+                --fs-btn:     clamp(0.75rem, 1.2vw, 0.95rem);
+                --fs-search:  clamp(0.8rem,  1.2vw, 0.95rem);
+                --fs-card-h:  clamp(1rem,    1.5vw, 1.5rem);
+                --fs-card-p:  clamp(0.8rem,  1vw,   0.95rem);
+                --fs-lock:    clamp(1.5rem,  3vw,   2.5rem);
+
+                /* Fluid spacing */
+                --header-pad-v: clamp(10px, 2vh,  24px);
+                --header-pad-h: clamp(16px, 4vw,  6%);
+                --grid-pad:     clamp(16px, 3vw,  40px);
+                --grid-gap:     clamp(14px, 2vw,  32px);
+                --card-pad:     clamp(18px, 2.5vw, 34px);
+                --card-radius:  clamp(14px, 1.5vw, 24px);
+                --btn-pad-v:    clamp(8px,  1vh,   14px);
+                --btn-pad-h:    clamp(12px, 1.5vw, 22px);
             }
+
+            /* 4K — scale everything up comfortably */
+            @media (min-width: 2560px) {
+                :root {
+                    --fs-brand:  2rem;
+                    --fs-btn:    1.1rem;
+                    --fs-search: 1.1rem;
+                    --fs-card-h: 1.8rem;
+                    --fs-card-p: 1.1rem;
+                    --grid-gap:  40px;
+                    --card-pad:  44px;
+                    --card-radius: 28px;
+                }
+            }
+
+            * { box-sizing: border-box; }
 
             body, html {
                 margin: 0; padding: 0; width: 100%; height: 100%;
                 background: var(--bg); color: #fff;
-                font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+                font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
                 overflow: hidden;
+                -webkit-tap-highlight-color: transparent;
+                touch-action: manipulation;
             }
 
             #canvas-dot { position: fixed; inset: 0; z-index: 1; pointer-events: none; }
 
-            /* --- Lock Screen Overlay --- */
+            /* =============================================
+               LOCK SCREEN
+            ============================================= */
             #lock-screen {
                 position: fixed; inset: 0; z-index: 9999;
                 background: rgba(3, 3, 3, 0.88); backdrop-filter: var(--blur);
                 display: flex; align-items: center; justify-content: center;
                 transition: var(--transition);
             }
-            .lock-container { text-align: center; }
+            .lock-container { text-align: center; padding: 20px; }
+            .lock-label {
+                display: block; font-size: clamp(0.75rem, 2vw, 0.9rem);
+                color: rgba(255,255,255,0.3); letter-spacing: 3px; text-transform: uppercase;
+                margin-bottom: 20px;
+            }
             .lock-input {
                 background: rgba(255,255,255,0.04); border: 1px solid var(--border);
                 color: #fff; font-family: monospace;
-                font-size: 2rem; text-align: center; padding: 12px 24px;
-                border-radius: 14px; width: 160px; outline: none;
-                transition: var(--spring); letter-spacing: 4px;
+                font-size: var(--fs-lock); text-align: center;
+                padding: clamp(8px, 2vw, 14px) clamp(16px, 3vw, 28px);
+                border-radius: 14px;
+                width: clamp(130px, 30vw, 200px);
+                outline: none; transition: var(--spring); letter-spacing: 6px;
             }
             .lock-input:focus { border-color: var(--accent); box-shadow: 0 0 30px var(--accent-glow); transform: scale(1.05); }
 
-            /* --- Main Shell Interface --- */
+            /* =============================================
+               MAIN SHELL
+            ============================================= */
             #app-interface {
                 position: relative; z-index: 10;
                 width: 100vw; height: 100vh;
@@ -107,115 +167,308 @@ const supreme_engine = {
             }
             #app-interface.unlocked { opacity: 1; transform: translateY(0); pointer-events: auto; }
 
+            /* =============================================
+               HEADER — desktop default
+            ============================================= */
             header {
                 display: flex; justify-content: space-between; align-items: center;
-                padding: 20px 5%; backdrop-filter: var(--blur);
+                padding: var(--header-pad-v) var(--header-pad-h);
+                backdrop-filter: var(--blur);
                 border-bottom: 1px solid var(--border); background: var(--glass);
+                flex-shrink: 0; gap: 12px; flex-wrap: nowrap;
+                position: relative; z-index: 100;
             }
             .brand {
-                font-size: 1.4rem; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;
+                font-size: var(--fs-brand); font-weight: 800; letter-spacing: 2px; text-transform: uppercase;
                 background: linear-gradient(45deg, #fff, rgba(255,255,255,0.4));
                 -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-                cursor: pointer;
+                cursor: pointer; white-space: nowrap; flex-shrink: 0;
             }
-            
-            .search-wrapper { display: flex; gap: 15px; align-items: center; }
+
+            /* search-wrapper row */
+            .search-wrapper {
+                display: flex; gap: clamp(8px, 1.2vw, 16px); align-items: center;
+                flex-wrap: nowrap; min-width: 0;
+            }
             .search-bar {
                 background: rgba(255,255,255,0.04); border: 1px solid var(--border);
-                padding: 12px 24px; border-radius: 30px; color: #fff; width: 260px;
-                transition: var(--transition); font-size: 0.9rem;
+                padding: var(--btn-pad-v) clamp(14px, 2vw, 26px);
+                border-radius: 30px; color: #fff;
+                width: clamp(140px, 20vw, 280px);
+                transition: var(--transition); font-size: var(--fs-search);
+                min-width: 0;
             }
-            .search-bar:focus { width: 340px; background: rgba(255,255,255,0.08); outline: none; border-color: rgba(255,255,255,0.25); }
+            .search-bar:focus {
+                width: clamp(160px, 26vw, 360px);
+                background: rgba(255,255,255,0.08); outline: none; border-color: rgba(255,255,255,0.25);
+            }
 
             .request-btn {
-                background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border); color: #ccc;
-                padding: 10px 20px; border-radius: 20px; cursor: pointer; font-size: 0.85rem;
-                font-weight: 600; transition: var(--transition);
+                background: rgba(255,255,255,0.03); border: 1px solid var(--border); color: #ccc;
+                padding: var(--btn-pad-v) var(--btn-pad-h);
+                border-radius: 20px; cursor: pointer; font-size: var(--fs-btn);
+                font-weight: 600; transition: var(--transition); white-space: nowrap; flex-shrink: 0;
             }
             .request-btn:hover { background: var(--glass-hover); color: #fff; border-color: rgba(255,255,255,0.2); }
 
+            /* Save Button */
+            .save-btn {
+                background: rgba(255,255,255,0.03); border: 1px solid var(--border); color: #ccc;
+                padding: var(--btn-pad-v) var(--btn-pad-h);
+                border-radius: 20px; cursor: pointer; font-size: var(--fs-btn);
+                font-weight: 600; transition: var(--transition);
+                display: flex; align-items: center; gap: 6px;
+                white-space: nowrap; flex-shrink: 0;
+            }
+            .save-btn:hover { background: rgba(255,255,255,0.06); color: #fff; border-color: rgba(255,255,255,0.2); }
+            .save-btn:active { transform: scale(0.96); }
+            .save-btn.saving { color: #aaa; cursor: wait; opacity: 0.7; }
+
             .fav-toggle-btn {
                 background: var(--glass); border: 1px solid var(--border); color: #777;
-                width: 45px; height: 45px; border-radius: 50%; cursor: pointer;
-                font-size: 1.2rem; display: flex; align-items: center; justify-content: center;
-                transition: var(--transition); padding: 0;
+                width: clamp(38px, 3.5vw, 50px); height: clamp(38px, 3.5vw, 50px);
+                border-radius: 50%; cursor: pointer;
+                font-size: clamp(1rem, 1.4vw, 1.3rem);
+                display: flex; align-items: center; justify-content: center;
+                transition: var(--transition); padding: 0; flex-shrink: 0;
             }
             .fav-toggle-btn:hover { color: #fff; border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.05); }
             .fav-toggle-btn.active {
-                border-color: #ffca28; color: #ffca28; background: rgba(255, 202, 40, 0.05);
-                box-shadow: 0 0 15px rgba(255, 202, 40, 0.2);
+                border-color: #ffca28; color: #ffca28; background: rgba(255,202,40,0.05);
+                box-shadow: 0 0 15px rgba(255,202,40,0.2);
             }
 
-            /* --- Card Grid Layout --- */
+            /* =============================================
+               TABLET  ≤ 1024px
+               Hide text labels on request/save, keep icons
+            ============================================= */
+            @media (max-width: 1024px) {
+                .request-btn .btn-label { display: none; }
+                .save-btn .btn-label    { display: none; }
+                .request-btn { padding: var(--btn-pad-v) 14px; }
+                .save-btn    { padding: var(--btn-pad-v) 14px; }
+                .search-bar  { width: clamp(120px, 18vw, 220px); }
+                .search-bar:focus { width: clamp(150px, 22vw, 280px); }
+            }
+
+            /* =============================================
+               SMALL TABLET / LARGE PHONE  ≤ 768px
+               Stack header into two rows
+            ============================================= */
+            @media (max-width: 768px) {
+                header {
+                    flex-direction: column;
+                    align-items: stretch;
+                    gap: 10px;
+                    padding: 12px var(--header-pad-h);
+                }
+                .search-wrapper {
+                    width: 100%;
+                    justify-content: space-between;
+                }
+                .search-bar {
+                    flex: 1; width: auto; min-width: 0;
+                }
+                .search-bar:focus { width: auto; }
+
+                .grid-container {
+                    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+                }
+            }
+
+            /* =============================================
+               PHONE  ≤ 480px
+               Single column cards, icon-only buttons
+            ============================================= */
+            @media (max-width: 480px) {
+                header { padding: 10px 16px; gap: 8px; }
+
+                .brand { font-size: 1.1rem; letter-spacing: 1px; }
+
+                .search-wrapper { gap: 8px; }
+
+                .search-bar {
+                    flex: 1; width: auto; min-width: 0;
+                    padding: 9px 14px; font-size: 0.85rem;
+                }
+                .search-bar:focus { width: auto; }
+
+                /* Icon-only pill buttons on phone */
+                .request-btn, .save-btn {
+                    padding: 9px 12px; border-radius: 50%; width: 40px; height: 40px;
+                    justify-content: center; gap: 0;
+                }
+                .fav-toggle-btn { width: 40px; height: 40px; font-size: 1rem; }
+
+                .grid-container {
+                    grid-template-columns: 1fr;
+                    padding: 14px 16px 80px;
+                    gap: 14px;
+                }
+
+                .card { padding: 20px; border-radius: 16px; }
+                .card h3 { font-size: 1.1rem; }
+                .card p  { font-size: 0.82rem; }
+
+                /* Disable 3D parallax tilt on touch — too jumpy */
+                .card { transform: none !important; }
+
+                /* Theater overlay — compact controls on phone */
+                .theater-header { padding: 10px 14px; flex-wrap: wrap; gap: 8px; }
+                .theater-controls { gap: 7px; flex-wrap: wrap; }
+                .action-btn { padding: 7px 12px; font-size: 0.78rem; }
+                .close-btn  { padding: 7px 14px; font-size: 0.78rem; }
+                #theater-title { font-size: 0.95rem; }
+
+                /* Bigger context menu touch targets */
+                .context-item { padding: 13px 18px; font-size: 0.9rem; }
+
+                /* Full-width context menu on phone */
+                #custom-context-menu { width: calc(100vw - 32px); left: 16px !important; }
+            }
+
+            /* =============================================
+               CARD GRID
+            ============================================= */
             .grid-container {
-                flex: 1; padding: 35px 5% 40px; overflow-y: auto;
-                display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-                gap: 30px; align-content: start;
+                flex: 1; 
+                padding: var(--grid-pad) var(--grid-pad) calc(var(--grid-pad) + 10px);
+                overflow-y: auto;
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(clamp(220px, 22vw, 380px), 1fr));
+                gap: var(--grid-gap);
+                align-content: start;
                 transform-style: preserve-3d;
+                /* momentum scrolling on iOS */
+                -webkit-overflow-scrolling: touch;
             }
 
-            /* --- CARDS DESIGN MATRIX --- */
+            /* 4K — more columns, bigger min-width */
+            @media (min-width: 2560px) {
+                .grid-container {
+                    grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+                }
+            }
+
+            /* =============================================
+               CARDS
+            ============================================= */
             .card {
                 background: var(--glass); border: 1px solid var(--border);
-                backdrop-filter: var(--blur); border-radius: 20px; padding: 30px;
+                backdrop-filter: var(--blur); border-radius: var(--card-radius);
+                padding: var(--card-pad);
                 cursor: pointer; position: relative; overflow: hidden;
                 transition: transform 0.15s ease-out, border-color 0.3s, background-color 0.3s, box-shadow 0.3s;
                 transform-style: preserve-3d; will-change: transform; display: block;
                 box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+                /* Prevent text selection on tap */
+                user-select: none; -webkit-user-select: none;
             }
             .card.hidden { display: none !important; }
-            
+
             .card::before {
                 content: ''; position: absolute; inset: 0;
-                background: radial-gradient(circle 180px at var(--mx, 50%) var(--my, 50%), rgba(255, 255, 255, 0.06), transparent 100%);
+                background: radial-gradient(circle 180px at var(--mx, 50%) var(--my, 50%), rgba(255,255,255,0.06), transparent 100%);
                 z-index: 2; pointer-events: none; opacity: 0; transition: opacity 0.3s;
             }
             .card:hover::before { opacity: 1; }
             .card:hover { background: var(--glass-hover); border-color: rgba(255,255,255,0.18); box-shadow: 0 25px 50px rgba(0,0,0,0.6); }
 
-            .card h3 { margin: 0 0 10px 0; font-size: 1.35rem; font-weight: 700; transition: var(--transition); transform: translateZ(30px); }
-            .card p { margin: 0; font-size: 0.9rem; color: #8a8a8a; line-height: 1.5; transform: translateZ(15px); transition: var(--transition); }
-            .card .fav-star { position: absolute; bottom: 25px; right: 25px; font-size: 1.1rem; color: rgba(255, 255, 255, 0.1); transition: var(--transition); transform: translateZ(20px); }
-            .card.is-favorite .fav-star { color: #ffca28; filter: drop-shadow(0 0 8px rgba(255, 202, 40, 0.5)); }
+            .card h3 { margin: 0 0 10px 0; font-size: var(--fs-card-h); font-weight: 700; transition: var(--transition); transform: translateZ(30px); }
+            .card p  { margin: 0; font-size: var(--fs-card-p); color: #8a8a8a; line-height: 1.5; transform: translateZ(15px); transition: var(--transition); }
+            .card .fav-star { position: absolute; bottom: clamp(16px,2vw,28px); right: clamp(16px,2vw,28px); font-size: clamp(1rem,1.1vw,1.2rem); color: rgba(255,255,255,0.1); transition: var(--transition); transform: translateZ(20px); }
+            .card.is-favorite .fav-star { color: #ffca28; filter: drop-shadow(0 0 8px rgba(255,202,40,0.5)); }
             .card:hover h3 { color: var(--accent); }
-            .card:hover p { color: #bbb; }
+            .card:hover p  { color: #bbb; }
 
-            /* --- Custom Context Menu --- */
+            /* Touch active state — replaces hover on mobile */
+            @media (hover: none) {
+                .card:active { background: var(--glass-hover); border-color: rgba(255,255,255,0.18); transform: scale(0.98) !important; }
+                .card:hover h3 { color: inherit; }
+            }
+
+            /* =============================================
+               CUSTOM CONTEXT MENU
+            ============================================= */
             #custom-context-menu {
-                position: fixed; z-index: 10000; width: 180px;
-                background: rgba(15, 15, 15, 0.85); backdrop-filter: blur(20px);
+                position: fixed; z-index: 10000;
+                width: clamp(160px, 18vw, 200px);
+                background: rgba(15,15,15,0.85); backdrop-filter: blur(20px);
                 border: 1px solid var(--border); border-radius: 12px;
                 padding: 6px 0; box-shadow: 0 10px 30px rgba(0,0,0,0.7);
                 opacity: 0; transform: scale(0.95); transform-origin: top left;
                 pointer-events: none; transition: opacity 0.15s ease, transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
             }
             #custom-context-menu.active { opacity: 1; transform: scale(1); pointer-events: auto; }
-            .context-item { padding: 10px 16px; font-size: 0.85rem; color: #ccc; cursor: pointer; transition: var(--transition); display: flex; align-items: center; gap: 8px; }
-            .context-item:hover { background: rgba(255, 255, 255, 0.05); color: #fff; }
+            .context-item { padding: 10px 16px; font-size: var(--fs-btn); color: #ccc; cursor: pointer; transition: var(--transition); display: flex; align-items: center; gap: 8px; }
+            .context-item:hover { background: rgba(255,255,255,0.05); color: #fff; }
             .context-item.accent-item:hover { color: var(--accent); }
 
-            /* --- Theater View Overlay --- */
+            /* =============================================
+               THEATER OVERLAY
+            ============================================= */
             #theater-overlay {
                 position: fixed; inset: 0; z-index: 5000;
-                background: rgba(3, 3, 3, 0.96); backdrop-filter: var(--blur);
+                background: rgba(3,3,3,0.96); backdrop-filter: var(--blur);
                 display: flex; flex-direction: column; opacity: 0; pointer-events: none; transition: var(--transition);
             }
             #theater-overlay.active { opacity: 1; pointer-events: auto; }
-            .theater-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 30px; border-bottom: 1px solid var(--border); }
-            .theater-controls { display: flex; gap: 10px; }
-            .action-btn { background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: #fff; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-size: 0.85rem; transition: var(--transition); }
+            .theater-header {
+                display: flex; justify-content: space-between; align-items: center;
+                padding: clamp(10px,1.5vh,18px) clamp(14px,3vw,32px);
+                border-bottom: 1px solid var(--border); flex-shrink: 0; gap: 10px;
+            }
+            .theater-controls { display: flex; gap: clamp(6px, 1vw, 12px); flex-wrap: wrap; align-items: center; }
+            .action-btn {
+                background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: #fff;
+                padding: clamp(6px,1vh,10px) clamp(12px,1.5vw,18px);
+                border-radius: 20px; cursor: pointer; font-size: var(--fs-btn); transition: var(--transition);
+                white-space: nowrap;
+            }
             .action-btn:hover { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.3); }
-            .close-btn { background: var(--accent); border: none; color: white; padding: 8px 20px; border-radius: 20px; cursor: pointer; font-weight: 600; font-size: 0.85rem; transition: var(--transition); }
+            .close-btn {
+                background: var(--accent); border: none; color: white;
+                padding: clamp(6px,1vh,10px) clamp(14px,2vw,22px);
+                border-radius: 20px; cursor: pointer; font-weight: 600; font-size: var(--fs-btn); transition: var(--transition);
+                white-space: nowrap;
+            }
             .close-btn:hover { background: #ff3377; box-shadow: 0 0 15px var(--accent-glow); }
-            .iframe-container { flex: 1; width: 100%; height: 100%; }
-            #game-frame { width: 100%; height: 100%; border: none; background: #000; }
+            .iframe-container { flex: 1; width: 100%; min-height: 0; }
+            #game-frame { width: 100%; height: 100%; border: none; background: #000; display: block; }
 
-            ::-webkit-scrollbar { width: 6px; height: 6px; }
+            /* =============================================
+               SCROLLBAR
+            ============================================= */
+            ::-webkit-scrollbar { width: clamp(4px, 0.4vw, 8px); height: clamp(4px, 0.4vw, 8px); }
             ::-webkit-scrollbar-track { background: transparent; }
             ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
             ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+            /* =============================================
+               SAFE AREA — notched phones (iPhone X+)
+            ============================================= */
+            @supports (padding: max(0px)) {
+                header {
+                    padding-left:  max(var(--header-pad-h), env(safe-area-inset-left));
+                    padding-right: max(var(--header-pad-h), env(safe-area-inset-right));
+                    padding-top:   max(var(--header-pad-v), env(safe-area-inset-top));
+                }
+                .grid-container {
+                    padding-left:  max(var(--grid-pad), env(safe-area-inset-left));
+                    padding-right: max(var(--grid-pad), env(safe-area-inset-right));
+                    padding-bottom: max(calc(var(--grid-pad) + 10px), env(safe-area-inset-bottom));
+                }
+            }
         `;
         document.head.appendChild(style);
+
+        /* Also inject the viewport meta if not already present */
+        if (!document.querySelector('meta[name="viewport"]')) {
+            const vp = document.createElement("meta");
+            vp.name = "viewport";
+            vp.content = "width=device-width, initial-scale=1, viewport-fit=cover";
+            document.head.appendChild(vp);
+        }
     },
 
     // ==========================================
@@ -279,9 +532,14 @@ const supreme_engine = {
             <header>
                 <div class="brand" onclick="location.reload()">Nova Gaming</div>
                 <div class="search-wrapper">
-                    <button class="request-btn" id="request-game-btn">Request Unblocked Things</button>
+                    <button class="request-btn" id="request-game-btn" title="Request Unblocked Things">
+                        📋<span class="btn-label"> Request Things</span>
+                    </button>
                     <input type="text" class="search-bar" placeholder="Search games...">
                     <button class="fav-toggle-btn" id="fav-toggle" title="Filter Favorites">★</button>
+                    <button class="save-btn" id="save-singlefile-btn" title="Download uMath singlefile">
+                        💾<span class="btn-label"> Save</span>
+                    </button>
                 </div>
             </header>
             <div class="grid-container" id="card-grid"></div>
@@ -310,6 +568,38 @@ const supreme_engine = {
         document.body.appendChild(ctxMenu);
 
         this.loadNextBatch();
+    },
+
+    // ==========================================
+    // SAVE BUTTON DOWNLOAD ENGINE
+    // ==========================================
+    executeSaveDownload() {
+        const btn = document.getElementById("save-singlefile-btn");
+        if (btn) { btn.classList.add("saving"); const lbl = btn.querySelector(".btn-label"); if (lbl) lbl.innerText = " Saving..."; }
+
+        fetch(this.settings.saveFileUrl)
+            .then(response => {
+                if (!response.ok) throw new Error("Fetch failed");
+                return response.blob();
+            })
+            .then(blob => {
+                const localUrl = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = localUrl;
+                a.download = this.settings.saveFileName;
+                a.style.display = "none";
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(localUrl);
+            })
+            .catch(err => {
+                console.error("Save download failed, falling back to direct open.", err);
+                window.open(this.settings.saveFileUrl, "_blank");
+            })
+            .finally(() => {
+                if (btn) { btn.classList.remove("saving"); const lbl = btn.querySelector(".btn-label"); if (lbl) lbl.innerText = " Save"; }
+            });
     },
 
     loadNextBatch() {
@@ -525,6 +815,7 @@ const supreme_engine = {
         const searchBar = document.querySelector(".search-bar");
         const favToggleBtn = document.getElementById("fav-toggle");
         const requestGameBtn = document.getElementById("request-game-btn");
+        const saveSinglefileBtn = document.getElementById("save-singlefile-btn");
         const gridContainer = document.getElementById("card-grid");
         const theater = document.getElementById("theater-overlay");
         const frame = document.getElementById("game-frame");
@@ -562,6 +853,11 @@ const supreme_engine = {
             requestGameBtn.addEventListener("click", () => {
                 window.open(this.settings.requestFormUrl, "_blank");
             });
+        }
+
+        // Save Button — downloads singlefile.html
+        if(saveSinglefileBtn) {
+            saveSinglefileBtn.addEventListener("click", () => this.executeSaveDownload());
         }
 
         if(gridContainer) {
