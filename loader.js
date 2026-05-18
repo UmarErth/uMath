@@ -16,7 +16,7 @@ const supreme_engine = {
         requestFormUrl: "https://docs.google.com/forms/d/e/1FAIpQLScUplsBOvmVzOcef_Xh9p9XD4sYRlqvYJBzZBG2WSK6JS-MEA/viewform?usp=dialog",
         // Save button download target
         saveFileUrl: "https://cdn.jsdelivr.net/gh/UmarErth/uMath@main/singlefile.html",
-        saveFileName: "uMath_singlefile.html"
+        saveFileName: "NovaGaming.html"
     },
 
     // ==========================================
