@@ -41,6 +41,7 @@ const supreme_engine = {
         { title: "Friday Night Funkin", url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/Friday_Night_Funkin.html", desc: "A basic rhythm game about clicking notes." },
         { title: "Friday Night Funkin VS Hex", url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/Friday_Night_Funkin'__Vs._Hex.html", desc: "A mod of FNF that's called Hex." },
         { title: "Friday Night Funkin VS Whitty", url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/Friday_Night_Funkin'__V.S._Whitty.html", desc: "A mod of FNF that's called Whitty." },
+        { title: "Doki Doki Literature Club", url: "https://html5.gdata1.com/Doki%20Doki%20Literature%20Club!", desc: "Requested Game, is a literature club I think?" },        
         { title: "1v1.lol", url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/1v1.LoL.html", desc: "Build and shoot combat." }
     ],
 
