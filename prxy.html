@@ -3,356 +3,87 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nova Gaming Browser</title>
+    <title>Nova Gaming Prxy</title>
     <style>
         :root {
-            /* Nova Gaming Signature Cyberpunk Palette */
             --bg-glow: radial-gradient(circle at 50% 50%, #1a0b2e 0%, #07030d 100%);
             --glass-bg: rgba(15, 10, 25, 0.45);
             --glass-border: rgba(180, 75, 255, 0.18);
             --glass-blur: blur(20px);
-            
             --text-main: #f3f0f7;
             --text-muted: #9d8eb3;
-            
             --neon-nova: #bc00dd;
             --neon-cyan: #00f0ff;
             --neon-glow: rgba(188, 0, 221, 0.35);
             --cyan-glow: rgba(0, 240, 255, 0.2);
         }
 
-        * { 
-            box-sizing: border-box; 
-            margin: 0; 
-            padding: 0; 
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
+        body { background: var(--bg-glow); color: var(--text-main); height: 100vh; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+
+        body::before { content: ''; position: absolute; top: -20%; left: -10%; width: 50vw; height: 50vw; background: radial-gradient(circle, rgba(188,0,221,0.15) 0%, transparent 70%); z-index: 0; pointer-events: none; animation: floatGlowOne 20s infinite alternate ease-in-out; }
+        body::after { content: ''; position: absolute; bottom: -20%; right: -10%; width: 50vw; height: 50vw; background: radial-gradient(circle, rgba(0,240,255,0.1) 0%, transparent 70%); z-index: 0; pointer-events: none; animation: floatGlowTwo 25s infinite alternate ease-in-out; }
+
+        .browser-header { background: var(--glass-bg); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); padding: 14px 24px 0 24px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--glass-border); z-index: 2; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37); }
+        .header-left-group { display: flex; align-items: center; gap: 24px; }
         
-        body { 
-            background: var(--bg-glow);
-            color: var(--text-main); 
-            height: 100vh; 
-            display: flex; 
-            flex-direction: column; 
-            overflow: hidden; 
-            position: relative;
-        }
+        .brand-logo { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 15px; letter-spacing: 2px; text-transform: uppercase; background: linear-gradient(135deg, #fff 0%, var(--neon-cyan) 50%, var(--neon-nova) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 0 20px var(--neon-glow); animation: textShine 6s infinite linear; background-size: 200% auto; }
+        .brand-logo svg { width: 18px; height: 18px; fill: url(#nova-gradient); filter: drop-shadow(0 0 5px var(--neon-nova)); animation: spinLogo 12s infinite linear; }
 
-        /* Ambient background glow elements for premium gaming depth */
-        body::before {
-            content: '';
-            position: absolute;
-            top: -20%; left: -10%;
-            width: 50vw; height: 50vw;
-            background: radial-gradient(circle, rgba(188,0,221,0.15) 0%, transparent 70%);
-            z-index: 0;
-            pointer-events: none;
-            animation: floatGlowOne 20s infinite alternate ease-in-out;
-        }
-        body::after {
-            content: '';
-            position: absolute;
-            bottom: -20%; right: -10%;
-            width: 50vw; height: 50vw;
-            background: radial-gradient(circle, rgba(0,240,255,0.1) 0%, transparent 70%);
-            z-index: 0;
-            pointer-events: none;
-            animation: floatGlowTwo 25s infinite alternate ease-in-out;
-        }
-
-        /* Top Header Navigation Panel */
-        .browser-header { 
-            background: var(--glass-bg);
-            backdrop-filter: var(--glass-blur);
-            -webkit-backdrop-filter: var(--glass-blur);
-            padding: 14px 24px 0 24px; 
-            display: flex; 
-            align-items: center; 
-            justify-content: space-between;
-            border-bottom: 1px solid var(--glass-border); 
-            z-index: 2;
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-        }
-
-        .header-left-group {
-            display: flex;
-            align-items: center;
-            gap: 24px;
-        }
-
-        /* Nova Gaming Branding Wrapper */
-        .brand-logo {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-weight: 800;
-            font-size: 15px;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            background: linear-gradient(135deg, #fff 0%, var(--neon-cyan) 50%, var(--neon-nova) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            text-shadow: 0 0 20px var(--neon-glow);
-            animation: textShine 6s infinite linear;
-            background-size: 200% auto;
-        }
-
-        .brand-logo svg {
-            width: 18px;
-            height: 18px;
-            fill: url(#nova-gradient);
-            filter: drop-shadow(0 0 5px var(--neon-nova));
-            animation: spinLogo 12s infinite linear;
-        }
-
-        .tabs-container { 
-            display: flex; 
-            gap: 6px; 
-            align-items: flex-end; 
-        }
+        .tabs-container { display: flex; gap: 6px; align-items: flex-end; }
         
-        /* Glassmorphic Tab Implementation */
-        .tab {
-            background: rgba(255, 255, 255, 0.02);
-            color: var(--text-muted); 
-            padding: 10px 20px; 
-            border-radius: 12px 12px 0 0;
-            font-size: 13px; 
-            font-weight: 600; 
-            border: 1px solid var(--glass-border); 
-            border-bottom: none;
-            display: inline-flex; 
-            align-items: center; 
-            gap: 10px; 
-            min-width: 140px;
-            max-width: 200px; 
-            cursor: pointer; 
-            position: relative;
-            animation: tabSpawn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-            transform-origin: bottom left;
-            transition: background 0.2s, color 0.2s, border-color 0.2s;
-        }
-        
-        .tab:hover {
-            background: rgba(255, 255, 255, 0.05);
-            color: var(--text-main);
-        }
-
-        .tab.active { 
-            background: rgba(30, 15, 50, 0.6); 
-            color: var(--text-main); 
-            border-color: rgba(188, 0, 221, 0.4);
-            box-shadow: inset 0 4px 12px rgba(188, 0, 221, 0.15);
-        }
-        
-        .tab.active::after { 
-            content: ''; 
-            position: absolute; 
-            bottom: -1px; 
-            left: 0; 
-            width: 100%; 
-            height: 2px; 
-            background: linear-gradient(90deg, var(--neon-nova), var(--neon-cyan));
-            box-shadow: 0 -2px 10px var(--neon-nova);
-        }
+        .tab { background: rgba(255, 255, 255, 0.02); color: var(--text-muted); padding: 10px 20px; border-radius: 12px 12px 0 0; font-size: 13px; font-weight: 600; border: 1px solid var(--glass-border); border-bottom: none; display: inline-flex; align-items: center; gap: 10px; min-width: 140px; max-width: 200px; cursor: pointer; position: relative; animation: tabSpawn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; transform-origin: bottom left; transition: all 0.2s; }
+        .tab:hover { background: rgba(255, 255, 255, 0.05); color: var(--text-main); }
+        .tab.active { background: rgba(30, 15, 50, 0.6); color: var(--text-main); border-color: rgba(188, 0, 221, 0.4); box-shadow: inset 0 4px 12px rgba(188, 0, 221, 0.15); }
+        .tab.active::after { content: ''; position: absolute; bottom: -1px; left: 0; width: 100%; height: 2px; background: linear-gradient(90deg, var(--neon-nova), var(--neon-cyan)); box-shadow: 0 -2px 10px var(--neon-nova); }
         
         .tab img { width: 16px; height: 16px; object-fit: contain; border-radius: 4px; transition: transform 0.3s ease; }
         .tab:hover img { transform: scale(1.1); }
         .tab .tab-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        
-        .tab .close-tab { 
-            font-size: 16px; 
-            margin-left: auto; 
-            color: var(--text-muted); 
-            width: 18px; height: 18px;
-            display: flex; align-items: center; justify-content: center;
-            border-radius: 50%;
-            transition: all 0.2s;
-        }
-        
-        .tab .close-tab:hover { 
-            background: rgba(255, 91, 91, 0.2);
-            color: #ff5b5b; 
-            transform: rotate(90deg);
-        }
+        .tab .close-tab { font-size: 16px; margin-left: auto; color: var(--text-muted); width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: all 0.2s; }
+        .tab .close-tab:hover { background: rgba(255, 91, 91, 0.2); color: #ff5b5b; transform: rotate(90deg); }
 
-        .new-tab-btn { 
-            background: rgba(255, 255, 255, 0.03); 
-            border: 1px solid var(--glass-border); 
-            color: var(--text-muted); 
-            font-size: 18px; 
-            width: 34px; height: 34px;
-            display: flex; align-items: center; justify-content: center;
-            cursor: pointer; 
-            border-radius: 8px;
-            margin-bottom: 6px;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        
-        .new-tab-btn:hover { 
-            background: rgba(188, 0, 221, 0.2); 
-            color: var(--text-main);
-            border-color: var(--neon-nova);
-            box-shadow: 0 0 10px var(--neon-glow);
-            transform: scale(1.05);
-        }
-        .new-tab-btn:active { transform: scale(0.95); }
+        .new-tab-btn { background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); color: var(--text-muted); font-size: 18px; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 8px; margin-bottom: 6px; transition: all 0.2s; }
+        .new-tab-btn:hover { background: rgba(188, 0, 221, 0.2); color: var(--text-main); border-color: var(--neon-nova); box-shadow: 0 0 10px var(--neon-glow); transform: scale(1.05); }
 
-        /* Navbar & Cyberpunk Omnibox Input Layout */
-        .navbar { 
-            background: rgba(12, 6, 20, 0.4);
-            backdrop-filter: var(--glass-blur);
-            -webkit-backdrop-filter: var(--glass-blur);
-            padding: 14px 24px; 
-            display: flex; 
-            align-items: center; 
-            border-bottom: 1px solid var(--glass-border); 
-            z-index: 2;
-        }
+        .navbar { background: rgba(12, 6, 20, 0.4); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); padding: 12px 24px; display: flex; align-items: center; gap: 16px; border-bottom: 1px solid var(--glass-border); z-index: 2; }
         
+        .nav-controls { display: flex; align-items: center; gap: 8px; }
+        .nav-btn { background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); color: var(--text-main); border-radius: 8px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s ease; position: relative; }
+        .nav-btn:hover { background: rgba(188, 0, 221, 0.2); border-color: var(--neon-nova); box-shadow: 0 0 10px var(--neon-glow); transform: translateY(-1px); }
+        .nav-btn:active { transform: translateY(1px); }
+        .nav-btn svg { width: 16px; height: 16px; fill: currentColor; }
+
         .url-bar-container { flex-grow: 1; position: relative; }
-        
-        .url-bar { 
-            width: 100%; 
-            background: rgba(5, 2, 10, 0.6); 
-            border: 1px solid var(--glass-border); 
-            border-radius: 14px; 
-            padding: 12px 24px; 
-            color: var(--text-main); 
-            font-size: 14px; 
-            outline: none; 
-            transition: all 0.4s ease;
-            letter-spacing: 0.5px;
-            box-shadow: inset 0 2px 8px rgba(0,0,0,0.8);
-            animation: pulseBorder 4s infinite alternate ease-in-out;
-        }
-        
-        .url-bar:focus { 
-            border-color: var(--neon-cyan); 
-            box-shadow: 0 0 20px var(--cyan-glow), inset 0 2px 8px rgba(0,0,0,0.8);
-            background: rgba(5, 2, 10, 0.8); 
-            animation: none; /* Disables ambient pulse during interactive typing focus states */
-        }
+        .url-bar { width: 100%; background: rgba(5, 2, 10, 0.6); border: 1px solid var(--glass-border); border-radius: 12px; padding: 10px 20px; color: var(--text-main); font-size: 14px; outline: none; transition: all 0.4s ease; letter-spacing: 0.5px; box-shadow: inset 0 2px 8px rgba(0,0,0,0.8); animation: pulseBorder 4s infinite alternate ease-in-out; }
+        .url-bar:focus { border-color: var(--neon-cyan); box-shadow: 0 0 20px var(--cyan-glow), inset 0 2px 8px rgba(0,0,0,0.8); background: rgba(5, 2, 10, 0.8); animation: none; }
 
-        /* Micro loading bar stream lines */
-        .loading-bar { 
-            position: absolute; top: 0; left: 0; height: 3px; width: 0%; 
-            background: linear-gradient(90deg, var(--neon-nova), var(--neon-cyan), var(--neon-nova)); 
-            background-size: 200% auto;
-            box-shadow: 0 0 12px var(--neon-cyan);
-            transition: width 0.4s cubic-bezier(0.1, 0.8, 0.3, 1); 
-            z-index: 10; 
-            animation: textShine 2s infinite linear;
-        }
-        
-        /* Main Application Frame Workspace viewport container */
+        .loading-bar { position: absolute; top: 0; left: 0; height: 3px; width: 0%; background: linear-gradient(90deg, var(--neon-nova), var(--neon-cyan), var(--neon-nova)); background-size: 200% auto; box-shadow: 0 0 12px var(--neon-cyan); transition: width 0.4s cubic-bezier(0.1, 0.8, 0.3, 1); z-index: 10; animation: textShine 2s infinite linear; }
         .content-frame { flex-grow: 1; background: transparent; position: relative; z-index: 1; }
         
-        iframe { 
-            width: 100%; height: 100%; border: none; 
-            background: #ffffff; 
-            display: none; 
-            border-radius: 0px;
-        }
+        iframe { width: 100%; height: 100%; border: none; background: #ffffff; display: none; }
         iframe.active { display: block; animation: iframeFadeIn 0.4s ease forwards; }
 
-        /* FIXED ANIMATION COMPONENT: Dynamic Center Hub Panel Container */
-        .placeholder-message { 
-            position: absolute; 
-            top: 50%; left: 50%; 
-            /* Fixed default standard positioning transforms to prevent jumping bugs */
-            transform: translate(-50%, -50%) scale(0.9); 
-            text-align: center; max-width: 480px; padding: 44px; 
-            border-radius: 24px; 
-            background: rgba(15, 8, 25, 0.5); 
-            border: 1px solid rgba(188, 0, 221, 0.25); 
-            backdrop-filter: blur(30px);
-            -webkit-backdrop-filter: blur(30px);
-            box-shadow: 0 20px 50px rgba(0,0,0,0.6), 0 0 40px rgba(188,0,221,0.05); 
-            
-            /* Structural fix: Instead of display toggling, we map opacity states cleanly */
-            opacity: 0;
-            pointer-events: none;
-            filter: blur(8px);
-            transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
-            z-index: 2;
-        }
+        .placeholder-message { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.9); text-align: center; max-width: 480px; padding: 44px; border-radius: 24px; background: rgba(15, 8, 25, 0.5); border: 1px solid rgba(188, 0, 221, 0.25); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); box-shadow: 0 20px 50px rgba(0,0,0,0.6), 0 0 40px rgba(188,0,221,0.05); opacity: 0; pointer-events: none; filter: blur(8px); transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); z-index: 2; }
+        .placeholder-message.active { opacity: 1; pointer-events: auto; filter: blur(0px); transform: translate(-50%, -50%) scale(1); }
         
-        /* Interactive triggered class state styling */
-        .placeholder-message.active { 
-            opacity: 1;
-            pointer-events: auto;
-            filter: blur(0px);
-            transform: translate(-50%, -50%) scale(1);
-        }
-        
-        .placeholder-message .hub-icon-wrap {
-            width: 70px; height: 70px;
-            background: linear-gradient(135deg, rgba(188,0,221,0.2), rgba(0,240,255,0.2));
-            border: 1px solid var(--glass-border);
-            border-radius: 20px;
-            display: flex; align-items: center; justify-content: center;
-            margin: 0 auto 24px auto;
-            box-shadow: 0 0 20px rgba(188,0,221,0.2);
-            transition: transform 0.4s ease;
-        }
-        
-        .placeholder-message:hover .hub-icon-wrap {
-            transform: scale(1.1) rotate(5deg);
-        }
-
-        .placeholder-message .hub-icon-wrap svg {
-            width: 32px; height: 32px;
-            fill: url(#nova-gradient);
-        }
-
-        .placeholder-message h1 { 
-            font-size: 26px; font-weight: 800; margin-bottom: 14px; letter-spacing: 1px;
-            background: linear-gradient(135deg, #fff 40%, var(--neon-cyan));
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-        }
-        
+        .placeholder-message .hub-icon-wrap { width: 70px; height: 70px; background: linear-gradient(135deg, rgba(188,0,221,0.2), rgba(0,240,255,0.2)); border: 1px solid var(--glass-border); border-radius: 20px; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px auto; box-shadow: 0 0 20px rgba(188,0,221,0.2); transition: transform 0.4s ease; }
+        .placeholder-message:hover .hub-icon-wrap { transform: scale(1.1) rotate(5deg); }
+        .placeholder-message .hub-icon-wrap svg { width: 32px; height: 32px; fill: url(#nova-gradient); }
+        .placeholder-message h1 { font-size: 26px; font-weight: 800; margin-bottom: 14px; letter-spacing: 1px; background: linear-gradient(135deg, #fff 40%, var(--neon-cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
         .placeholder-message p { font-size: 14px; color: var(--text-muted); line-height: 1.6; }
 
-        /* ADVANCED CYBERPUNK CSS ANIMATION TIMELINE SCHEMES */
-        @keyframes tabSpawn {
-            from { opacity: 0; transform: translateY(15px) scaleX(0.8); filter: blur(4px); }
-            to { opacity: 1; transform: translateY(0) scaleX(1); filter: blur(0); }
-        }
-
-        @keyframes iframeFadeIn {
-            from { opacity: 0; transform: scale(0.995); }
-            to { opacity: 1; transform: scale(1); }
-        }
-
-        @keyframes pulseBorder {
-            0% { border-color: var(--glass-border); box-shadow: 0 0 0px transparent; }
-            100% { border-color: rgba(0, 240, 255, 0.35); box-shadow: 0 0 8px rgba(0, 240, 255, 0.1); }
-        }
-
-        @keyframes textShine {
-            to { background-position: 200% center; }
-        }
-
-        @keyframes spinLogo {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        @keyframes floatGlowOne {
-            0% { transform: translate(0px, 0px) scale(1); }
-            100% { transform: translate(40px, 30px) scale(1.15); }
-        }
-
-        @keyframes floatGlowTwo {
-            0% { transform: translate(0px, 0px) scale(1); }
-            100% { transform: translate(-50px, -20px) scale(1.1); }
-        }
+        @keyframes tabSpawn { from { opacity: 0; transform: translateY(15px) scaleX(0.8); filter: blur(4px); } to { opacity: 1; transform: translateY(0) scaleX(1); filter: blur(0); } }
+        @keyframes iframeFadeIn { from { opacity: 0; transform: scale(0.995); } to { opacity: 1; transform: scale(1); } }
+        @keyframes pulseBorder { 0% { border-color: var(--glass-border); box-shadow: 0 0 0px transparent; } 100% { border-color: rgba(0, 240, 255, 0.35); box-shadow: 0 0 8px rgba(0, 240, 255, 0.1); } }
+        @keyframes textShine { to { background-position: 200% center; } }
+        @keyframes spinLogo { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes floatGlowOne { 0% { transform: translate(0px, 0px) scale(1); } 100% { transform: translate(40px, 30px) scale(1.15); } }
+        @keyframes floatGlowTwo { 0% { transform: translate(0px, 0px) scale(1); } 100% { transform: translate(-50px, -20px) scale(1.1); } }
     </style>
 </head>
 <body>
 
-    <!-- SVG Gradients Reference Tree Storage Map -->
     <svg style="width:0;height:0;position:absolute;">
         <linearGradient id="nova-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stop-color="#00f0ff" />
@@ -362,7 +93,6 @@
 
     <div class="loading-bar" id="loadBar"></div>
 
-    <!-- Application Top Layout Strip Panel Structure -->
     <div class="browser-header">
         <div class="header-left-group">
             <div class="brand-logo">
@@ -373,17 +103,26 @@
             </div>
             <div class="tabs-container" id="tabsContainer"></div>
         </div>
-        <button class="new-tab-btn" id="newTabBtn" title="Launch Secured Instance">+</button>
+        <button class="new-tab-btn" id="newTabBtn">+</button>
     </div>
 
-    <!-- Navigation Control Ribbon Area Layout mapping -->
     <div class="navbar">
+        <div class="nav-controls">
+            <button class="nav-btn" id="backBtn" title="Back">
+                <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+            </button>
+            <button class="nav-btn" id="forwardBtn" title="Forward">
+                <svg viewBox="0 0 24 24"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></svg>
+            </button>
+            <button class="nav-btn" id="reloadBtn" title="Reload">
+                <svg viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+            </button>
+        </div>
         <div class="url-bar-container">
-            <input type="text" class="url-bar" id="urlBar" placeholder="Launch clean stealth proxies or initiate secure Brave queries instantly...">
+            <input type="text" class="url-bar" id="urlBar" placeholder="Explore modern dynamic web platforms securely...">
         </div>
     </div>
 
-    <!-- Viewport Execution Dashboard Core Interface Workspace Canvas wrapper -->
     <div class="content-frame" id="contentFrame">
         <div class="placeholder-message active" id="globalPlaceholder">
             <div class="hub-icon-wrap">
@@ -391,8 +130,8 @@
                     <path d="M12 .587l3.668 7.431 8.2 1.192-5.934 5.787 1.4 8.168L12 18.896l-7.334 3.857 1.4-8.168L.133 9.21l8.2-1.192z"/>
                 </svg>
             </div>
-            <h1>Nova Gaming Browser</h1>
-            <p>Browse freely on your locked-down school chromebook. novagaming.pages.dev </p>
+            <h1>Nova Gaming Prxy</h1>
+            <p>Active sandbox by - pass deployed. Core framework scripts intercept and neutralize target iframe security calls dynamically.</p>
         </div>
     </div>
 
@@ -404,10 +143,42 @@
         const loadBar = document.getElementById('loadBar');
         const globalPlaceholder = document.getElementById('globalPlaceholder');
         
-        const PROXY_BACKEND = 'https://browserforschool.umarerthteam.workers.dev/?safe_payload=';
+        const backBtn = document.getElementById('backBtn');
+        const forwardBtn = document.getElementById('forwardBtn');
+        const reloadBtn = document.getElementById('reloadBtn');
+        
+        const PRXY_BACKEND = 'https://browserforschool.umarerthteam.workers.dev/?safe_payload=';
 
         let tabs = [];
         let activeTabId = null;
+
+        window.addEventListener('message', (event) => {
+            if (event.data && event.data.type === 'NOVA_NAV_UPDATE') {
+                let incomingUrl = event.data.url;
+                
+                tabs.forEach(tab => {
+                    if (tab.iframe.contentWindow === event.source) {
+                        tab.url = incomingUrl;
+                        if (tab.id === activeTabId) {
+                            urlBar.value = incomingUrl;
+                        }
+                        try {
+                            const parsed = new URL(incomingUrl);
+                            tab.element.querySelector('.tab-title').textContent = parsed.hostname.replace('www.', '');
+                            tab.element.querySelector('.tab-icon').src = `https://www.google.com/s2/favicons?domain=${parsed.hostname}&sz=32`;
+                        } catch(e) {}
+                    }
+                });
+            }
+        });
+
+        function injectProtectionHooks(iframe) {
+            try {
+                const win = iframe.contentWindow;
+                Object.defineProperty(win, 'top', { get: () => win });
+                Object.defineProperty(win, 'parent', { get: () => win });
+            } catch (e) {}
+        }
 
         function createTab(initialInput = '') {
             const tabId = 'tab-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
@@ -455,8 +226,6 @@
                 }
             });
             const currentActiveTab = tabs.find(t => t.id === tabId);
-            
-            // Animation class assignment logic for fixed visibility toggling
             if (currentActiveTab && currentActiveTab.url) {
                 globalPlaceholder.classList.remove('active');
             } else {
@@ -467,11 +236,8 @@
         function closeTab(tabId) {
             const index = tabs.findIndex(t => t.id === tabId);
             if (index === -1) return;
-            
-            // Give the tab a quick scale shrink animation style hook on exit
             tabs[index].element.style.transform = 'scale(0)';
             tabs[index].element.style.opacity = '0';
-            
             setTimeout(() => {
                 tabs[index].element.remove();
                 tabs[index].iframe.remove();
@@ -499,40 +265,59 @@
                 finalUrl = 'https://search.brave.com/search?q=' + encodeURIComponent(finalUrl);
             }
 
-            tab.url = rawInput;
-            if (activeTabId === tabId) urlBar.value = rawInput;
+            tab.url = finalUrl;
+            if (activeTabId === tabId) urlBar.value = finalUrl;
             globalPlaceholder.classList.remove('active');
             
             try {
                 const parsedDomain = new URL(finalUrl).hostname;
-                if (parsedDomain === 'search.brave.com') {
-                    tab.element.querySelector('.tab-title').textContent = `Brave: "${rawInput}"`;
-                } else {
-                    tab.element.querySelector('.tab-title').textContent = parsedDomain.replace('www.', '');
-                }
+                tab.element.querySelector('.tab-title').textContent = parsedDomain.replace('www.', '');
                 tab.element.querySelector('.tab-icon').src = `https://www.google.com/s2/favicons?domain=${parsedDomain}&sz=32`;
             } catch (e) {
                 tab.element.querySelector('.tab-title').textContent = rawInput;
             }
 
             loadBar.style.width = '40%';
-
             const encryptedPayload = btoa(unescape(encodeURIComponent(finalUrl)));
-            tab.iframe.src = PROXY_BACKEND + encryptedPayload;
+            tab.iframe.src = PRXY_BACKEND + encryptedPayload;
 
             tab.iframe.onload = () => {
+                injectProtectionHooks(tab.iframe);
                 loadBar.style.width = '100%';
                 setTimeout(() => { loadBar.style.width = '0%'; }, 300);
             };
         }
+
+        backBtn.addEventListener('click', () => {
+            if (!activeTabId) return;
+            const activeTab = tabs.find(t => t.id === activeTabId);
+            if (activeTab && activeTab.iframe) {
+                activeTab.iframe.contentWindow.postMessage({ type: 'NOVA_HISTORY_BACK' }, '*');
+            }
+        });
+
+        forwardBtn.addEventListener('click', () => {
+            if (!activeTabId) return;
+            const activeTab = tabs.find(t => t.id === activeTabId);
+            if (activeTab && activeTab.iframe) {
+                activeTab.iframe.contentWindow.postMessage({ type: 'NOVA_HISTORY_FORWARD' }, '*');
+            }
+        });
+
+        reloadBtn.addEventListener('click', () => {
+            if (!activeTabId) return;
+            const activeTab = tabs.find(t => t.id === activeTabId);
+            if (activeTab && activeTab.iframe) {
+                loadBar.style.width = '50%';
+                activeTab.iframe.contentWindow.postMessage({ type: 'NOVA_FORCE_RELOAD' }, '*');
+            }
+        });
 
         urlBar.addEventListener('keypress', function (e) {
             if (e.key === 'Enter' && activeTabId) processAndLoadInput(activeTabId, urlBar.value.trim());
         });
 
         newTabBtn.addEventListener('click', () => createTab());
-        
-        // Spawn browser into action ready state
         createTab();
     </script>
 </body>
