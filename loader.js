@@ -6,14 +6,16 @@
  *
  * ① REGISTRY — the games list
  *    Each game supports:
- *      title   : display name
- *      url     : source URL
- *      desc    : short description
- *      newTab  : (optional) true  → show in-page confirmation then open in new tab
- *                            false → load inside the iframe theater (default)
+ *      title    : display name
+ *      url      : source URL
+ *      desc     : short description
+ *      newTab   : true  → shows in-page confirm dialog, then opens in a new tab
+ *                 false → loads inside the theater iframe (default)
+ *      download : true  → right-click "Download File" appears (default)
+ *                 false → download option is hidden from the context menu
  *
- *    TIP: Use newTab: true for games that are very large, use Unity/WebGL,
- *         or load from a domain that needs full browser context (CORS, storage, etc.)
+ *    TIP: Use newTab: true for large/Unity/WebGL games, or anything that
+ *         needs full browser context (CORS, localStorage, etc.)
  *
  * ② HEADER BUTTONS — rendered right-side of titlebar
  *    Each button supports:
@@ -60,20 +62,21 @@ const supreme_engine = {
             },
             // ── Add more header buttons below ──
             // { id: "my-btn", icon: "⊕", label: "My Tool", action: "custom:myTool" },
-            // { id: "gh-btn", icon: "◈",  label: "GitHub",  action: "url:https://github.com", newTab: true },
+            // { id: "gh-btn", icon: "◈",  label: "GitHub",  action: "url:https://github.com", newTab: true, download: true  },
         ],
 
         // ── SIDE MENU ITEMS ────────────────────────────────────────────
         menuItems: [
             { icon: "⌂",  label: "Home",              action: "reload" },
-            { icon: "🖷",  label: "Request a Game",    action: "url:https://docs.google.com/forms/d/e/1FAIpQLScUplsBOvmVzOcef_Xh9p9XD4sYRlqvYJBzZBG2WSK6JS-MEA/viewform?usp=dialog", newTab: true },
+            { icon: "🖷",  label: "Request a Game",    action: "url:https://docs.google.com/forms/d/e/1FAIpQLScUplsBOvmVzOcef_Xh9p9XD4sYRlqvYJBzZBG2WSK6JS-MEA/viewform?usp=dialog", newTab: true, download: true  },
             { icon: "↓",  label: "Save Offline File", action: "custom:executeSaveDownload" },
             { action: "separator" },
             { icon: "⊘",  label: "Cloak Tab",         action: "cloak" },
+            { icon: "⏱",  label: "My YouTube",         action: "url:https://inv.thepixora.com/channel/UCcusQs9FwQdeB2g_v7_R45g", newTab: true, download: false },            
             // ── Add more menu items below ──
             // { icon: "⚙", label: "Settings",          action: "custom:openSettings" },
             // { icon: "★", label: "Favorites Only",    action: "custom:toggleFavMenu" },
-            // { icon: "⊕", label: "Open GitHub",       action: "url:https://github.com", newTab: true },
+            // { icon: "⊕", label: "Open GitHub",       action: "url:https://github.com", newTab: true, download: true  },
         ],
 
         // ── SAVE FILE ──────────────────────────────────────────────────
@@ -85,33 +88,34 @@ const supreme_engine = {
     // 1. CONTENT REGISTRY
     // ==========================================
     registry: [
-        // newTab: true  → shows confirmation dialog, then opens in new tab
-        //                 use for large/Unity/WebGL games or games with CORS issues
-        // newTab: false → loads inside the theater iframe (default)
-        { title: "Cookie Clicker",             url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/Cookie_Clicker.html",                      desc: "Idle baking simulator.",                              newTab: false  },
-        { title: "Brotato",                    url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/Brotato.html",                             desc: "Kill weird looking creatures.",                       newTab: false },
-        { title: "Minecraft",                  url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/EaglercraftX_1.8_u50_Offline_Signed.html", desc: "Classic sandbox world.",                              newTab: false },
-        { title: "Baldi's Basics Plus",        url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/Baldi's-Basics-Plus.html",                desc: "Escape from Baldi.",                                  newTab: true  },
-        { title: "Bank Robbery 3",             url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/Bank-Robbery-3.html",                      desc: "Rob banks.",                                          newTab: true },
-        { title: "Buckshot Roulette",          url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/Buckshot%20Roulette.html",                 desc: "Take your chance of getting killed.",                 newTab: false },
-        { title: "BuildNow",                   url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/BuildNow.html",                            desc: "Ripoff of 1v1.LoL.",                                  newTab: true  },
-        { title: "Five Nights at Epstein's",   url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/Five-Nights-at-Epstein's.html",            desc: "Survive 5 nights.",                                   newTab: true  },
-        { title: "GTA Vice City",              url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/GTA__Vice_City.html",                      desc: "It's GTA bro.",                                       newTab: false },
-        { title: "Git-Hub Search",             url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/Git-Hub_Search.html",                      desc: "Search Git-Hub.",                                     newTab: false },
-        { title: "Pizza Tower",                url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/Pizza-Tower.html",                         desc: "IDK never played it before.",                         newTab: false },
-        { title: "Subway Surfers",             url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/Subway_Surfers.html",                      desc: "Escape a cop.",                                       newTab: false },
-        { title: "Temple Run 2",               url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/Temple-Run-2.html",                        desc: "Escaping a temple?",                                  newTab: false  },
-        { title: "Snow Rider (Hooda Math)",    url: "https://www.hoodamath.com/games/snowrider3d.html#gsc.tab=0",                          desc: "Ride in Snow!",                                       newTab: false },
-        { title: "Puppet Hockey (MathPG)",     url: "https://www.mathplayground.com/pg_puppet_hockey.html",                                desc: "Play Puppet Hockey against other countries!",          newTab: true  },
-        { title: "NikeHub",                    url: "https://nikehub.pages.dev/a129x",                                                     desc: "Another games hub.",                                  newTab: false  },
-        { title: "Vapor V4",                   url: "https://100.vaporized.help",                                                          desc: "A hub of general entertainment.",                     newTab: false  },
-        { title: "Google Doodles",             url: "https://doodles.google/search/?form_tags=interactive%20game",                         desc: "Google's own collection of games.",                   newTab: false  },
-        { title: "Friday Night Funkin",        url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/Friday_Night_Funkin.html",                 desc: "A basic rhythm game.",                                newTab: false },
-        { title: "Friday Night Funkin VS Hex", url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/Friday_Night_Funkin'__Vs._Hex.html",       desc: "FNF mod — Hex.",                                      newTab: false },
-        { title: "FNF VS Whitty",              url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/Friday_Night_Funkin'__V.S._Whitty.html",   desc: "FNF mod — Whitty.",                                   newTab: false },
-        { title: "Doki Doki Literature Club",  url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath@main/DokiDoki-Literatureclub.html",        desc: "A literature club.",                                  newTab: false },
-        { title: "Basically Youtube",  url: "https://inv.thepixora.com/search",        desc: "A social media website.",                                  newTab: true },
-        { title: "1v1.lol",                    url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/1v1.LoL.html",                             desc: "Build and shoot combat.",                             newTab: false }
+        // newTab    : true  → shows confirmation dialog, then opens in new tab
+        //             false → loads inside the theater iframe (default)
+        // download  : true  → right-click "Download File" is enabled (default)
+        //             false → download option is hidden in context menu
+        { title: "Cookie Clicker",             url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/Cookie_Clicker.html",                      desc: "Idle baking simulator.",                              newTab: false, download: true  },
+        { title: "Brotato",                    url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/Brotato.html",                             desc: "Kill weird looking creatures.",                       newTab: false, download: true  },
+        { title: "Minecraft",                  url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/EaglercraftX_1.8_u50_Offline_Signed.html", desc: "Classic sandbox world.",                              newTab: false, download: true  },
+        { title: "Baldi's Basics Plus",        url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/Baldi's-Basics-Plus.html",                desc: "Escape from Baldi.",                                  newTab: true, download: true  },
+        { title: "Bank Robbery 3",             url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/Bank-Robbery-3.html",                      desc: "Rob banks.",                                          newTab: true, download: true  },
+        { title: "Buckshot Roulette",          url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/Buckshot%20Roulette.html",                 desc: "Take your chance of getting killed.",                 newTab: false, download: true  },
+        { title: "BuildNow",                   url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/BuildNow.html",                            desc: "Ripoff of 1v1.LoL.",                                  newTab: true, download: true  },
+        { title: "Five Nights at Epstein's",   url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/Five-Nights-at-Epstein's.html",            desc: "Survive 5 nights.",                                   newTab: true, download: true  },
+        { title: "GTA Vice City",              url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/GTA__Vice_City.html",                      desc: "It's GTA bro.",                                       newTab: false, download: true  },
+        { title: "Git-Hub Search",             url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/Git-Hub_Search.html",                      desc: "Search Git-Hub.",                                     newTab: false, download: true  },
+        { title: "Pizza Tower",                url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/Pizza-Tower.html",                         desc: "IDK never played it before.",                         newTab: false, download: true  },
+        { title: "Subway Surfers",             url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/Subway_Surfers.html",                      desc: "Escape a cop.",                                       newTab: false, download: true  },
+        { title: "Temple Run 2",               url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/Temple-Run-2.html",                        desc: "Escaping a temple?",                                  newTab: true, download: true  },
+        { title: "Snow Rider (Hooda Math)",    url: "https://www.hoodamath.com/games/snowrider3d.html#gsc.tab=0",                          desc: "Ride in Snow!",                                       newTab: false, download: false  },
+        { title: "Puppet Hockey (MathPG)",     url: "https://www.mathplayground.com/pg_puppet_hockey.html",                                desc: "Play Puppet Hockey against other countries!",          newTab: true, download: false  },
+        { title: "NikeHub",                    url: "https://nikehub.pages.dev/a129x",                                                     desc: "Another games hub.",                                  newTab: false, download: false  },
+        { title: "Vapor V4",                   url: "https://100.vaporized.help",                                                          desc: "A hub of general entertainment.",                     newTab: false, download: false  },
+        { title: "Google Doodles",             url: "https://doodles.google/search/?form_tags=interactive%20game",                         desc: "Google's own collection of games.",                   newTab: false, download: false  },
+        { title: "Friday Night Funkin",        url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/Friday_Night_Funkin.html",                 desc: "A basic rhythm game.",                                newTab: false, download: true  },
+        { title: "FNF VS Hex", url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/Friday_Night_Funkin'__Vs._Hex.html",       desc: "FNF mod — Hex.",                                      newTab: false, download: true  },
+        { title: "FNF VS Whitty",              url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/Friday_Night_Funkin'__V.S._Whitty.html",   desc: "FNF mod — Whitty.",                                   newTab: false, download: true  },
+        { title: "Doki Doki Literature Club",  url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath@main/DokiDoki-Literatureclub.html",        desc: "A literature club.",                                  newTab: false, download: true  }, 
+        { title: "Basically YouTube",  url: "https://inv.thepixora.com/search",        desc: "A social media platform.",                                  newTab: true, download: false  },
+        { title: "1v1.lol",                    url: "https://cdn.jsdelivr.net/gh/UmarErth/uMath/1v1.LoL.html",                             desc: "Build and shoot combat.",                             newTab: false, download: true  }
     ],
 
     cachedCards: [],
@@ -119,6 +123,7 @@ const supreme_engine = {
     onlyShowFavorites: false,
     searchQuery: "",
     favorites: [],
+    _theaterItem: null,
 
     // ==========================================
     // 2. CSS
@@ -474,8 +479,10 @@ const supreme_engine = {
 
             /* ─── CARD GRID ──────────────────────────────────────────── */
             .grid-container {
-                flex:1; padding:var(--gpad) var(--gpad) calc(var(--gpad)+10px);
-                overflow-y:auto;
+                flex:1; min-height:0;
+                padding:var(--gpad);
+                padding-bottom:calc(var(--gpad) * 2.5);
+                overflow-y:auto; overflow-x:hidden;
                 display:grid;
                 grid-template-columns:repeat(auto-fill,minmax(clamp(220px,22vw,370px),1fr));
                 gap:var(--ggap); align-content:start;
@@ -606,7 +613,7 @@ const supreme_engine = {
                 .search-bar:focus { width:auto; }
                 .hdr-btn { padding:9px 11px; border-radius:50%; width:40px; height:40px; justify-content:center; gap:0; }
                 .fav-toggle-btn { width:40px; height:40px; font-size:1rem; }
-                .grid-container { grid-template-columns:1fr; padding:14px 16px 80px; gap:14px; }
+                .grid-container { grid-template-columns:1fr; padding:14px 16px; padding-bottom:max(80px, calc(14px + env(safe-area-inset-bottom, 0px))); gap:14px; }
                 .card { padding:20px; border-radius:16px; transform:none !important; }
                 .card h3 { font-size:1.05rem; }
                 .card p  { font-size:0.82rem; }
@@ -744,7 +751,7 @@ const supreme_engine = {
             <div class="panel-body" id="panel-body">
                 ${menuItemsHTML}
             </div>
-            <div class="panel-footer">Nova Gaming</div>`;
+            <div class="panel-footer">Nova Gaming Engine</div>`;
         document.body.appendChild(menuPanel);
 
         // New-tab confirm overlay
@@ -771,6 +778,7 @@ const supreme_engine = {
                 <div class="brand" id="theater-title">Game Title</div>
                 <div class="theater-controls">
                     <button class="action-btn" id="game-fullscreen">Fullscreen</button>
+                    <button class="action-btn" id="game-download-btn" style="display:none">↓ Download</button>
                     <button class="action-btn" id="game-cloak-tab">Tab Cloak</button>
                     <button class="close-btn" id="close-theater">✕ Close</button>
                 </div>
@@ -914,6 +922,11 @@ const supreme_engine = {
         const frame   = document.getElementById("game-frame");
         document.getElementById("theater-title").innerText = item.title;
         theater.classList.add("active");
+        // Store current item so theater buttons know which game is playing
+        this._theaterItem = item;
+        // Show/hide download button based on item.download flag
+        const dlBtn = document.getElementById("game-download-btn");
+        if (dlBtn) dlBtn.style.display = (item.download !== false) ? "" : "none";
 
         const isCDN = item.url.includes("cdn.jsdelivr.net") || item.url.includes("githubusercontent") || item.url.endsWith(".html") || item.url.endsWith(".txt");
         if (isCDN) {
@@ -967,11 +980,12 @@ const supreme_engine = {
         const menu  = document.getElementById("custom-context-menu");
         const isFav = this.favorites.includes(item.title);
         const launchLabel = item.newTab ? "⧉ Open in New Tab" : "⚡ Launch";
+        const dlRow = (item.download !== false) ? `<div class="context-item" id="ctx-dl">↓ Download File</div>` : "";
         menu.innerHTML = `
             <div class="context-item" id="ctx-launch">${launchLabel}</div>
             <div class="context-item" id="ctx-fav">${isFav ? "✕ Remove Favorite" : "★ Add Favorite"}</div>
             <div class="context-item accent-item" id="ctx-cloak">⊘ Cloak Launch</div>
-            <div class="context-item" id="ctx-dl">↓ Download File</div>`;
+            ${dlRow}`;
 
         const mw = 204, mh = 168;
         menu.style.left = `${Math.min(x, innerWidth-mw-10)}px`;
@@ -981,7 +995,8 @@ const supreme_engine = {
         document.getElementById("ctx-launch").onclick = () => { this.hideContextMenu(); this.launchGame(item); };
         document.getElementById("ctx-cloak").onclick  = () => { this.hideContextMenu(); this.executeCloakLaunch(item.url); };
         document.getElementById("ctx-fav").onclick    = () => this.toggleFavorite(item.title, cardEl);
-        document.getElementById("ctx-dl").onclick     = () => {
+        const ctxDl = document.getElementById("ctx-dl");
+        if (ctxDl) ctxDl.onclick = () => {
             this.hideContextMenu();
             fetch(item.url)
                 .then(r => { if (!r.ok) throw 0; return r.blob(); })
@@ -1082,7 +1097,21 @@ const supreme_engine = {
 
         $("game-fullscreen")?.addEventListener("click", () => { $("iframe-wrapper")?.requestFullscreen?.(); });
         $("game-cloak-tab")?.addEventListener("click",  () => this.executeCloakLaunch(frame.src));
-        $("close-theater")?.addEventListener("click",   () => { theater.classList.remove("active"); frame.src = ""; });
+        $("close-theater")?.addEventListener("click",   () => { theater.classList.remove("active"); frame.src = ""; this._theaterItem = null; });
+        $("game-download-btn")?.addEventListener("click", () => {
+            const item = this._theaterItem;
+            if (!item) return;
+            fetch(item.url)
+                .then(r => { if (!r.ok) throw 0; return r.blob(); })
+                .then(blob => {
+                    const u = URL.createObjectURL(blob);
+                    const ext = item.url.includes(".html") ? ".html" : ".zip";
+                    const a = Object.assign(document.createElement("a"), {href:u, download:item.title.replace(/\s+/g,"_")+ext, style:"display:none"});
+                    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                    URL.revokeObjectURL(u);
+                })
+                .catch(() => window.open(item.url, "_blank"));
+        });
 
         window.addEventListener("click",       () => this.hideContextMenu());
         window.addEventListener("contextmenu", e  => { if (!e.target.closest(".card")) { e.preventDefault(); this.hideContextMenu(); } });
@@ -1125,12 +1154,71 @@ const supreme_engine = {
     },
 
     triggerCloak() {
-        // Cloak THIS tab to about:blank (panicurl)
-        document.title = this.settings.cloaktitle;
-        const lnk = document.querySelector("link[rel*='icon']") || document.createElement("link");
-        Object.assign(lnk, { type:"image/x-icon", rel:"shortcut icon", href:this.settings.cloakicon });
-        document.head.appendChild(lnk);
-        location.replace(this.settings.panicurl);
+        // How this works:
+        // 1. We grab the ENTIRE source of loader.js (this script) as a text blob.
+        // 2. We navigate THIS tab to about:blank.
+        // 3. Once it's blank we inject a <script> that re-runs loader.js from the blob URL.
+        // 4. The engine boots fresh — full styles, dot matrix, everything — inside about:blank.
+        // 5. Tab icon + title are set to the cloak values.
+        const icon  = this.settings.cloakicon;
+        const title = this.settings.cloaktitle;
+
+        // Find the <script> tag that loaded this file so we can re-fetch its source
+        // Works whether loaded as <script src="loader.js"> or any path
+        const scripts = Array.from(document.scripts);
+        const loaderScript = scripts.find(s => s.src && s.src.includes("loader"));
+        const scriptSrc = loaderScript ? loaderScript.src : null;
+
+        // Helper: inject the engine into a blank document
+        const injectIntoBlank = (scriptText) => {
+            const blob   = new Blob([scriptText], { type: "text/javascript" });
+            const blobUrl = URL.createObjectURL(blob);
+
+            // Build a minimal host page that sets the cloak title/icon then boots the engine
+            const hostHTML = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>${title}</title>
+<link rel="shortcut icon" type="image/x-icon" href="${icon}">
+</head>
+<body>
+<script>
+// Restore the loader.js blob into this blank page
+var s = document.createElement("script");
+s.src = "${blobUrl}";
+document.head.appendChild(s);
+<\/script>
+</body>
+</html>`;
+
+            // Navigate this tab to about:blank, then immediately write the host page
+            // document.open() changes the URL to about:blank
+            document.open();
+            document.write(hostHTML);
+            document.close();
+        };
+
+        if (scriptSrc) {
+            // Fetch the real loader.js source and re-inject it
+            fetch(scriptSrc)
+                .then(r => r.text())
+                .then(txt => injectIntoBlank(txt))
+                .catch(() => {
+                    // If fetch fails (e.g. file:// protocol), try reading from current script tag
+                    injectIntoBlank(loaderScript.textContent || "");
+                });
+        } else {
+            // Inline fallback: grab text from an inline script tag if src isn't available
+            const inlineScript = scripts.find(s => !s.src && s.textContent.includes("supreme_engine"));
+            if (inlineScript) {
+                injectIntoBlank(inlineScript.textContent);
+            } else {
+                // Last resort: just go to about:blank cleanly
+                location.replace("about:blank");
+            }
+        }
     },
 
     // ==========================================
@@ -1145,5 +1233,3 @@ const supreme_engine = {
 };
 
 supreme_engine.boot();
-
-
