@@ -35,7 +35,7 @@ const SAVE_URL      = "https://cdn.jsdelivr.net/gh/UmarErth/uMath@main/singlefil
 const SAVE_FILENAME = "NovaGaming.html";
 
 // ─── GOOGLE GEMINI AI CONFIG ────────────────────────────────────
-const GEMINI_API_KEY = "AQ.Ab8RN6JhWU46D44KxMFcmoRQAghUEuF3kSry4XuhmVlXnO2PLA";
+const GEMINI_API_KEY = "AQ.Ab8RN6JfK51tbRcYX05q-2pNFPRKVMz46SA7zI2k5C6pNWMLPA";
 
 // ─── PIPED & INVIDIOUS INSTANCE POOL ────────────────────────────
 const PIPED_EMBED_INSTANCES = [
