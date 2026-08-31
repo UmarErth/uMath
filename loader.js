@@ -20,7 +20,6 @@ const SITE_NAME    = "Nova Gaming";
 const SITE_TAGLINE = "Next-Gen HyperGlass Gaming OS";
 
 // ─── LOCK ───────────────────────────────────────────────────────
-const LOCK_PIN = "1234";
 
 // ─── CLOAK METADATA ─────────────────────────────────────────────
 const CLOAK_TITLE = "Home - Google Classroom";
@@ -35,7 +34,9 @@ const SAVE_URL      = "https://cdn.jsdelivr.net/gh/UmarErth/uMath@main/singlefil
 const SAVE_FILENAME = "NovaGaming.html";
 
 // ─── GOOGLE GEMINI AI CONFIG ────────────────────────────────────
-const GEMINI_API_KEY = "AQ.Ab8RN6JfK51tbRcYX05q-2pNFPRKVMz46SA7zI2k5C6pNWMLPA";
+const GEMINI_API_KEY = "AQ.Ab8RN6JhWU46D44KxMFcmoRQAghUEuF3kSry4XuhmVlXnO2PLA";
+const YOUTUBE_API_KEY = "AIzaSyBBZfqeF_ZEhnMZzL0g2gNytr0OrJopfmc";
+const DEFAULT_UI_MODE = "os"; // "classic" or "os"
 
 // ─── PIPED & INVIDIOUS INSTANCE POOL ────────────────────────────
 const PIPED_EMBED_INSTANCES = [
@@ -82,6 +83,8 @@ const MENU_ITEMS = [
     { action:"separator" },
     { icon:"⊘", label:"Cloak Tab",      action:"cloak" },
     { icon:"⏱", label:"My YouTube",     action:`url:${currentYtInstance}/channel/UCcusQs9FwQdeB2g_v7_R45g`, newTab:true },
+    { icon:"⌘", label:"OS Style", action:"custom:setOsStyle" },
+    { icon:"▤", label:"Classic", action:"custom:setClassicStyle" },
 ];
 
 // ─── HEADER BUTTONS ─────────────────────────────────────────────
@@ -592,51 +595,203 @@ const nova = {
 
     // ── ADVANCED JSDELIVR HTML RENDERER ───────────────────────────
     async attachHtmlToIframe(iframe, url) {
-        if (!url) return;
+        if (!iframe || !url) return;
 
-        if (url.includes("cdn.jsdelivr.net/gh/")) {
-            let rawGhUrl = url;
-            const match = url.match(/cdn\.jsdelivr\.net\/gh\/([^\/@]+)\/([^@\/]+)(?:@([^\/]+))?\/(.+)/);
-            let baseUrl = url.substring(0, url.lastIndexOf('/') + 1);
-            
-            if (match) {
-                const [, user, repo, branch = "main", path] = match;
-                rawGhUrl = `https://raw.githubusercontent.com/${user}/${repo}/${branch}/${path}`;
-                baseUrl = rawGhUrl.substring(0, rawGhUrl.lastIndexOf('/') + 1);
-            }
-
-            try {
-                if (this._htmlCache.has(url)) {
-                    iframe.srcdoc = this._htmlCache.get(url);
-                    return;
-                }
-
-                const res = await fetch(url);
-                if (res.ok) {
-                    let html = await res.text();
-                    const baseTag = `<base href="${baseUrl}">`;
-
-                    if (/<head[^>]*>/i.test(html)) {
-                        html = html.replace(/<head[^>]*>/i, `$&${baseTag}`);
-                    } else {
-                        html = `<!DOCTYPE html><html><head>${baseTag}</head><body>${html}</body></html>`;
-                    }
-
-                    this._htmlCache.set(url, html);
-                    iframe.srcdoc = html;
-                    return;
-                }
-            } catch (e) {
-                console.warn("Direct HTML fetch failed, executing fallback:", e);
-            }
-
-            iframe.removeAttribute("srcdoc");
-            iframe.src = url.replace("cdn.jsdelivr.net/gh/", "raw.githack.com/");
-            return;
-        }
+        const isEagler = /eaglercraft/i.test(url);
 
         iframe.removeAttribute("srcdoc");
-        iframe.src = url;
+        iframe.setAttribute(
+            "allow",
+            "gamepad *; fullscreen *; autoplay *; clipboard-read *; clipboard-write *; pointer-lock *"
+        );
+        if (!isEagler) {
+            iframe.setAttribute(
+                "sandbox",
+                "allow-forms allow-modals allow-pointer-lock allow-popups allow-popups-to-escape-sandbox allow-presentation allow-same-origin allow-scripts allow-downloads"
+            );
+        } else {
+            // Eaglercraft needs the normal iframe origin/permissions model for
+            // its input hooks and browser storage/runtime initialization.
+            iframe.removeAttribute("sandbox");
+        }
+        iframe.setAttribute("scrolling", "no");
+        iframe.style.width = "100%";
+        iframe.style.height = "100%";
+        iframe.style.border = "0";
+        iframe.style.display = "block";
+
+        const showReady = () => {
+            iframe.classList.add("game-ready");
+            iframe.parentElement?.querySelector(".os-game-loading")?.classList.add("done");
+        };
+
+        // Eaglercraft and other large single-file engines are loaded through
+        // the same compatibility path as the rest of the library.  This avoids
+        // rendering a text/plain CDN response as naked source code.
+        try {
+            const res = await fetch(url, {mode:"cors", credentials:"omit", cache:"no-cache"});
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+            const type = (res.headers.get("content-type") || "").toLowerCase();
+            const raw = await res.text();
+            const trimmed = raw.trimStart();
+            const looksHtml =
+                /^(<!doctype\s+html|<html(?:\s|>)|<head(?:\s|>)|<body(?:\s|>))/i.test(trimmed) ||
+                /<canvas[\s>]/i.test(raw);
+
+            let html;
+            if (looksHtml || /html|xhtml/i.test(type)) {
+                if (isEagler) {
+                    const gamepadShim = `<script>
+(function(){
+  try{
+    const nativeGetGamepads = navigator.getGamepads && navigator.getGamepads.bind(navigator);
+    if(nativeGetGamepads){
+      Object.defineProperty(navigator,"getGamepads",{
+        configurable:true,
+        value:function(){
+          try{return nativeGetGamepads() || []}
+          catch(_){return []}
+        }
+      });
+    }
+  }catch(_){}
+})();
+</script>`;
+                    if (/<head(?:\\s|>)/i.test(raw)) {
+                        raw = raw.replace(/<head([^>]*)>/i, `<head$1>${gamepadShim}`);
+                    } else {
+                        raw = gamepadShim + raw;
+                    }
+                }
+
+                const base = document.createElement("a");
+                base.href = url;
+                const baseHref = base.href.substring(0, base.href.lastIndexOf("/") + 1);
+
+                if (/<base\s/i.test(raw)) {
+                    html = raw;
+                } else if (/<head(?:\s|>)/i.test(raw)) {
+                    html = raw.replace(
+                        /<head([^>]*)>/i,
+                        `<head$1><base href="${baseHref.replace(/"/g,"&quot;")}">`
+                    );
+                } else {
+                    html =
+                        `<!doctype html>
+<html><head><meta charset="utf-8">` +
+                        `<base href="${baseHref.replace(/"/g,"&quot;")}">` +
+                        `</head><body>${raw}</body></html>`;
+                }
+            } else {
+                const baseHref = url.substring(0, url.lastIndexOf("/") + 1);
+                html =
+                    `<!doctype html><html><head><meta charset="utf-8">` +
+                    `<base href="${baseHref.replace(/"/g,"&quot;")}">` +
+                    `<style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#000}canvas{display:block;max-width:100%;max-height:100%}
+/* Nova low-power rendering mode */
+@media (max-width: 900px) {
+  .glass, .window, .dock, .panel {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}
+
+
+:root{--nova-motion:360ms}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:1ms!important;animation-iteration-count:1!important;transition-duration:1ms!important}
+}
+
+/* Responsive game viewport */
+.os-game-window .os-window-content,
+.os-game-window .game-frame-wrap,
+.game-frame-wrap {
+  min-width: 0 !important;
+  min-height: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  overflow: hidden !important;
+}
+.os-game-window iframe,
+.game-frame-wrap iframe {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  border: 0 !important;
+  overflow: hidden !important;
+}
+.os-game-window canvas {
+  display: block !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+}
+
+
+/* Nova window containment and responsive app layout */
+#os-window-layer{position:absolute;inset:0;overflow:hidden}
+.os-window{
+  box-sizing:border-box;
+  max-width:calc(100vw - 24px);
+  max-height:calc(100vh - 24px);
+  overflow:hidden !important;
+}
+.os-window .os-window-content{
+  box-sizing:border-box;
+  width:100%;
+  height:calc(100% - var(--os-titlebar-height, 42px));
+  min-width:0;
+  min-height:0;
+  overflow:hidden !important;
+}
+.os-window .os-window-content > *{
+  min-width:0;
+  max-width:100%;
+  box-sizing:border-box;
+}
+.os-game-window .os-window-content,
+.os-game-window .game-frame-wrap{
+  width:100% !important;
+  height:100% !important;
+  min-width:0 !important;
+  min-height:0 !important;
+  overflow:hidden !important;
+}
+.os-game-window iframe,
+.os-game-window canvas,
+.game-frame-wrap iframe{
+  display:block !important;
+  width:100% !important;
+  height:100% !important;
+  min-width:0 !important;
+  min-height:0 !important;
+  max-width:100% !important;
+  max-height:100% !important;
+  border:0 !important;
+  overflow:hidden !important;
+  box-sizing:border-box !important;
+}
+
+</style>` +
+                    `</head><body><script src="${url.replace(/"/g,"&quot;")}"></script></body></html>`;
+            }
+
+            const blobUrl = URL.createObjectURL(
+                new Blob([html], {type:"text/html;charset=utf-8"})
+            );
+
+            iframe.addEventListener("load", () => {
+                showReady();
+                setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
+            }, {once:true});
+
+            iframe.src = blobUrl;
+        } catch (err) {
+            iframe.addEventListener("load", showReady, {once:true});
+            iframe.src = url;
+        }
     },
 
     // ── CSS & HYPERGLASS SYSTEM STYLING ────────────────────────────
@@ -699,38 +854,11 @@ const nova = {
                 radial-gradient(circle at 15% 15%, rgba(112, 0, 255, 0.15), transparent 45%),
                 radial-gradient(circle at 85% 85%, rgba(0, 255, 157, 0.12), transparent 45%),
                 radial-gradient(circle at 50% 50%, rgba(0, 225, 255, 0.08), transparent 60%);
-            animation: pulseGlow 12s ease-in-out infinite alternate;
+            animation: pulseGlow 0.9s ease-in-out infinite alternate;
         }
         @keyframes pulseGlow { 0% { opacity: 0.6; transform: scale(1); } 100% { opacity: 1; transform: scale(1.05); } }
 
         #particle-canvas { position: fixed; inset: 0; z-index: 1; pointer-events: none; }
-
-        /* LOCK SCREEN OVERLAY */
-        #lock {
-            position: fixed; inset: 0; z-index: 9999;
-            background: rgba(3, 4, 10, 0.94); backdrop-filter: var(--bmd); -webkit-backdrop-filter: var(--bmd);
-            display: flex; align-items: center; justify-content: center; transition: opacity 0.4s var(--ea);
-        }
-        .lk {
-            text-align: center; padding: clamp(32px, 5vw, 60px) clamp(32px, 6vw, 70px);
-            background: var(--surface); border: 1px solid var(--border); border-radius: 32px;
-            backdrop-filter: var(--bmd); box-shadow: var(--glass-glow), 0 0 80px rgba(112, 0, 255, 0.25);
-            animation: popIn 0.45s var(--sp) both; max-width: 90vw;
-        }
-        @keyframes popIn { from { opacity: 0; transform: scale(0.92) translateY(20px); } to { opacity: 1; transform: none; } }
-        .lk-wm {
-            font-size: var(--flk); font-weight: 800; letter-spacing: 4px; text-transform: uppercase;
-            background: linear-gradient(135deg, #fff 20%, var(--mint) 80%);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 8px;
-        }
-        .lk-lb { display: block; font-size: var(--fxs); color: rgba(255,255,255,0.4); letter-spacing: 4px; text-transform: uppercase; margin-bottom: 24px; }
-        .lk-in {
-            background: rgba(0, 0, 0, 0.6); border: 1px solid var(--border); color: var(--mint);
-            font-family: 'JetBrains Mono', monospace; font-size: var(--flk); text-align: center;
-            padding: 12px 24px; border-radius: 20px; width: clamp(140px, 30vw, 210px); outline: none;
-            transition: all 0.3s var(--ea); letter-spacing: 10px;
-        }
-        .lk-in:focus { border-color: var(--mint); box-shadow: 0 0 35px var(--mint-glow); background: rgba(0,255,157,0.05); }
 
         /* APP MAIN STRUCTURE */
         #app {
@@ -1141,7 +1269,7 @@ const nova = {
         .fp-msg { text-align: center; padding: 40px 16px; color: rgba(255, 255, 255, 0.4); font-size: var(--fb); }
         .fp-spin {
             width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--mint);
-            border-radius: 50%; animation: spin 0.65s linear infinite; margin: 32px auto;
+            border-radius: 50%; animation: spin 0.9s linear infinite; margin: 32px auto;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -1250,14 +1378,617 @@ const nova = {
         requestAnimationFrame(draw);
     },
 
+    // ── UI MODE SYSTEM ──────────────────────────────────────────
+    uiModeInit(){
+        let saved=null;
+        try{ saved=localStorage.getItem("nova_ui_mode"); }catch(e){}
+        this.uiMode=(saved==="os"||saved==="classic")?saved:DEFAULT_UI_MODE;
+        // Nova Education is now the real first page. The hidden 1234 = gate
+        // launches the OS rather than showing the old .
+        this.applyUIMode();
+        this.uiMode="classic";
+        document.body.classList.remove("os-mode");
+        document.getElementById("os-desktop")?.remove();
+        setTimeout(()=>window.dispatchEvent(new Event("nova:show-education-start")),80);
+    },
+    applyUIMode(){
+        const os=this.uiMode==="os";
+        document.body.classList.toggle("os-mode",os);
+        if(os){
+            document.getElementById("os-desktop")?.remove();
+            this.renderOSDesktop();
+        }else{
+            document.getElementById("os-desktop")?.remove();
+            document.body.classList.remove("os-window-open");
+        }
+    },
+    setUIMode(mode){
+        this.uiMode=mode==="os"?"os":"classic";
+        try{ localStorage.setItem("nova_ui_mode",this.uiMode); }catch(e){}
+        document.getElementById("mode-chooser")?.remove();
+        this.applyUIMode();
+    },
+
+    _osIcons(){
+        return [
+            {id:"finder",label:"Files",icon:this.osIcon("files"),action:()=>this.osOpenWindow("Files","finder",this.osFinderBody())},
+            {id:"games",label:"Games",icon:this.osIcon("games"),action:()=>this.osOpenWindow("Games","games",this.osGamesBody())},
+            {id:"ai",label:"Nova AI",icon:this.osIcon("ai"),action:()=>this.osOpenService("ai")},
+            {id:"youtube",label:"YouTube",icon:this.osIcon("youtube"),action:()=>this.osOpenService("youtube")},
+            {id:"anime",label:"Anime",icon:this.osIcon("anime"),action:()=>this.osOpenService("anime")},
+            {id:"settings",label:"Settings",icon:this.osIcon("settings"),action:()=>this.osOpenWindow("System Settings","settings",this.osSettingsBody())},
+            {id:"about",label:"About Nova","icon":"●",action:()=>this.osOpenWindow("About This Mac","about",this.osAboutBody())}
+        ];
+    },
+    renderOSDesktop(){
+        const old=document.getElementById("os-desktop"); if(old) old.remove();
+        const desk=document.createElement("div"); desk.id="os-desktop";
+        desk.innerHTML=`
+            <div class="os-wallpaper"><div class="os-wallpaper-orb o1"></div><div class="os-wallpaper-orb o2"></div><div class="os-wallpaper-grid"></div></div>
+            <div class="os-menubar">
+                <div class="os-menu-left"><button class="os-apple" id="os-apple">✦</button><button class="os-menu-item strong">Nova</button><button class="os-menu-item">File</button><button class="os-menu-item">Edit</button><button class="os-menu-item">View</button><button class="os-menu-item">Window</button><button class="os-menu-item">Help</button></div>
+                <div class="os-menu-right"><span class="os-status-dot"></span><span id="os-net">Online</span><span id="os-clock">--:--</span><button class="os-control" id="os-control">⌄</button></div>
+            </div>
+            <div class="os-desktop-icons" id="os-desktop-icons"></div>
+            <div class="os-window-layer" id="os-window-layer"></div>
+            <div class="os-dock-wrap"><div class="os-dock-pro" id="os-dock-pro"></div></div>
+            <div class="os-quick-panel" id="os-quick-panel"><div class="os-qhead">Control Center</div><div class="os-qgrid"><button>Wi‑Fi<br><small>Connected</small></button><button>Focus<br><small>Off</small></button><button>Brightness<br><small>100%</small></button><button>Volume<br><small>80%</small></button></div><button id="os-quick-mode">Switch to Classic</button></div>
+            <div class="os-app-menu" id="os-app-menu"><div class="os-app-menu-title">Nova</div><button data-os-action="about">About Nova</button><button data-os-action="settings">System Settings</button><div class="os-menu-sep"></div><button data-os-action="classic">Switch to Classic</button></div>
+        `;
+        document.body.appendChild(desk);
+        this.osBindDesktop();
+        this.osRenderIcons();
+        this.osRenderDock();
+        this.osClockStart();
+        this.osOpenWindow("Games","games",this.osGamesBody(),{center:true,width:980,height:690,skipFocus:false});
+    },
+    osIcon(name){
+        const common = 'viewBox="0 0 64 64" width="42" height="42" aria-hidden="true"';
+        const icons = {
+            games: `<svg ${common} class="os-vector-icon"><defs><linearGradient id="g-games" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#7c5cff"/><stop offset="1" stop-color="#22c1ff"/></linearGradient></defs><rect x="7" y="15" width="50" height="34" rx="12" fill="url(#g-games)"/><path d="M22 25v14M15 32h14M42 28h.01M49 35h.01" stroke="#fff" stroke-width="4" stroke-linecap="round"/></svg>`,
+            files: `<svg ${common} class="os-vector-icon"><defs><linearGradient id="g-files" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffd76a"/><stop offset="1" stop-color="#ff9a3d"/></linearGradient></defs><path d="M8 17a7 7 0 0 1 7-7h13l6 6h15a7 7 0 0 1 7 7v24H8Z" fill="url(#g-files)"/><path d="M8 22h48" stroke="rgba(255,255,255,.55)" stroke-width="3"/></svg>`,
+            ai: `<svg ${common} class="os-vector-icon"><defs><linearGradient id="g-ai" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#b36cff"/><stop offset="1" stop-color="#ff5fc8"/></linearGradient></defs><circle cx="32" cy="32" r="24" fill="url(#g-ai)"/><path d="m32 17 3.5 9.5L45 30l-9.5 3.5L32 43l-3.5-9.5L19 30l9.5-3.5Z" fill="#fff"/></svg>`,
+            youtube: `<svg ${common} class="os-vector-icon"><rect x="7" y="13" width="50" height="38" rx="12" fill="#ff1744"/><path d="m28 24 14 8-14 8Z" fill="#fff"/></svg>`,
+            anime: `<svg ${common} class="os-vector-icon"><defs><linearGradient id="g-anime" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ff75c3"/><stop offset="1" stop-color="#7d6cff"/></linearGradient></defs><rect x="8" y="8" width="48" height="48" rx="16" fill="url(#g-anime)"/><circle cx="24" cy="29" r="4" fill="#fff"/><circle cx="40" cy="29" r="4" fill="#fff"/><path d="M21 39c7 5 15 5 22 0" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/></svg>`,
+            settings: `<svg ${common} class="os-vector-icon"><defs><linearGradient id="g-settings" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#8d98ab"/><stop offset="1" stop-color="#526074"/></linearGradient></defs><path d="m26 7 4 5a21 21 0 0 1 4 0l4-5 7 4-2 6a21 21 0 0 1 3 3l7-1v9l-6 2a20 20 0 0 1 0 4l6 2v9l-7-1a21 21 0 0 1-3 3l2 6-7 4-4-5a21 21 0 0 1-4 0l-4 5-7-4 2-6a21 21 0 0 1-3-3l-7 1v-9l6-2a20 20 0 0 1 0-4l-6-2v-9l7 1a21 21 0 0 1 3-3l-2-6Z" fill="url(#g-settings)"/><circle cx="32" cy="32" r="9" fill="#fff" opacity=".9"/></svg>`,
+            trash: `<svg ${common} class="os-vector-icon"><defs><linearGradient id="g-trash" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#9fe2ff"/><stop offset="1" stop-color="#6aa1ff"/></linearGradient></defs><path d="M17 19h30l-2 34H19Z" fill="url(#g-trash)"/><path d="M14 16h36M25 11h14v5H25Z" fill="none" stroke="#fff" stroke-width="4" stroke-linejoin="round"/><path d="M25 26v17M39 26v17" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".8"/></svg>`,
+            classic: `<svg ${common} class="os-vector-icon"><defs><linearGradient id="g-classic" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#31e7a2"/><stop offset="1" stop-color="#19a9ff"/></linearGradient></defs><rect x="9" y="9" width="46" height="46" rx="13" fill="url(#g-classic)"/><path d="M19 21h26v17H19zM26 44h12" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+        };
+        return icons[name] || icons.games;
+    },
+    osRenderIcons(){
+        const host=document.getElementById("os-desktop-icons"); if(!host)return;
+        const icons=[
+            {label:"Games",icon:this.osIcon("games"),action:()=>this.osOpenWindow("Games","games",this.osGamesBody())},
+            {label:"Files",icon:this.osIcon("files"),action:()=>this.osOpenWindow("Files","finder",this.osFinderBody())},
+            {label:"Trash",icon:this.osIcon("trash"),action:()=>this.osOpenWindow("Trash","trash",`<div class="os-empty-state"><div class="os-big-icon">♜</div><h2>Trash is Empty</h2><p>Nothing to see here</p></div>`)}
+        ];
+        host.innerHTML=icons.map((x,i)=>`<button class="os-desktop-icon" data-i="${i}"><span class="os-dicon">${x.icon}</span><span>${this.esc(x.label)}</span></button>`).join("");
+        host.querySelectorAll(".os-desktop-icon").forEach((b,i)=>b.addEventListener("click",()=>icons[i].action()));
+    },
+    osRenderDock(){
+        const host=document.getElementById("os-dock-pro"); if(!host)return;
+        const apps=[
+            {id:"finder",label:"Files",icon:"▣",action:()=>this.osOpenWindow("Files","finder",this.osFinderBody())},
+            {id:"games",label:"Games",icon:"◈",action:()=>this.osOpenWindow("Games","games",this.osGamesBody())},
+            {id:"ai",label:"Nova AI",icon:"✦",action:()=>this.osOpenService("ai")},
+            {id:"youtube",label:"YouTube",icon:"▶",action:()=>this.osOpenService("youtube")},
+            {id:"anime",label:"Anime",icon:"◉",action:()=>this.osOpenService("anime")},
+            {id:"browser",label:"Nova Browser",icon:"◌",action:()=>this.osOpenBrowserWindow()},{id:"chatroom",label:"Nova Chatroom",icon:"☵",action:()=>this.osOpenChatroomWindow()},
+            {id:"education",label:"Nova Education",icon:"∑",action:()=>this.osOpenEducationWindow()},
+            {id:"settings",label:"Settings",icon:"⚙",action:()=>this.osOpenWindow("System Settings","settings",this.osSettingsBody())},
+            {id:"switch",label:"Classic",icon:this.osIcon("classic"),action:()=>this.setUIMode("classic")}
+        ];
+        host.innerHTML=apps.map((a,i)=>`<button class="os-dock-item" data-i="${i}" title="${this.esc(a.label)}"><span class="os-dock-icon">${a.icon}</span><span class="os-dock-dot"></span></button>`).join("");
+        host.querySelectorAll(".os-dock-item").forEach((b,i)=>{
+            b.addEventListener("click",()=>apps[i].action());
+            b.addEventListener("mouseenter",e=>this.osDockTooltip(apps[i].label,e));
+            b.addEventListener("mousemove",e=>this.osDockTooltip(apps[i].label,e));
+            b.addEventListener("mouseleave",()=>this.osHideDockTooltip());
+        });
+    },
+    osDockTooltip(label, event){
+        let tip=document.getElementById("os-dock-tooltip");
+        if(!tip){
+            tip=document.createElement("div");
+            tip.id="os-dock-tooltip";
+            tip.className="os-dock-tooltip";
+            document.getElementById("os-desktop")?.appendChild(tip);
+        }
+        tip.textContent=label;
+        const host=document.querySelector(".os-dock-wrap");
+        const rect=host?.getBoundingClientRect();
+        const b=event?.currentTarget?.getBoundingClientRect();
+        if(rect && b){
+            tip.style.left=(b.left+b.width/2)+"px";
+            tip.style.top=(rect.top-10)+"px";
+        }
+        tip.classList.add("on");
+    },
+    osHideDockTooltip(){
+        document.getElementById("os-dock-tooltip")?.classList.remove("on");
+    },
+
+    osClockStart(){
+        clearInterval(this._osClockTimer);
+        const tick=()=>{const e=document.getElementById("os-clock");if(e)e.textContent=new Date().toLocaleTimeString([], {hour:"numeric",minute:"2-digit"});};
+        tick(); this._osClockTimer=setInterval(tick,30000);
+    },
+    osBindDesktop(){
+        const root=document.getElementById("os-desktop");
+        root.querySelector("#os-apple")?.addEventListener("click",e=>{e.stopPropagation();document.getElementById("os-app-menu")?.classList.toggle("on")});
+        root.querySelector("#os-control")?.addEventListener("click",e=>{e.stopPropagation();document.getElementById("os-quick-panel")?.classList.toggle("on")});
+        root.querySelector("#os-quick-mode")?.addEventListener("click",()=>this.setUIMode("classic"));
+        root.querySelectorAll("[data-os-action]").forEach(b=>b.addEventListener("click",()=>{
+            const a=b.dataset.osAction;
+            document.getElementById("os-app-menu")?.classList.remove("on");
+            if(a==="classic") this.setUIMode("classic");
+            else if(a==="settings") this.osOpenWindow("System Settings","settings",this.osSettingsBody());
+            else if(a==="about") this.osOpenWindow("About This Mac","about",this.osAboutBody());
+        }));
+        // Every visible desktop control gets a real action
+        root.querySelectorAll(".os-menu-item").forEach(btn=>{
+            const label=(btn.textContent||"").trim().toLowerCase();
+            btn.addEventListener("click",()=>{
+                if(label==="nova"){ document.getElementById("os-app-menu")?.classList.toggle("on"); return; }
+                if(label==="file"){ this.osOpenWindow("Files","finder",this.osFinderBody()); return; }
+                if(label==="edit"){ this.osOpenWindow("Games","games",this.osGamesBody()); return; }
+                if(label==="view"){ this.osOpenWindow("About This Mac","about",this.osAboutBody()); return; }
+                if(label==="window"){
+                    const win=document.querySelector(".os-window.focused");
+                    if(win) this.osToggleMax(win);
+                    return;
+                }
+                if(label==="help"){ this.osOpenWindow("About This Mac","about",this.osAboutBody()); return; }
+            });
+        });
+
+        root.querySelectorAll(".os-qgrid button").forEach(btn=>{
+            btn.addEventListener("click",()=>{
+                const label=(btn.textContent||"").toLowerCase();
+                btn.classList.toggle("on");
+                if(label.includes("wi")) {
+                    document.getElementById("os-net").textContent = btn.classList.contains("on") ? "Connected" : "Offline";
+                } else if(label.includes("focus")) {
+                    btn.innerHTML = `Focus<br><small>${btn.classList.contains("on")?"On":"Off"}</small>`;
+                } else if(label.includes("brightness")) {
+                    btn.innerHTML = `Brightness<br><small>${btn.classList.contains("on")?"70%":"100%"}</small>`;
+                } else if(label.includes("volume")) {
+                    btn.innerHTML = `Volume<br><small>${btn.classList.contains("on")?"35%":"80%"}</small>`;
+                }
+            });
+        });
+
+
+        const dock = root.querySelector(".os-dock-wrap");
+        const hotzone = document.createElement("div");
+        hotzone.className = "os-dock-hotzone";
+        root.appendChild(hotzone);
+
+        let dockTimer = 0;
+        let dockDodgeState = false;
+        const updateDock = ()=>{
+            if(!dock) return;
+            const windows=[...root.querySelectorAll(".os-window:not(.minimized):not(.maximized)")];
+            const hit=windows.some(w=>{
+                const r=w.getBoundingClientRect();
+                const horizontal=r.right > innerWidth*.08 && r.left < innerWidth*.92;
+                const vertical=r.bottom > innerHeight-126 && r.top < innerHeight-12;
+                return horizontal && vertical;
+            });
+            if(hit===dockDodgeState) return;
+            dockDodgeState=hit;
+            dock.classList.toggle("os-dodged",hit);
+            root.classList.toggle("os-dock-hidden",hit);
+        };
+        root.addEventListener("pointermove",e=>{
+            const hot=e.clientY >= innerHeight-24;
+            root.classList.toggle("os-bottom-hot",hot);
+            if(hot){
+                dockDodgeState=false;
+                dock.classList.remove("os-dodged");
+                root.classList.remove("os-dock-hidden");
+            }else{
+                updateDock();
+            }
+        });
+        root.addEventListener("pointerleave",()=>root.classList.remove("os-bottom-hot"));
+        window.addEventListener("resize",updateDock);
+        setInterval(updateDock,180);
+
+        // Add the macOS/KDE-style name tooltip to every dock item.
+        root.querySelectorAll(".os-dock-item").forEach(item=>{
+            if(!item.querySelector(".os-dock-tooltip")){
+                const label=item.getAttribute("aria-label") || item.dataset.label || item.title || "";
+                if(label){
+                    const tip=document.createElement("span");
+                    tip.className="os-dock-tooltip";
+                    tip.textContent=label;
+                    item.appendChild(tip);
+                }
+            }
+        });
+
+
+        root.addEventListener("load", e=>{
+            const f=e.target.closest?.(".os-window iframe");
+            if(!f) return;
+            try{
+                f.contentWindow?.document?.querySelectorAll("a[target='_blank']").forEach(a=>{
+                    a.target="_self";
+                });
+            }catch{}
+        }, true);
+
+        root.addEventListener("click",e=>{
+            const file=e.target.closest(".os-file-item");
+            if(file){
+                const idx=Number(file.dataset.game);
+                if(Number.isInteger(idx)&&GAMES[idx]) this.osOpenGameWindow(GAMES[idx]);
+            }
+
+            const menuAction=e.target.closest(".os-menu-item");
+            if(!e.target.closest("#os-apple,#os-app-menu") && !menuAction)
+                document.getElementById("os-app-menu")?.classList.remove("on");
+
+            if(!e.target.closest("#os-control,#os-quick-panel"))
+                document.getElementById("os-quick-panel")?.classList.remove("on");
+        });
+
+        window.addEventListener("resize",()=>{
+            document.querySelectorAll("#os-window-layer .os-window:not(.maximized)").forEach(w=>{
+                this.osClampWindowToLayer(w);
+            });
+        });
+    },
+    osOpenService(type){
+        const nav=document.getElementById(`nav-${type}`);
+        if(nav){ nav.click(); return; }
+        if(type==="ai") this.tabUpdateActive("Nova AI","ai");
+        else if(type==="youtube") this.tabUpdateActive("YouTube","youtube");
+        else if(type==="anime") this.tabUpdateActive("Anime","anime");
+        this.osBridgeServiceWindow(type);
+    },
+    osBridgeServiceWindow(type){
+        const existing=document.querySelector(`.os-window[data-service="${type}"]`);
+        if(existing){ this.osFocusWindow(existing); return; }
+        const title=type==="ai"?"Nova AI":type==="youtube"?"YouTube":"Anime";
+        const body=`<div class="os-service-host" id="os-service-${type}"><div class="os-service-copy">Opening ${this.esc(title)}…</div></div>`;
+        const w=this.osOpenWindow(title,type,body,{width:980,height:680});
+        w.dataset.service=type;
+        const panel=document.getElementById(`${type==="ai"?"ai-panel":type==="youtube"?"yt-panel":"anime-panel"}`);
+        if(panel){ panel.classList.add("on"); panel.style.zIndex="9999"; setTimeout(()=>{panel.style.position="absolute";panel.style.inset="44px 0 0 0";panel.style.zIndex="9999";panel.style.borderRadius="0 0 18px 18px";const target=w.querySelector(".os-service-host");if(target) target.appendChild(panel);},20); }
+    },
+    osOpenWindow(title,key,body,opt={}){
+        
+        const novaClampWindow = (win) => {
+            const layer = document.getElementById("os-window-layer");
+            if (!layer || !win) return;
+            const maxW = Math.max(280, layer.clientWidth - 24);
+            const maxH = Math.max(180, layer.clientHeight - 24);
+            win.style.maxWidth = maxW + "px";
+            win.style.maxHeight = maxH + "px";
+            const x = Math.max(12, Math.min(win.offsetLeft, layer.clientWidth - Math.min(win.offsetWidth, maxW) - 12));
+            const y = Math.max(12, Math.min(win.offsetTop, layer.clientHeight - Math.min(win.offsetHeight, maxH) - 12));
+            win.style.left = x + "px";
+            win.style.top = y + "px";
+        };
+
+        const layer=document.getElementById("os-window-layer"); if(!layer)return null;
+        const existing=layer.querySelector(`.os-window[data-key="${CSS.escape(key)}"]`);
+        if(existing){ this.osFocusWindow(existing); return existing; }
+        const id=`osw_${Date.now()}_${Math.random().toString(36).slice(2,7)}`;
+        const w=document.createElement("section"); w.className="os-window os-window-opening"; w.dataset.key=key; w.id=id;
+        const width=opt.width||760,height=opt.height||520;
+        w.style.width=Math.min(width,innerWidth-40)+"px"; w.style.height=Math.min(height,innerHeight-120)+"px";
+        w.innerHTML=`<div class="os-winbar" tabindex="0"><div class="os-win-controls"><button class="red" data-win="close" title="Close">×</button><button class="yellow" data-win="min" title="Minimize">−</button><button class="green" data-win="max" title="Maximize">+</button></div><div class="os-win-title">${this.esc(title)}</div><div class="os-win-actions"><button data-win="fullscreen" title="Fullscreen">⛶</button><button data-win="more" title="Window menu">⋯</button></div></div><div class="os-win-content">${body}</div><div class="os-resize" aria-hidden="true"></div>`;
+        layer.appendChild(w);
+        const layerRect = layer.getBoundingClientRect();
+        const openCount = layer.querySelectorAll(".os-window").length - 1;
+        const cascade = Math.min(28, Math.max(0, openCount * 14));
+        const safeWidth = Math.min(width, Math.max(420, layerRect.width - 32));
+        const safeHeight = Math.min(height, Math.max(300, layerRect.height - 32));
+        w.style.width = safeWidth + "px";
+        w.style.height = safeHeight + "px";
+        const center = opt.center === true;
+        const left = center ? (layerRect.width - safeWidth) / 2 : (layerRect.width - safeWidth) / 2 + cascade;
+        const top = center ? (layerRect.height - safeHeight) / 2 : (layerRect.height - safeHeight) / 2 + cascade;
+        w.style.left = Math.max(16, Math.min(left, layerRect.width - safeWidth - 16)) + "px";
+        w.style.top = Math.max(4, Math.min(top, layerRect.height - safeHeight - 8)) + "px";
+        this.osMakeWindowInteractive(w);
+        this.osFocusWindow(w);
+        requestAnimationFrame(()=>w.classList.remove("os-window-opening"));
+        return w;
+    },
+    osClampWindowToLayer(w){
+        const layer=document.getElementById("os-window-layer");
+        if(!layer || !w || w.classList.contains("maximized")) return;
+        const lr=layer.getBoundingClientRect();
+        const maxLeft=Math.max(16,lr.width-w.offsetWidth-16);
+        const maxTop=Math.max(16,lr.height-w.offsetHeight-16);
+        const left=Math.max(16,Math.min(parseFloat(w.style.left)||0,maxLeft));
+        const top=Math.max(4,Math.min(parseFloat(w.style.top)||0,maxTop));
+        w.style.left=left+"px";
+        w.style.top=top+"px";
+    },
+
+    osFocusWindow(w){
+        if(!w)return; let max=1001; document.querySelectorAll(".os-window").forEach(x=>max=Math.max(max,parseInt(x.style.zIndex||1000,10))); w.style.zIndex=max+1; document.querySelectorAll(".os-window").forEach(x=>x.classList.remove("focused")); w.classList.add("focused");
+    },
+    osMakeWindowInteractive(w){
+        const bar=w.querySelector(".os-winbar"); let dragging=false,sx=0,sy=0,sl=0,st=0;
+        bar.addEventListener("dblclick",()=>this.osToggleMax(w));
+        bar.addEventListener("contextmenu",e=>{ e.preventDefault(); this.osShowWindowMenu(w,e.clientX,e.clientY); });
+        bar.addEventListener("pointerdown",e=>{
+            if(e.target.closest("button"))return;
+            e.preventDefault();
+            dragging=true;
+            sx=e.clientX; sy=e.clientY;
+            sl=w.offsetLeft; st=w.offsetTop;
+            w.classList.add("os-dragging");
+            document.body.classList.add("nova-window-dragging");
+            try{ bar.setPointerCapture(e.pointerId); }catch(_){}
+            this.osFocusWindow(w);
+        });
+        bar.addEventListener("pointermove",e=>{
+            if(!dragging)return;
+            e.preventDefault();
+            const layer=document.getElementById("os-window-layer");
+            const r=layer.getBoundingClientRect();
+            const nx=sl+e.clientX-sx;
+            const ny=st+e.clientY-sy;
+            w.style.left=Math.max(16,Math.min(r.width-w.offsetWidth-16,nx))+"px";
+            w.style.top=Math.max(16,Math.min(r.height-w.offsetHeight-16,ny))+"px";
+        });
+        const stopDrag=()=>{
+            if(!dragging)return;
+            dragging=false;
+            w.classList.remove("os-dragging");
+            document.body.classList.remove("nova-window-dragging");
+        };
+        bar.addEventListener("pointerup",stopDrag);
+        bar.addEventListener("pointercancel",stopDrag);
+        bar.addEventListener("lostpointercapture",stopDrag);
+        w.addEventListener("pointerdown",()=>this.osFocusWindow(w));
+        w.querySelectorAll("[data-win]").forEach(b=>b.addEventListener("click",()=>{const a=b.dataset.win;if(a==="close")w.remove();else if(a==="min")w.classList.toggle("minimized");else if(a==="max")this.osToggleMax(w);else if(a==="fullscreen")this.osToggleFullscreen(w);else if(a==="more")this.osShowWindowMenu(w,b.getBoundingClientRect().left,b.getBoundingClientRect().bottom);}));
+        w.addEventListener("contextmenu",e=>{ if(e.target.closest('.os-winbar')) return; e.preventDefault(); this.osShowWindowMenu(w,e.clientX,e.clientY); });
+        const resize=w.querySelector(".os-resize"); let resizing=false,rsx=0,rsy=0,rw=0,rh=0;
+        resize.addEventListener("pointerdown",e=>{resizing=true;rsx=e.clientX;rsy=e.clientY;rw=w.offsetWidth;rh=w.offsetHeight;resize.setPointerCapture?.(e.pointerId);e.stopPropagation();});
+        resize.addEventListener("pointermove",e=>{if(!resizing)return;w.style.width=Math.max(420,rw+e.clientX-rsx)+"px";w.style.height=Math.max(300,rh+e.clientY-rsy)+"px";});
+        resize.addEventListener("pointerup",()=>resizing=false); resize.addEventListener("pointercancel",()=>resizing=false);
+    },
+    osShowWindowMenu(w,x,y){
+        document.getElementById('os-window-context')?.remove();
+        const menu=document.createElement('div'); menu.id='os-window-context'; menu.className='os-window-context';
+        menu.innerHTML=`<button data-action="fullscreen">⛶ Fullscreen</button><button data-action="max">▣ Maximize</button><button data-action="min">— Minimize</button><button data-action="cloak">◌ Cloak Window</button><button data-action="top">⌃ Keep Above</button><button data-action="download">⇩ Download Game</button><div></div><button data-action="close">× Close</button>`;
+        document.getElementById('os-desktop')?.appendChild(menu);
+        const root=document.getElementById('os-desktop'), rr=root?.getBoundingClientRect();
+        menu.style.left=Math.max(8,Math.min((x||30)-(rr?.left||0),innerWidth-menu.offsetWidth-16))+'px';
+        menu.style.top=Math.max(40,Math.min((y||60)-(rr?.top||0),innerHeight-menu.offsetHeight-16))+'px';
+        menu.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+            const a=b.dataset.action; menu.remove();
+            if(a==='fullscreen')this.osToggleFullscreen(w);
+            else if(a==='max')this.osToggleMax(w);
+            else if(a==='min')w.classList.add('minimized');
+            else if(a==='cloak')w.classList.toggle('cloaked');
+            else if(a==='top'){w.classList.toggle('always-top'); this.osFocusWindow(w);}
+            else if(a==='download')this.osDownloadWindow(w);
+            else if(a==='close')w.remove();
+        }));
+        setTimeout(()=>document.addEventListener('pointerdown',function close(ev){if(!menu.contains(ev.target)){menu.remove();document.removeEventListener('pointerdown',close)}},{once:true}),0);
+    },
+    osToggleFullscreen(w){
+        const on=w.classList.toggle('os-fullscreen');
+        document.getElementById('os-desktop')?.classList.toggle('os-game-fullscreen',on);
+        if(on){ w.dataset.oldLeft=w.style.left; w.dataset.oldTop=w.style.top; w.dataset.oldWidth=w.style.width; w.dataset.oldHeight=w.style.height; this.osFocusWindow(w); }
+        else if(w.dataset.oldWidth){ Object.assign(w.style,{left:w.dataset.oldLeft,top:w.dataset.oldTop,width:w.dataset.oldWidth,height:w.dataset.oldHeight}); }
+    },
+    osDownloadWindow(w){
+        const url=w.dataset.gameUrl; if(!url){ alert('This window has no downloadable file'); return; }
+        const a=document.createElement('a'); a.href=url; a.download=w.dataset.gameTitle||'nova-game'; a.target='_blank'; document.body.appendChild(a); a.click(); a.remove();
+    },
+
+    osToggleMax(w){
+        if(w.classList.contains("maximized")){ w.classList.remove("maximized"); Object.assign(w.style,{left:w.dataset.oldLeft,top:w.dataset.oldTop,width:w.dataset.oldWidth,height:w.dataset.oldHeight}); }
+        else{ w.dataset.oldLeft=w.style.left; w.dataset.oldTop=w.style.top; w.dataset.oldWidth=w.style.width; w.dataset.oldHeight=w.style.height; w.classList.add("maximized"); }
+        this.osFocusWindow(w);
+    },
+    async osOpenGameWindow(item){
+        if(!item || !item.url) return null;
+        const key = "game:" + item.title;
+        const existing = document.querySelector(`.os-window[data-key="${CSS.escape(key)}"]`);
+        if(existing){
+            this.osFocusWindow(existing);
+            if(existing.classList.contains("minimized")) existing.classList.remove("minimized");
+            return existing;
+        }
+
+        const safeTitle = item.title || "Game";
+        const hostBody = `
+            <div class="os-game-window">
+                <div class="os-game-loading">
+                    <div class="os-loading-orb"></div>
+                    <div class="os-loading-title">Loading ${this.esc(safeTitle)}</div>
+                    <div class="os-loading-sub">Preparing game files and runtime…</div>
+                    <div class="os-loading-bar"><span></span></div>
+                    <div class="os-loading-status">Connecting to game server</div>
+                </div>
+                <iframe class="os-game-frame" allow="gamepad; fullscreen; autoplay; clipboard-read; clipboard-write; pointer-lock; downloads; storage-access"></iframe>
+            </div>`;
+
+        const w = this.osOpenWindow(
+            safeTitle,
+            key,
+            hostBody,
+            {center:true,width:980,height:700}
+        );
+        if(!w) return null;
+
+        w.dataset.gameUrl = item.url;
+        w.dataset.gameTitle = safeTitle;
+
+        const frame = w.querySelector(".os-game-frame");
+        const loading = w.querySelector(".os-game-loading");
+        const bar = loading?.querySelector(".os-loading-bar span");
+        const status = loading?.querySelector(".os-loading-status");
+
+        const update = (pct,msg)=>{
+            if(bar) bar.style.width = Math.max(5,Math.min(100,pct)) + "%";
+            if(status) status.textContent = msg;
+        };
+
+        // Keep the game in a real iframe origin first so relative resources,
+        // workers, wasm, fetch/XHR and local storage behave like a normal page.
+        update(12,"Connecting to game server");
+        await new Promise(resolve=>{
+            let settled=false;
+            const finish=()=>{if(settled)return;settled=true;resolve();};
+            this.attachHtmlToIframe(frame,item.url).finally(()=>{
+                update(100,"Game ready");
+                setTimeout(()=>{ if(loading) loading.classList.add("done"); finish(); },180);
+            });
+            setTimeout(finish, 15000);
+        });
+
+        // If the direct load still produced an empty document, try the
+        // compatibility path without blocking the desktop window.
+        return w;
+    },
+
+
+    osOpenEducationWindow(){
+        const key="nova-education";
+        const existing=document.querySelector(`.os-window[data-key="${CSS.escape(key)}"]`);
+        if(existing){
+            this.osFocusWindow(existing);
+            existing.classList.remove("minimized");
+            return existing;
+        }
+
+        const body = `
+        <div class="nova-education-app">
+            <div class="nova-education-hero">
+                <div>
+                    <div class="nova-education-kicker">NOVA EDUCATION</div>
+                    <h1>Learn · Calculate · Explore</h1>
+                    <p>A lightweight education workspace built into Nova</p>
+                </div>
+                <div class="nova-education-badge">∑</div>
+            </div>
+            <div class="nova-education-grid">
+                <section class="nova-education-card">
+                    <div class="nova-education-card-head"><span>Calculator</span><small>supports expressions</small></div>
+                    <input class="nova-calc-display" id="nova-calc-display" inputmode="decimal" autocomplete="off" placeholder="0">
+                    <div class="nova-calc-grid">
+                        ${["7","8","9","÷","4","5","6","×","1","2","3","−","0",".","=","+"].map(x=>`<button type="button" data-calc="${x}">${x}</button>`).join("")}
+                    </div>
+                    <button class="nova-calc-clear" type="button" data-calc="C">Clear</button>
+                    <div class="nova-education-note">Tip  enter <b>1234</b> in the display and press = to open Nova Gaming</div>
+                </section>
+                <section class="nova-education-card nova-education-lessons">
+                    <div class="nova-education-card-head"><span>Quick Learning</span><small>mini reference</small></div>
+                    <button data-lesson="math">Math formulas</button>
+                    <button data-lesson="web">Web basics</button>
+                    <button data-lesson="linux">Linux basics</button>
+                    <div class="nova-lesson-output" id="nova-lesson-output">Pick a topic to see a quick reference</div>
+                </section>
+            </div>
+        </div>`;
+
+        const w=this.osOpenWindow("Nova Education",key,body,{center:true,width:900,height:650});
+        if(!w)return null;
+
+        const display=w.querySelector("#nova-calc-display");
+        let expr="";
+        const setDisplay=()=>{if(display)display.value=expr;};
+
+        w.querySelectorAll("[data-calc]").forEach(btn=>{
+            btn.addEventListener("click",()=>{
+                const v=btn.dataset.calc;
+                if(v==="C"){expr="";setDisplay();return}
+                if(v==="="){
+                    if(expr.trim()==="1234"){
+                        this.osOpenWindow("Games","games",this.osGamesBody(),{center:true,width:980,height:690});
+                        return;
+                    }
+                    try{
+                        const safe=expr.replaceAll("×","*").replaceAll("÷","/");
+                        if(!/^[0-9+*/().%\\s-]+$/.test(safe))throw new Error();
+                        expr=String(Function('"use strict";return ('+safe+')')());
+                    }catch{expr="Error";}
+                    setDisplay();
+                    return;
+                }
+                if(expr==="Error")expr="";
+                expr+=v;
+                setDisplay();
+            });
+        });
+
+        display?.addEventListener("keydown",e=>{
+            if(e.key==="Enter"){
+                w.querySelector('[data-calc="="]')?.click();
+                e.preventDefault();
+            }
+        });
+
+        const lessons={
+            math:"Area of a rectangle = length × width · Pythagorean theorem: a² + b² = c² · Slope = rise ÷ run",
+            web:"HTML structures a page · CSS styles it · JavaScript adds behavior · URLs identify web resources",
+            linux:"pwd shows your location · ls lists files · cd changes folders · mkdir creates a directory"
+        };
+        w.querySelectorAll("[data-lesson]").forEach(b=>b.addEventListener("click",()=>{
+            const out=w.querySelector("#nova-lesson-output");
+            if(out)out.textContent=lessons[b.dataset.lesson];
+        }));
+        return w;
+    },
+
+    osOpenChatroomWindow(){
+        const key="nova-chatroom";
+        const existing=document.querySelector(`.os-window[data-key="${CSS.escape(key)}"]`);
+        if(existing){ this.osFocusWindow(existing); existing.classList.remove("minimized"); return existing; }
+        const url="https://global-chat.umarerthteam.workers.dev/";
+        const body=`<div class="nova-app-frame-wrap"><iframe class="nova-app-frame" src="${url}" title="Nova Chatroom" allow="clipboard-read; clipboard-write"></iframe></div>`;
+        return this.osOpenWindow("Nova Chatroom",key,body,{center:true,width:1000,height:700});
+    },
+
+    osOpenBrowserWindow(){
+        const key="nova-browser";
+        const existing=document.querySelector(`.os-window[data-key="${CSS.escape(key)}"]`);
+        if(existing){ this.osFocusWindow(existing); if(existing.classList.contains("minimized")) existing.classList.remove("minimized"); return existing; }
+        const url="https://single-nova-worker.umarerthteam.workers.dev";
+        const body=`<div class="os-browser-app"><div class="os-browser-toolbar"><button class="os-browser-nav" data-browser="back">‹</button><button class="os-browser-nav" data-browser="forward">›</button><button class="os-browser-nav" data-browser="reload">↻</button><input class="os-browser-address" value="${this.esc(url)}" aria-label="Address"><button class="os-browser-go" data-browser="go">Go</button></div><div class="os-browser-view"><iframe class="os-browser-frame" src="${this.esc(url)}" allow="clipboard-read; clipboard-write; downloads; storage-access-by-user-activation"></iframe></div></div>`;
+        const w=this.osOpenWindow("Nova Browser",key,body,{center:true,width:1100,height:720});
+        if(!w)return null;
+        const frame=w.querySelector('.os-browser-frame'), address=w.querySelector('.os-browser-address');
+        const go=()=>{try{let v=address.value.trim(); if(!/^https?:\/\//i.test(v))v='https://'+v; frame.src=v; address.value=v;}catch{}};
+        w.querySelector('[data-browser="go"]')?.addEventListener('click',go);
+        w.querySelector('[data-browser="reload"]')?.addEventListener('click',()=>{try{frame.contentWindow.location.reload()}catch{frame.src=frame.src}});
+        w.querySelector('[data-browser="back"]')?.addEventListener('click',()=>{try{frame.contentWindow.history.back()}catch{}});
+        w.querySelector('[data-browser="forward"]')?.addEventListener('click',()=>{try{frame.contentWindow.history.forward()}catch{}});
+        address?.addEventListener('keydown',e=>{if(e.key==='Enter')go()});
+        frame?.addEventListener('load',()=>{try{address.value=frame.contentWindow.location.href}catch{}});
+        return w;
+    },
+
+    osFinderBody(){
+        const folders=["Applications","Games","Nova AI","YouTube","Anime","Favorites","Downloads"];
+        return `<div class="os-finder"><aside class="os-sidebar"><div class="os-side-title">Favorites</div>${folders.map((f,i)=>`<button class="os-side-btn${i===1?" active":""}"><span>${i===1?"◈":"▣"}</span>${this.esc(f)}</button>`).join("")}<div class="os-side-title">Locations</div><button class="os-side-btn"><span>⌂</span>Nova Disk</button><button class="os-side-btn"><span>☁</span>Cloud</button></aside><main class="os-file-main"><div class="os-file-toolbar"><span>Games</span><span class="os-file-count">${GAMES.length} items</span></div><div class="os-file-grid">${GAMES.map((g,i)=>`<button class="os-file-item" data-game="${i}"><span class="os-file-icon">${this.esc((g.title||"?").charAt(0).toUpperCase())}</span><span>${this.esc(g.title)}</span></button>`).join("")}</div></main></div>`;
+    },
+    osGamesBody(){
+        return `<div class="os-games-app"><div class="os-games-head"><div><div class="os-eyebrow">INSTALLED APPS</div><h2>Games</h2><p>${GAMES.length} games ready to launch</p></div><input id="os-games-search" placeholder="Search installed games…"></div><div class="os-gamegrid-pro" id="os-gamegrid-pro">${GAMES.map((g,i)=>`<button class="os-game-pro" data-game="${i}"><span class="os-game-icon-pro">${this.esc((g.title||"?").charAt(0).toUpperCase())}</span><span class="os-game-title-pro">${this.esc(g.title)}</span><small>Application</small></button>`).join("")}</div></div>`;
+    },
+    osSettingsBody(){
+        return `<div class="os-settings"><aside><div class="os-settings-brand">System Settings</div><button class="active">Appearance</button><button>Desktop & Dock</button><button>Game Center</button><button>Privacy</button><button>About</button></aside><main><h2>Appearance</h2><div class="os-setting-card"><div><strong>Interface</strong><p>Choose between the OS desktop and Classic Nova</p></div><div class="os-setting-actions"><button id="os-use-os">OS Style</button><button id="os-use-classic">Classic</button></div></div><div class="os-setting-card"><div><strong>Desktop animations</strong><p>Use enhanced window transitions and dock motion</p></div><button class="os-toggle on">On</button></div><div class="os-setting-card"><div><strong>Installed games</strong><p>${GAMES.length} game applications available</p></div><span class="os-stat">${GAMES.length}</span></div></main></div>`;
+    },
+    osAboutBody(){
+        return `<div class="os-about"><div class="os-about-logo">✦</div><h1>Nova Gaming</h1><p>${this.esc(SITE_TAGLINE)}</p><div class="os-about-grid"><div><small>Games</small><strong>${GAMES.length}</strong></div><div><small>Engine</small><strong>HyperGlass</strong></div><div><small>Interface</small><strong>OS Style</strong></div></div><p class="os-muted">A browser based desktop environment for games tools media and Nova apps</p></div>`;
+    },
+
     // ── DOM CONSTRUCTION ────────────────────────────────────────
     buildDOM(){
         try{ this.favorites=JSON.parse(localStorage.getItem("ng_f")||"[]"); }catch(e){}
-
-        // Lock Overlay
-        const lock=document.createElement("div"); lock.id="lock";
-        lock.innerHTML=`<div class="lk"><div class="lk-wm">${this.esc(SITE_NAME)}</div><span class="lk-lb">Enter Security PIN</span><input type="password" class="lk-in" placeholder="••••" maxlength="4" autocomplete="off"></div>`;
-        document.body.appendChild(lock);
 
         // Main App Wrapper
         const app=document.createElement("div"); app.id="app";
@@ -1343,6 +2074,20 @@ const nova = {
 
         this.renderCards();
         this.tabNew("Home","home");
+        this.uiModeInit();
+        document.addEventListener("click",e=>{
+            const game=e.target.closest(".os-game-pro,.os-file-item");
+            if(game && this.uiMode==="os"){ const idx=+game.dataset.game; if(Number.isInteger(idx)&&GAMES[idx]) this.osOpenGameWindow(GAMES[idx]); }
+            const b=e.target.closest("#os-games-search"); if(b) e.stopPropagation();
+            if(e.target.id==="os-use-os") this.setUIMode("os");
+            if(e.target.id==="os-use-classic") this.setUIMode("classic");
+        },true);
+        document.addEventListener("input",e=>{
+            if(e.target.id!=="os-games-search")return;
+            const host=e.target.closest(".os-games-app")?.querySelector("#os-gamegrid-pro"); if(!host)return;
+            const q=e.target.value.toLowerCase().trim();
+            host.querySelectorAll(".os-game-pro").forEach((b,i)=>{ const title=GAMES[i]?.title?.toLowerCase()||""; const desc=GAMES[i]?.desc?.toLowerCase()||""; b.style.display=!q||title.includes(q)||desc.includes(q)?"flex":"none"; });
+        },true);
     },
 
     // ── CARDS & FILTERING ───────────────────────────────────────
@@ -1519,8 +2264,8 @@ const nova = {
         const frame = document.createElement("iframe");
         frame.id = `gframe-${tabId}`;
         frame.className = "gframe-instance active";
-        frame.setAttribute("allow", "fullscreen; autoplay; allow-forms; allow-pointer-lock; allow-same-origin; allow-scripts; allow-modals; allow-downloads; allow-storage-access-by-user-activation");
-        frame.setAttribute("allowfullscreen", "true");
+        frame.setAttribute("allow", "autoplay; allow-forms; allow-pointer-lock; allow-same-origin; allow-scripts; allow-modals; allow-downloads; allow-storage-access-by-user-activation");
+        frame.removeAttribute("allowfullscreen");
 
         workspace.appendChild(frame);
         await this.attachHtmlToIframe(frame, item.url);
@@ -1535,6 +2280,9 @@ const nova = {
                 const res = await fetch(url);
                 if (res.ok) {
                     let html = await res.text();
+                    if (!/<(?:!doctype\s+html|html[\s>])/i.test(html)) {
+                        throw new Error("Game resource did not return HTML");
+                    }
                     const baseDir = url.substring(0, url.lastIndexOf('/') + 1);
                     html = `<base href="${baseDir}">${html}`;
                     w.document.open();
@@ -1545,7 +2293,7 @@ const nova = {
             } catch(e) {}
         }
         
-        w.document.write(`<!DOCTYPE html><html><head><title>${this.esc(title)}</title><style>html,body,iframe{width:100%;height:100%;margin:0;padding:0;border:none;background:#000;}</style></head><body><iframe src="${this.esc(url)}" allow="fullscreen; autoplay; allow-forms; allow-pointer-lock; allow-same-origin; allow-scripts; allow-modals; allow-downloads"></iframe></body></html>`);
+        w.document.write(`<!DOCTYPE html><html><head><title>${this.esc(title)}</title><style>html,body,iframe{width:100%;height:100%;margin:0;padding:0;border:none;background:#000;}</style></head><body><iframe src="${this.esc(url)}" allow="gamepad; fullscreen; autoplay; allow-forms; allow-pointer-lock; allow-same-origin; allow-scripts; allow-modals; allow-downloads"></iframe></body></html>`);
         w.document.close();
     },
 
@@ -1613,6 +2361,8 @@ const nova = {
     closePanel(){ document.getElementById("panel").classList.remove("on"); document.getElementById("bd").classList.remove("on"); document.getElementById("mbtn").classList.remove("on"); },
 
     dispatch(action,newTab,label,icon){
+        if(action==="custom:setOsStyle"){this.setUIMode("os");return;}
+        if(action==="custom:setClassicStyle"){this.setUIMode("classic");return;}
         if(!action) return;
         const run=()=>{
             if(action==="reload")         { this.closePanel(); location.reload(); }
@@ -1644,45 +2394,53 @@ const nova = {
     },
 
     async aiFetchModels() {
+        const allModels = [];
         try {
-            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_API_KEY}`);
-            if (!res.ok) throw new Error("Failed to query models endpoint");
-            const data = await res.json();
-            
-            if (data.models && Array.isArray(data.models)) {
-                this._aiModels = data.models.filter(m => {
-                    const supportsGen = m.supportedGenerationMethods && m.supportedGenerationMethods.includes("generateContent");
-                    if (!supportsGen) return false;
+            let pageToken = "";
+            do {
+                const url = new URL("https://generativelanguage.googleapis.com/v1beta/models");
+                url.searchParams.set("key", GEMINI_API_KEY);
+                url.searchParams.set("pageSize", "1000");
+                if (pageToken) url.searchParams.set("pageToken", pageToken);
+                const res = await fetch(url.toString());
+                if (!res.ok) {
+                    const body = await res.text().catch(() => "");
+                    throw new Error(`Models request failed (${res.status}) ${body}`);
+                }
+                const data = await res.json();
+                if (Array.isArray(data.models)) allModels.push(...data.models);
+                pageToken = data.nextPageToken || "";
+            } while (pageToken);
 
-                    const id = (m.name || "").toLowerCase();
-                    const disp = (m.displayName || "").toLowerCase();
-
-                    const isPro = id.includes("pro") || disp.includes("pro");
-                    const isNano = id.includes("nano") || disp.includes("nano");
-                    const isBanna = id.includes("banna") || disp.includes("banna") || id.includes("banana") || disp.includes("banana");
-                    const is25 = id.includes("2.5") || disp.includes("2.5");
-
-                    return !(isPro || isNano || isBanna || is25);
-                }).map(m => {
-                    const cleanId = m.name.replace(/^models\//, "");
-                    return { id: cleanId, name: m.displayName || cleanId };
-                });
-            }
+            this._aiModels = allModels.filter(m => {
+                const supportsGen = Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes("generateContent");
+                if (!supportsGen) return false;
+                const id = String(m.name || "").replace(/^models\//, "").toLowerCase();
+                const disp = String(m.displayName || "").toLowerCase();
+                const isPro = /\bpro\b/i.test(id) || /\bpro\b/i.test(disp);
+                const isNano = /\bnano\b/i.test(id) || /\bnano\b/i.test(disp);
+                const isBanana = /\bbanana\b/i.test(id) || /\bbanana\b/i.test(disp) || /\bbanna\b/i.test(id) || /\bbanna\b/i.test(disp);
+                return !(isPro || isNano || isBanana);
+            }).map(m => {
+                const cleanId = m.name.replace(/^models\//, "");
+                return { id: cleanId, name: m.displayName || cleanId };
+            }).sort((a,b) => a.name.localeCompare(b.name));
         } catch(e) {
-            console.warn("Could not fetch Gemini models dynamically, using fallback list:", e);
+            console.warn("Could not fetch Gemini models dynamically:", e);
         }
 
         if (!this._aiModels || this._aiModels.length === 0) {
             this._aiModels = [
-                { id: "gemini-1.5-flash", name: "Gemini 1.5 Flash" },
-                { id: "gemini-1.5-flash-8b", name: "Gemini 1.5 Flash 8B" }
+                { id: "gemini-3.6-flash", name: "Gemini 3.6 Flash" },
+                { id: "gemini-3.5-flash", name: "Gemini 3.5 Flash" },
+                { id: "gemini-3.5-flash-lite", name: "Gemini 3.5 Flash Lite" },
+                { id: "gemini-3.1-flash-lite", name: "Gemini 3.1 Flash Lite" },
+                { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash" },
+                { id: "gemini-2.5-flash-lite", name: "Gemini 2.5 Flash Lite" },
             ];
         }
 
-        if (!this._selectedModel || !this._aiModels.some(m => m.id === this._selectedModel)) {
-            this._selectedModel = this._aiModels[0].id;
-        }
-
+        if (!this._selectedModel || !this._aiModels.some(m => m.id === this._selectedModel)) this._selectedModel = this._aiModels[0].id;
         this.aiRenderModelSelect();
     },
 
@@ -2109,58 +2867,38 @@ const nova = {
         }
     },
 
-    // ── MULTI-PROVIDER YOUTUBE ENGINE ─────────────────────────────
-    async _ytFetch(endpoint) {
-        for (const base of PIPED_EMBED_INSTANCES) {
-            try {
-                const res = await fetch(`${base}/api/v1${endpoint}`);
-                if (res.ok) {
-                    currentYtInstance = base;
-                    return await res.json();
-                }
-            } catch(e) {}
-        }
-        throw new Error("All YouTube providers failed.");
+    // ── OFFICIAL YOUTUBE DATA API ENGINE ──────────────────────────
+    async _ytFetch(path, params={}) {
+        if (!YOUTUBE_API_KEY || YOUTUBE_API_KEY.includes("PASTE_YOUR")) throw new Error("Set YOUTUBE_API_KEY at the top of loader.js");
+        const url=new URL(`https://www.googleapis.com/youtube/v3/${path}`);
+        url.searchParams.set("key",YOUTUBE_API_KEY);
+        Object.entries(params).forEach(([k,v])=>url.searchParams.set(k,String(v)));
+        const res=await fetch(url.toString());
+        const data=await res.json().catch(()=>({}));
+        if(!res.ok) throw new Error(data?.error?.message||`YouTube API error ${res.status}`);
+        return data;
     },
-
     async ytHome(){
-        this._ytLoaded=true;
-        const body=document.getElementById("yp-body"); body.innerHTML=`<div class="fp-spin"></div>`;
+        this._ytLoaded=true; const body=document.getElementById("yp-body"); body.innerHTML=`<div class="fp-spin"></div>`;
         try {
-            const videos = await this._ytFetch(`/trending`);
-            this._renderYtGrid(videos, body, "Trending Stream Feed");
-        } catch(e) {
-            this.ytSearch("gaming trailers");
-        }
+            const data=await this._ytFetch("videos",{part:"snippet,statistics",chart:"mostPopular",regionCode:"US",maxResults:24});
+            const videos=(data.items||[]).map(v=>({videoId:v.id,title:v.snippet?.title||"Untitled",author:v.snippet?.channelTitle||"",viewCount:v.statistics?.viewCount||"",videoThumbnails:[{quality:"high",url:v.snippet?.thumbnails?.high?.url||v.snippet?.thumbnails?.medium?.url||v.snippet?.thumbnails?.default?.url}]}));
+            this._renderYtGrid(videos,body,"YouTube Trending");
+        } catch(e){ body.innerHTML=`<div class="fp-msg">YouTube API unavailable ${this.esc(e.message||"")}</div>`; }
     },
-
     async ytSearch(q){
-        if(!q.trim()){ this.ytHome(); return; }
-        const body=document.getElementById("yp-body"); body.innerHTML=`<div class="fp-spin"></div>`;
+        if(!q.trim()){this.ytHome();return;} const body=document.getElementById("yp-body"); body.innerHTML=`<div class="fp-spin"></div>`;
         try {
-            const videos = await this._ytFetch(`/search?q=${encodeURIComponent(q)}&type=video`);
-            this._renderYtGrid(videos, body, `Search for "${q}"`);
-        } catch(e) {
-            body.innerHTML=`<div class="fp-msg">YouTube search unavailable. Please try again shortly.</div>`;
-        }
+            const data=await this._ytFetch("search",{part:"snippet",q:q.trim(),type:"video",videoEmbeddable:"true",maxResults:24,regionCode:"US",safeSearch:"moderate"});
+            const videos=(data.items||[]).filter(v=>v.id?.videoId).map(v=>({videoId:v.id.videoId,title:v.snippet?.title||"Untitled",author:v.snippet?.channelTitle||"",videoThumbnails:[{quality:"high",url:v.snippet?.thumbnails?.high?.url||v.snippet?.thumbnails?.medium?.url||v.snippet?.thumbnails?.default?.url}]}));
+            this._renderYtGrid(videos,body,`Search for "${q}"`);
+        } catch(e){ body.innerHTML=`<div class="fp-msg">YouTube search unavailable ${this.esc(e.message||"")}</div>`; }
     },
-
-    _renderYtGrid(videos, body, sectionTitle){
-        if(!videos || !videos.length){ body.innerHTML=`<div class="fp-msg">No videos found.</div>`; return; }
+    _renderYtGrid(videos,body,sectionTitle){
+        if(!videos||!videos.length){body.innerHTML=`<div class="fp-msg">No videos found.</div>`;return;}
         let h=`<div class="fp-sec"><div class="fp-sttl">${this.esc(sectionTitle)}</div><div class="fp-grid">`;
-        videos.forEach(v=>{
-            if(!v.videoId) return;
-            const thumb = v.videoThumbnails ? (v.videoThumbnails.find(t=>t.quality==="medium")||v.videoThumbnails[0])?.url : `https://i.ytimg.com/vi/${v.videoId}/mqdefault.jpg`;
-            const views = v.viewCount ? Number(v.viewCount).toLocaleString() + " views" : "";
-            const meta = [v.author, views].filter(Boolean).join(" · ");
-            h+=`<div class="acd ytc" data-vid="${v.videoId}" data-title="${this.esc(v.title||"")}">
-                <img src="${this.esc(thumb)}" alt="${this.esc(v.title)}" loading="lazy">
-                <div class="acd-i"><div class="acd-t">${this.esc(v.title)}</div><div class="acd-m">${this.esc(meta)}</div></div></div>`;
-        });
-        h+=`</div></div>`; body.innerHTML=h;
-        body.querySelectorAll(".acd[data-vid]").forEach(el=>
-            el.addEventListener("click",()=>this.ytPlay(el.dataset.vid, el.dataset.title))
-        );
+        videos.forEach(v=>{if(!v.videoId)return;const thumb=v.videoThumbnails?.[0]?.url||`https://i.ytimg.com/vi/${v.videoId}/mqdefault.jpg`;const views=v.viewCount?Number(v.viewCount).toLocaleString()+" views":"";const meta=[v.author,views].filter(Boolean).join(" · ");h+=`<div class="acd ytc" data-vid="${this.esc(v.videoId)}" data-title="${this.esc(v.title||"")}"><img src="${this.esc(thumb)}" alt="${this.esc(v.title||"")}" loading="lazy"><div class="acd-i"><div class="acd-t">${this.esc(v.title||"")}</div><div class="acd-m">${this.esc(meta)}</div></div></div>`;});
+        h+=`</div></div>`; body.innerHTML=h; body.querySelectorAll(".acd[data-vid]").forEach(el=>el.addEventListener("click",()=>this.ytPlay(el.dataset.vid,el.dataset.title)));
     },
 
     ytPlay(videoId, title){
@@ -2187,7 +2925,7 @@ const nova = {
         win.document.body.style.cssText = "margin:0;height:100vh;overflow:hidden;background:#000;";
         const iframe = win.document.createElement("iframe");
         iframe.style.cssText = "border:none;width:100%;height:100%;display:block;";
-        iframe.allow = "fullscreen; autoplay; allow-forms; allow-pointer-lock; allow-same-origin; allow-scripts; allow-modals; allow-downloads; allow-storage-access-by-user-activation";
+        iframe.allow = "gamepad; fullscreen; autoplay; allow-forms; allow-pointer-lock; allow-same-origin; allow-scripts; allow-modals; allow-downloads; allow-storage-access-by-user-activation";
         
         win.document.body.appendChild(iframe);
         await this.attachHtmlToIframe(iframe, gameItem.url);
@@ -2206,7 +2944,7 @@ const nova = {
         win.document.body.style.cssText = "margin:0;height:100vh;overflow:hidden;background:#03040a;";
         const iframe = win.document.createElement("iframe");
         iframe.style.cssText = "border:none;width:100%;height:100%;display:block;";
-        iframe.allow = "fullscreen; autoplay; allow-forms; allow-pointer-lock; allow-same-origin; allow-scripts; allow-modals; allow-downloads";
+        iframe.allow = "gamepad; fullscreen; autoplay; allow-forms; allow-pointer-lock; allow-same-origin; allow-scripts; allow-modals; allow-downloads";
         iframe.src = window.location.href;
         
         win.document.body.appendChild(iframe);
@@ -2216,15 +2954,6 @@ const nova = {
     // ── MAIN EVENT BINDINGS ─────────────────────────────────────
     bindEvents(){
         const $=id=>document.getElementById(id), $$=s=>document.querySelector(s);
-
-        // Lock handler
-        $$(".lk-in")?.addEventListener("input",e=>{
-            if(e.target.value===LOCK_PIN){
-                const l=$("lock"); l.style.opacity="0"; l.style.pointerEvents="none";
-                setTimeout(()=>l.remove(),400);
-                $("app").classList.add("on");
-            }
-        });
 
         // Search & Favorites
         $("sbar")?.addEventListener("input",e=>{ this.searchQuery=e.target.value.toLowerCase().trim(); this.filter(); },{passive:true});
@@ -2252,12 +2981,10 @@ const nova = {
 
         // Theater Game Controls
         $("t-fs")?.addEventListener("click",()=>{
-            const activeFrame = document.querySelector(".gframe-instance.active");
-            const target = activeFrame || document.getElementById("gframe-workspace");
-            if (target) {
-                if (target.requestFullscreen) target.requestFullscreen();
-                else if (target.webkitRequestFullscreen) target.webkitRequestFullscreen();
-            }
+            const target = document.getElementById("theater");
+            if(!target) return;
+            if(target.requestFullscreen) target.requestFullscreen();
+            else if(target.webkitRequestFullscreen) target.webkitRequestFullscreen();
         });
         $("t-cloak")?.addEventListener("click",()=>{
             this.cloakGame(this._theaterItem);
@@ -2355,11 +3082,456 @@ const nova = {
         },{passive:true});
     },
 
+    osModeCss(){
+        if(document.getElementById("os-mode-style"))return;
+        const style=document.createElement("style"); style.id="os-mode-style"; style.textContent=`
+
+/* Fast native-feeling window dragging */
+.os-winbar{touch-action:none;-webkit-user-select:none;user-select:none;cursor:default}
+.os-winbar *{-webkit-user-select:none;user-select:none}
+.os-window.os-dragging{transition:none!important;cursor:grabbing!important}
+.os-window.os-dragging *{user-select:none!important;-webkit-user-select:none!important}
+body.nova-window-dragging{user-select:none!important;-webkit-user-select:none!important;cursor:grabbing!important}
+body.os-mode{overflow:hidden;background:#05060b}body.os-mode #grid,body.os-mode #tbr,body.os-mode header,body.os-mode #bnav{display:none!important}body.os-mode #particle-canvas{opacity:.18}
+#mode-chooser{position:fixed;inset:0;z-index:30000;display:grid;place-items:center;background:rgba(2,3,8,.78);backdrop-filter:blur(28px);animation:modeFade .3s ease}.mode-card{width:min(900px,94vw);padding:44px;border:1px solid rgba(255,255,255,.13);border-radius:34px;background:linear-gradient(145deg,rgba(28,31,45,.94),rgba(9,11,18,.95));box-shadow:0 45px 120px rgba(0,0,0,.72);text-align:center}.mode-logo{width:64px;height:64px;margin:0 auto 15px;border-radius:20px;display:grid;place-items:center;font-size:30px;color:#00ff9d;background:rgba(0,255,157,.1);border:1px solid rgba(0,255,157,.2)}.mode-kicker{font-size:11px;letter-spacing:4px;color:#00ff9d;font-weight:900;margin-bottom:8px}.mode-card h1{margin:0;font-size:clamp(30px,5vw,54px)}.mode-card p{margin:10px 0 30px;color:rgba(255,255,255,.56)}.mode-options{display:grid;grid-template-columns:1fr 1fr;gap:18px}.mode-option{box-sizing:border-box;border:1px solid rgba(255,255,255,.11);background:rgba(255,255,255,.035);backdrop-filter:blur(28px) saturate(140%);color:#fff;border-radius:26px;padding:22px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:9px;transition:.28s transform,.28s background,.28s border-color;overflow:hidden}.mode-option:hover{transform:translateY(-8px);background:rgba(255,255,255,.07);border-color:rgba(0,255,157,.42)}.mode-option strong{font-size:20px}.mode-option small{color:rgba(255,255,255,.5);line-height:1.45}.mode-preview{height:180px;border-radius:18px;display:block;position:relative;overflow:hidden;border:1px solid rgba(255,255,255,.08);margin-bottom:4px}.os-preview{background:linear-gradient(145deg,#0e1220,#2a1b53 48%,#0b0f1d)}.os-preview i{position:absolute;left:0;right:0;top:0;height:24px;background:rgba(7,8,12,.78)}.os-preview b{position:absolute;bottom:11px;width:44px;height:44px;border-radius:12px;background:rgba(255,255,255,.12);backdrop-filter:blur(12px)}.os-preview b:nth-of-type(1){left:calc(50% - 70px)}.os-preview b:nth-of-type(2){left:calc(50% - 20px)}.os-preview b:nth-of-type(3){left:calc(50% + 30px)}.os-preview em{position:absolute;left:8%;top:22%;width:62%;height:42%;border-radius:12px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)}.classic-preview{padding:18px;display:grid;grid-template-columns:1fr 1fr;gap:10px;background:linear-gradient(145deg,#0a0d12,#131a1f)}.classic-preview i{border-radius:12px;background:linear-gradient(145deg,rgba(0,255,157,.16),rgba(111,81,255,.17));border:1px solid rgba(255,255,255,.07)}
+#os-desktop{position:fixed;inset:0;z-index:1500;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display",Inter,system-ui,sans-serif;overflow:hidden;animation:osDesktopIn .55s cubic-bezier(.2,.8,.2,1)}.os-wallpaper{position:absolute;inset:0;background:radial-gradient(circle at 20% 25%,rgba(0,255,157,.2),transparent 26%),radial-gradient(circle at 80% 20%,rgba(110,75,255,.26),transparent 32%),radial-gradient(circle at 55% 85%,rgba(0,183,255,.16),transparent 25%),linear-gradient(145deg,#06070c,#101322 46%,#080a11);overflow:hidden}.os-wallpaper-orb{position:absolute;border-radius:50%;filter:blur(10px);opacity:.38}.os-wallpaper-orb.o1{width:46vw;height:46vw;right:-12vw;bottom:-16vw;background:radial-gradient(circle,rgba(101,74,255,.42),transparent 64%)}.os-wallpaper-orb.o2{width:32vw;height:32vw;left:-10vw;top:8vw;background:radial-gradient(circle,rgba(0,255,157,.3),transparent 64%)}.os-wallpaper-grid{position:absolute;inset:0;background:linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px);background-size:44px 44px;mask-image:linear-gradient(to bottom,rgba(0,0,0,.32),transparent 78%)}
+.os-menubar{position:absolute;z-index:1600;left:0;right:0;top:0;height:34px;padding:0 10px;display:flex;align-items:center;justify-content:space-between;background:rgba(8,9,14,.56);border-bottom:1px solid rgba(255,255,255,.07);backdrop-filter:blur(22px);font-size:12px}.os-menu-left,.os-menu-right{display:flex;align-items:center;gap:2px}.os-menu-item,.os-apple,.os-control{border:0;background:transparent;color:#fff;padding:5px 9px;border-radius:7px;cursor:pointer}.os-menu-item:hover,.os-apple:hover,.os-control:hover{background:rgba(255,255,255,.08)}.os-menu-item.strong{font-weight:800}.os-apple{font-size:14px}.os-status-dot{width:7px;height:7px;border-radius:50%;background:#28c840;box-shadow:0 0 12px rgba(40,200,64,.8);margin-right:2px}.os-menu-right{gap:5px;color:rgba(255,255,255,.82)}
+.os-desktop-icons{position:absolute;z-index:2150;left:18px;top:56px;display:flex;flex-direction:column;gap:14px;width:92px}.os-desktop-icon{border:0;background:transparent;color:#fff;display:flex;flex-direction:column;align-items:center;gap:6px;padding:5px;border-radius:12px;font-size:11px;cursor:pointer;text-shadow:0 1px 8px rgba(0,0,0,.7)}.os-desktop-icon:hover{background:rgba(255,255,255,.07)}.os-dicon{width:58px;height:58px;border-radius:16px;display:grid;place-items:center;background:linear-gradient(145deg,rgba(255,255,255,.17),rgba(255,255,255,.06));border:1px solid rgba(255,255,255,.12);box-shadow:0 14px 28px rgba(0,0,0,.28);font-size:24px}
+.os-window-layer{position:absolute;inset:34px 0 0;z-index:2000;pointer-events:none}.os-window{position:absolute;pointer-events:auto;min-width:420px;min-height:300px;border:1px solid rgba(255,255,255,.14);border-radius:18px;overflow:hidden;background:rgba(16,18,27,.88);backdrop-filter:blur(28px) saturate(120%);box-shadow:0 28px 90px rgba(0,0,0,.58),0 1px 0 rgba(255,255,255,.08) inset;transition:box-shadow .2s,transform .18s}.os-window.focused{box-shadow:0 36px 110px rgba(0,0,0,.64),0 0 0 1px rgba(255,255,255,.02)}.os-window-opening{opacity:0;transform:translateY(18px) scale(.97)}.os-window.minimized{opacity:0;transform:translateY(80px) scale(.1);pointer-events:none}.os-window.maximized{left:16px!important;top:16px!important;width:calc(100% - 32px)!important;height:calc(100% - 32px)!important}.os-winbar{height:42px;display:grid;grid-template-columns:86px minmax(0,1fr) 86px;align-items:center;padding:0 12px;border-bottom:1px solid rgba(255,255,255,.07);background:linear-gradient(rgba(255,255,255,.07),rgba(255,255,255,.02));user-select:none}.os-win-controls{display:flex;gap:8px;width:86px}.os-win-controls button{width:13px;height:13px;border-radius:50%;padding:0;border:0;color:transparent;cursor:pointer;box-shadow:0 0 0 1px rgba(0,0,0,.18) inset}.os-win-controls button:hover{color:rgba(0,0,0,.6)}.os-win-controls .red{background:#ff5f57}.os-win-controls .yellow{background:#febc2e}.os-win-controls .green{background:#28c840}.os-win-title{text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px;font-weight:700;color:rgba(255,255,255,.82)}.os-win-spacer{width:86px}.os-win-content{height:calc(100% - 42px);overflow:hidden;position:relative}.os-resize{position:absolute;right:1px;bottom:1px;width:16px;height:16px;cursor:nwse-resize;background:linear-gradient(135deg,transparent 45%,rgba(255,255,255,.2) 46%,rgba(255,255,255,.2) 56%,transparent 57%)}
+.os-dock-wrap{position:absolute;z-index:2600;left:50%;bottom:14px;transform:translateX(-50%);padding:7px;border:1px solid rgba(255,255,255,.14);background:rgba(10,12,18,.52);backdrop-filter:blur(30px) saturate(130%);border-radius:24px;box-shadow:0 22px 70px rgba(0,0,0,.5)}.os-dock-pro{display:flex;align-items:flex-end;gap:7px}.os-dock-item{position:relative;width:58px;height:58px;border:0;background:transparent;color:#fff;border-radius:16px;cursor:pointer;transition:transform .18s,filter .18s}.os-dock-item:hover{transform:translateY(-12px) scale(1.11);filter:brightness(1.16)}.os-dock-icon{width:52px;height:52px;border-radius:15px;display:grid;place-items:center;background:linear-gradient(145deg,rgba(255,255,255,.16),rgba(255,255,255,.06));border:1px solid rgba(255,255,255,.12);font-size:22px;box-shadow:0 10px 22px rgba(0,0,0,.25)}.os-dock-dot{position:absolute;bottom:-2px;left:50%;width:4px;height:4px;border-radius:50%;background:#00ff9d;transform:translateX(-50%);opacity:.5}
+.os-quick-panel,.os-app-menu{position:absolute;z-index:3000;top:40px;right:10px;width:310px;padding:16px;border:1px solid rgba(255,255,255,.12);border-radius:18px;background:rgba(15,17,25,.88);backdrop-filter:blur(30px);box-shadow:0 24px 70px rgba(0,0,0,.5);opacity:0;transform:translateY(-8px);pointer-events:none;transition:.18s}.os-quick-panel.on,.os-app-menu.on{opacity:1;transform:none;pointer-events:auto}.os-qhead,.os-app-menu-title{font-weight:800;margin-bottom:12px}.os-qgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.os-qgrid button,.os-quick-panel>button,.os-app-menu button{border:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.045);color:#fff;border-radius:12px;padding:12px;text-align:left;cursor:pointer}.os-qgrid button:hover,.os-quick-panel>button:hover,.os-app-menu button:hover{background:rgba(255,255,255,.08)}.os-quick-panel>button{width:100%;margin-top:10px}.os-qgrid small{color:rgba(255,255,255,.48)}.os-app-menu{left:8px;right:auto;width:250px}.os-app-menu button{display:block;width:100%;margin-top:4px}.os-menu-sep{height:1px;background:rgba(255,255,255,.08);margin:10px 0}
+.os-finder{height:100%;display:flex}.os-sidebar{width:190px;padding:16px;background:rgba(7,8,12,.48);border-right:1px solid rgba(255,255,255,.06)}.os-side-title{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:rgba(255,255,255,.4);margin:9px 10px}.os-side-btn{width:100%;border:0;background:transparent;color:rgba(255,255,255,.72);display:flex;gap:10px;padding:9px 10px;border-radius:9px;text-align:left;cursor:pointer}.os-side-btn:hover,.os-side-btn.active{background:rgba(255,255,255,.075);color:#fff}.os-file-main{flex:1;display:flex;flex-direction:column;min-width:0}.os-file-toolbar{height:48px;padding:0 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,.06);font-weight:700}.os-file-count{font-size:11px;color:rgba(255,255,255,.38);font-weight:500}.os-file-grid{padding:22px;display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:14px;overflow:auto}.os-file-item{border:1px solid transparent;background:transparent;color:#fff;border-radius:13px;padding:11px 8px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;font-size:11px}.os-file-item:hover{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.07)}.os-file-icon{width:62px;height:62px;border-radius:15px;display:grid;place-items:center;background:linear-gradient(145deg,rgba(0,255,157,.16),rgba(112,77,255,.18));border:1px solid rgba(255,255,255,.11);font-size:22px}
+.os-games-app{height:100%;display:flex;flex-direction:column}.os-games-head{padding:22px 24px 16px;display:flex;justify-content:space-between;align-items:flex-end;gap:20px}.os-eyebrow{font-size:10px;letter-spacing:2px;color:#00ff9d;font-weight:900}.os-games-head h2{margin:4px 0 3px;font-size:28px}.os-games-head p{margin:0;color:rgba(255,255,255,.45);font-size:12px}.os-games-head input{width:300px;max-width:38%;border:1px solid rgba(255,255,255,.1);background:rgba(0,0,0,.2);color:#fff;border-radius:12px;padding:11px 14px;outline:0}.os-gamegrid-pro{padding:0 24px 24px;display:grid;grid-template-columns:repeat(auto-fill,minmax(122px,1fr));gap:12px;overflow:auto}.os-game-pro{border:1px solid transparent;background:rgba(255,255,255,.025);color:#fff;border-radius:14px;padding:10px 8px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;text-align:center;transition:.2s}.os-game-pro:hover{transform:translateY(-4px);background:rgba(255,255,255,.065);border-color:rgba(255,255,255,.09)}.os-game-icon-pro{width:66px;height:66px;border-radius:18px;display:grid;place-items:center;font-size:25px;font-weight:800;background:linear-gradient(145deg,rgba(0,255,157,.18),rgba(102,72,255,.22));border:1px solid rgba(255,255,255,.1);box-shadow:0 10px 24px rgba(0,0,0,.22)}.os-game-title-pro{font-size:11px;line-height:1.25;min-height:27px}.os-game-pro small{font-size:9px;color:rgba(255,255,255,.35)}
+.os-settings{height:100%;display:flex}.os-settings>aside{width:210px;padding:18px;background:rgba(7,8,12,.48);border-right:1px solid rgba(255,255,255,.06)}.os-settings-brand{font-weight:800;font-size:17px;margin:5px 10px 20px}.os-settings>aside button{width:100%;border:0;background:transparent;color:rgba(255,255,255,.65);padding:10px;border-radius:10px;text-align:left;cursor:pointer}.os-settings>aside button.active,.os-settings>aside button:hover{background:rgba(255,255,255,.07);color:#fff}.os-settings>main{flex:1;padding:30px;overflow:auto}.os-setting-card{display:flex;align-items:center;justify-content:space-between;gap:20px;margin:15px 0;padding:18px;border:1px solid rgba(255,255,255,.08);border-radius:15px;background:rgba(255,255,255,.025)}.os-setting-card p{margin:5px 0 0;color:rgba(255,255,255,.45);font-size:12px}.os-setting-actions{display:flex;gap:8px}.os-setting-actions button,.os-toggle{border:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.05);color:#fff;border-radius:10px;padding:9px 12px;cursor:pointer}.os-toggle.on{background:rgba(0,255,157,.13);color:#00ff9d;border-color:rgba(0,255,157,.25)}.os-stat{font-size:24px;font-weight:800}.os-about{height:100%;display:grid;place-items:center;align-content:center;text-align:center;padding:40px}.os-about-logo{width:90px;height:90px;border-radius:28px;display:grid;place-items:center;font-size:42px;color:#00ff9d;background:rgba(0,255,157,.09);border:1px solid rgba(0,255,157,.2);box-shadow:0 25px 60px rgba(0,0,0,.3)}.os-about h1{margin:20px 0 5px}.os-about p{color:rgba(255,255,255,.46);max-width:480px}.os-about-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:18px}.os-about-grid div{padding:14px 20px;border-radius:14px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07);display:flex;flex-direction:column;gap:4px}.os-about-grid small{color:rgba(255,255,255,.35)}.os-about-grid strong{font-size:16px}.os-muted{font-size:12px}.os-empty-state{height:100%;display:grid;place-items:center;align-content:center;text-align:center;color:rgba(255,255,255,.55)}.os-big-icon{font-size:56px;margin-bottom:10px}.os-service-host{height:100%}.os-service-host>.fpanel{height:100%!important;position:absolute!important;inset:0!important;border-radius:0!important}.os-service-copy{display:grid;place-items:center;height:100%;color:rgba(255,255,255,.45)}
+@keyframes modeFade{from{opacity:0}to{opacity:1}}@keyframes osDesktopIn{from{opacity:0}to{opacity:1}}@media(max-width:900px){.mode-options{grid-template-columns:1fr}.os-sidebar{width:160px}.os-menu-item:nth-child(n+4){display:none}.os-games-head{align-items:stretch;flex-direction:column}.os-games-head input{max-width:none;width:100%}.os-setting-card{align-items:flex-start;flex-direction:column}.os-about-grid{grid-template-columns:1fr}.os-window{min-width:calc(100vw - 24px)!important;left:12px!important}.os-window.maximized{left:6px!important;width:calc(100vw - 12px)!important}.os-dock-item{width:50px}.os-dock-icon{width:46px;height:46px}.os-desktop-icons{left:10px}.os-sidebar{display:none}}
+
+/* KDE-style dodge and hover reveal dock */
+#os-desktop .os-dock-wrap{
+    transition:transform .32s cubic-bezier(.2,.8,.2,1),opacity .24s ease,filter .24s ease;
+}
+#os-desktop.os-dock-hidden .os-dock-wrap{
+    transform:translate(-50%,calc(100% + 18px));
+    opacity:0;
+    pointer-events:none;
+}
+#os-desktop.os-dock-hidden.os-bottom-hot .os-dock-wrap{
+    transform:translate(-50%,0);
+    opacity:1;
+    pointer-events:auto;
+}
+#os-desktop .os-dock-tooltip{
+    position:absolute;
+    left:50%;
+    bottom:calc(100% + 12px);
+    transform:translate(-50%,8px) scale(.96);
+    opacity:0;
+    pointer-events:none;
+    white-space:nowrap;
+    padding:7px 11px;
+    border-radius:10px;
+    background:rgba(12,14,21,.76);
+    border:1px solid rgba(255,255,255,.13);
+    box-shadow:0 12px 35px rgba(0,0,0,.38);
+    backdrop-filter:blur(20px) saturate(140%);
+    -webkit-backdrop-filter:blur(20px) saturate(140%);
+    color:#fff;
+    font-size:11px;
+    font-weight:650;
+    transition:opacity .16s ease,transform .16s ease;
+}
+#os-desktop .os-dock-item:hover .os-dock-tooltip{
+    opacity:1;
+    transform:translate(-50%,0) scale(1);
+}
+#os-desktop .os-dock-wrap.os-dodged{
+    transform:translate(-50%,calc(100% + 18px));
+    opacity:0;
+    pointer-events:none;
+}
+#os-desktop .os-dock-wrap.os-dodged.os-bottom-hot{
+    transform:translate(-50%,0);
+    opacity:1;
+    pointer-events:auto;
+}
+#os-desktop .os-dock-hotzone{
+    position:absolute;
+    left:0;
+    right:0;
+    bottom:0;
+    height:12px;
+    z-index:2599;
+}
+
+
+#os-desktop .game-boot{
+    position:absolute;inset:0;z-index:20;display:grid;place-items:center;
+    background:linear-gradient(145deg,rgba(7,9,15,.98),rgba(13,16,28,.98));
+    color:rgba(255,255,255,.82);font-size:12px;letter-spacing:.3px;
+}
+#os-desktop .game-boot .spinner{
+    width:30px;height:30px;border-radius:50%;
+    border:3px solid rgba(255,255,255,.12);
+    border-top-color:#00ff9d;
+    animation:gameSpin .8s linear infinite;
+}
+@keyframes gameSpin{to{transform:rotate(360deg)}}
+
+/* ── NOVA GLASS 2.0 / ALIGNMENT SYSTEM ───────────────────────── */
+#os-desktop,#os-desktop *{box-sizing:border-box}
+#os-desktop{
+    --os-gap:8px;
+    --os-radius:20px;
+    --os-glass:rgba(16,20,30,.46);
+    --os-glass-strong:rgba(14,17,26,.66);
+    --os-stroke:rgba(255,255,255,.12);
+    --os-stroke-soft:rgba(255,255,255,.07);
+    --os-shadow:0 24px 80px rgba(0,0,0,.42),0 1px 0 rgba(255,255,255,.09) inset;
+    isolation:isolate;
+    color-scheme:dark;
+}
+#os-desktop button,#os-desktop input,#os-desktop select{
+    font:inherit;
+    -webkit-font-smoothing:antialiased;
+}
+#os-desktop button{
+    appearance:none!important;
+    -webkit-appearance:none!important;
+    border:1px solid var(--os-stroke-soft);
+    background:rgba(255,255,255,.045)!important;
+    color:rgba(255,255,255,.92)!important;
+    box-shadow:none;
+}
+#os-desktop button:hover{
+    background:rgba(255,255,255,.085)!important;
+    border-color:rgba(255,255,255,.14);
+}
+#os-desktop .os-wallpaper{
+    background:
+      radial-gradient(55vw 45vw at 84% 8%,rgba(115,82,255,.28),transparent 62%),
+      radial-gradient(48vw 40vw at 8% 82%,rgba(0,212,255,.18),transparent 64%),
+      radial-gradient(38vw 32vw at 54% 54%,rgba(0,255,157,.10),transparent 66%),
+      linear-gradient(135deg,#05070d 0%,#0a0f1a 46%,#060812 100%);
+}
+#os-desktop .os-wallpaper-grid{
+    opacity:.55;
+    background-size:56px 56px;
+    mask-image:linear-gradient(to bottom,rgba(0,0,0,.18),transparent 76%);
+}
+#os-desktop .os-menubar{
+    height:38px;
+    padding:0 14px;
+    background:rgba(10,13,20,.42);
+    border-bottom:1px solid rgba(255,255,255,.10);
+    box-shadow:0 10px 40px rgba(0,0,0,.18);
+    backdrop-filter:blur(30px) saturate(150%);
+    -webkit-backdrop-filter:blur(30px) saturate(150%);
+}
+#os-desktop .os-menu-left,#os-desktop .os-menu-right{gap:4px}
+#os-desktop .os-apple,#os-desktop .os-menu-item,#os-desktop .os-control{
+    min-height:28px;
+    padding:5px 10px;
+    border-radius:9px;
+    background:transparent!important;
+    border-color:transparent;
+}
+#os-desktop .os-menu-item.strong{font-weight:800;letter-spacing:.01em}
+#os-desktop .os-desktop-icons{z-index:2150;
+    left:20px;
+    top:58px;
+    width:92px;
+    gap:10px;
+}
+#os-desktop .os-desktop-icon{
+    gap:7px;
+    padding:7px 4px;
+    border:1px solid transparent;
+    background:transparent!important;
+}
+#os-desktop .os-desktop-icon:hover{
+    background:rgba(255,255,255,.07)!important;
+    border-color:rgba(255,255,255,.08);
+}
+#os-desktop .os-dicon,#os-desktop .os-dock-icon,#os-desktop .os-file-icon,#os-desktop .os-game-icon-pro{
+    display:grid;
+    place-items:center;
+    overflow:hidden;
+    box-shadow:0 14px 34px rgba(0,0,0,.30),0 1px 0 rgba(255,255,255,.18) inset;
+}
+#os-desktop .os-dicon{
+    width:60px;height:60px;border-radius:18px;
+    background:linear-gradient(145deg,rgba(255,255,255,.16),rgba(255,255,255,.055));
+    border:1px solid rgba(255,255,255,.15);
+    backdrop-filter:blur(18px);
+    -webkit-backdrop-filter:blur(18px);
+}
+#os-desktop .os-vector-icon{display:block;width:42px;height:42px;filter:drop-shadow(0 7px 12px rgba(0,0,0,.22))}
+#os-desktop .os-window-layer{
+    inset:34px 0 0;
+}
+#os-desktop .os-window{
+    min-width:0;
+    min-height:0;
+    border-radius:var(--os-radius);
+    background:linear-gradient(180deg,rgba(19,23,34,.64),rgba(11,14,22,.78));
+    border:1px solid rgba(255,255,255,.15);
+    box-shadow:0 34px 110px rgba(0,0,0,.48),0 1px 0 rgba(255,255,255,.11) inset;
+    backdrop-filter:blur(34px) saturate(145%);
+    -webkit-backdrop-filter:blur(34px) saturate(145%);
+}
+#os-desktop .os-window.focused{
+    border-color:rgba(255,255,255,.20);
+    box-shadow:0 40px 120px rgba(0,0,0,.58),0 1px 0 rgba(255,255,255,.14) inset,0 0 0 1px rgba(120,180,255,.04);
+}
+#os-desktop .os-winbar{
+    height:46px;
+    padding:0 14px;
+    background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.025));
+    border-bottom:1px solid rgba(255,255,255,.08);
+}
+#os-desktop .os-win-controls{width:82px;gap:8px}
+#os-desktop .os-win-controls button{
+    width:13px;height:13px;min-width:13px;padding:0;
+    border:0!important;
+    box-shadow:0 0 0 1px rgba(0,0,0,.20) inset!important;
+}
+#os-desktop .os-win-controls .red{background:#ff5f57!important}
+#os-desktop .os-win-controls .yellow{background:#febc2e!important}
+#os-desktop .os-win-controls .green{background:#28c840!important}
+#os-desktop .os-win-title{
+    flex:1;
+    text-align:center;
+    font-size:12px;
+    letter-spacing:.01em;
+}
+#os-desktop .os-win-spacer{width:82px}
+#os-desktop .os-dock-wrap{
+    bottom:14px;
+    padding:8px;
+    border-radius:26px;
+    background:rgba(13,16,24,.44);
+    border:1px solid rgba(255,255,255,.15);
+    box-shadow:0 22px 70px rgba(0,0,0,.46),0 1px 0 rgba(255,255,255,.12) inset;
+    backdrop-filter:blur(34px) saturate(150%);
+    -webkit-backdrop-filter:blur(34px) saturate(150%);
+}
+#os-desktop .os-dock-pro{gap:8px}
+#os-desktop .os-dock-item{
+    width:60px;height:60px;
+    padding:3px;
+    border:0!important;
+    background:transparent!important;
+}
+#os-desktop .os-dock-icon{
+    width:54px;height:54px;border-radius:17px;
+    background:linear-gradient(145deg,rgba(255,255,255,.16),rgba(255,255,255,.06));
+    border:1px solid rgba(255,255,255,.14);
+    transition:transform .18s cubic-bezier(.2,.8,.2,1),filter .18s;
+}
+#os-desktop .os-dock-item:hover{transform:translateY(-10px) scale(1.07)}
+#os-desktop .os-quick-panel,#os-desktop .os-app-menu{
+    top:46px;
+    border-radius:20px;
+    padding:14px;
+    background:rgba(13,16,24,.62);
+    border:1px solid rgba(255,255,255,.14);
+    box-shadow:var(--os-shadow);
+    backdrop-filter:blur(34px) saturate(150%);
+    -webkit-backdrop-filter:blur(34px) saturate(150%);
+}
+#os-desktop .os-qgrid{gap:8px}
+#os-desktop .os-qgrid button,#os-desktop .os-quick-panel>button,#os-desktop .os-app-menu button{
+    border-radius:13px!important;
+    padding:11px 12px;
+    background:rgba(255,255,255,.045)!important;
+}
+#os-desktop .os-qgrid button:hover,#os-desktop .os-quick-panel>button:hover,#os-desktop .os-app-menu button:hover{
+    background:rgba(255,255,255,.085)!important;
+}
+#os-desktop .os-file-toolbar,#os-desktop .os-games-head{
+    border-color:rgba(255,255,255,.07);
+}
+#os-desktop .os-file-grid,#os-desktop .os-gamegrid-pro{
+    gap:12px;
+}
+#os-desktop .os-game-pro,#os-desktop .os-file-item{
+    background:rgba(255,255,255,.026)!important;
+    border-color:rgba(255,255,255,.055);
+}
+#os-desktop .os-game-pro:hover,#os-desktop .os-file-item:hover{
+    background:rgba(255,255,255,.07)!important;
+    border-color:rgba(255,255,255,.12);
+}
+#os-desktop .os-setting-card{
+    background:rgba(255,255,255,.028);
+    border-color:rgba(255,255,255,.075);
+    box-shadow:0 14px 36px rgba(0,0,0,.16);
+}
+#os-desktop input{
+    border:1px solid rgba(255,255,255,.12)!important;
+    background:rgba(0,0,0,.20)!important;
+    color:#fff!important;
+    border-radius:13px!important;
+}
+#os-desktop .os-sidebar,#os-desktop .os-settings>aside{
+    background:rgba(7,10,16,.30);
+    border-color:rgba(255,255,255,.07);
+    backdrop-filter:blur(26px);
+}
+@media(max-width:900px){
+    #os-desktop .os-window-layer{inset:38px 0 90px}
+    #os-desktop .os-window{width:calc(100% - 16px)!important;left:8px!important}
+    #os-desktop .os-dock-wrap{max-width:calc(100vw - 12px);overflow:auto}
+}
+
+
+#os-desktop .os-menu-item,#os-desktop .os-apple,#os-desktop .os-control,
+#os-desktop .os-desktop-icon,#os-desktop .os-dock-item,
+#os-desktop .os-file-item,#os-desktop .os-game-pro,
+#os-desktop .os-side-btn,#os-desktop .os-settings>aside button,
+#os-desktop .os-qgrid button,#os-desktop .os-quick-panel>button,
+#os-desktop .os-app-menu button,#os-desktop .os-setting-actions button,
+#os-desktop .os-toggle{
+    pointer-events:auto;
+    user-select:none;
+    -webkit-user-select:none;
+}
+#os-desktop .os-win-controls button,
+#os-desktop .os-resize{pointer-events:auto}
+#os-desktop .os-winbar{cursor:grab}
+#os-desktop .os-winbar:active{cursor:grabbing}
+#os-desktop .os-window-layer{z-index:2100}
+#os-desktop .os-menubar{z-index:3500}
+#os-desktop .os-desktop-icons{z-index:3400}
+#os-desktop .os-dock-wrap{z-index:3600}
+#os-desktop .os-quick-panel,#os-desktop .os-app-menu{z-index:3700}
+
+
+/* ── REAL OS GAME WINDOWS / LOADING / DOCK TOOLTIPS ───────────── */
+#os-desktop .os-game-window{
+    width:100%;
+    height:100%;
+    position:relative;
+    overflow:hidden;
+    background:#05070c;
+}
+#os-desktop .os-game-frame{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    border:0;
+    background:#000;
+    opacity:0;
+    transition:opacity .35s ease,transform .45s cubic-bezier(.16,1,.3,1);
+    transform:scale(.985);
+}
+#os-desktop .os-game-frame[src]{opacity:1;transform:none}
+#os-desktop .os-game-loading{
+    position:absolute;
+    inset:0;
+    z-index:4;
+    display:grid;
+    place-items:center;
+    align-content:center;
+    gap:10px;
+    text-align:center;
+    background:
+      radial-gradient(circle at 50% 30%,rgba(100,80,255,.22),transparent 35%),
+      linear-gradient(180deg,rgba(9,11,18,.98),rgba(4,6,11,.98));
+    transition:opacity .45s ease,visibility .45s;
+}
+#os-desktop .os-game-loading.done{opacity:0;visibility:hidden;pointer-events:none}
+#os-desktop .os-loading-orb{
+    width:64px;height:64px;border-radius:22px;
+    background:linear-gradient(135deg,#7c5cff,#20d7ff);
+    box-shadow:0 0 50px rgba(82,108,255,.5);
+    animation:osLoadPulse 0.9s ease-in-out infinite alternate;
+}
+#os-desktop .os-loading-title{font-size:18px;font-weight:800}
+#os-desktop .os-loading-sub{font-size:12px;color:rgba(255,255,255,.48)}
+#os-desktop .os-loading-status{font-size:11px;color:rgba(255,255,255,.58)}
+#os-desktop .os-loading-bar{
+    width:min(320px,60vw);height:5px;border-radius:99px;
+    overflow:hidden;background:rgba(255,255,255,.08);
+}
+#os-desktop .os-loading-bar span{
+    display:block;height:100%;width:5%;
+    border-radius:inherit;
+    background:linear-gradient(90deg,#7c5cff,#26d9ff);
+    box-shadow:0 0 18px rgba(60,170,255,.7);
+    transition:width .25s ease;
+}
+#os-desktop .os-dock-tooltip{
+    position:absolute;
+    z-index:5000;
+    transform:translate(-50%,-100%) translateY(-12px) scale(.92);
+    transform-origin:50% 100%;
+    opacity:0;
+    pointer-events:none;
+    padding:7px 11px;
+    border-radius:9px;
+    font-size:11px;
+    font-weight:700;
+    white-space:nowrap;
+    color:#fff;
+    background:rgba(10,12,18,.80);
+    border:1px solid rgba(255,255,255,.13);
+    box-shadow:0 12px 30px rgba(0,0,0,.34);
+    backdrop-filter:blur(22px) saturate(140%);
+    -webkit-backdrop-filter:blur(22px) saturate(140%);
+    transition:opacity .16s ease,transform .16s cubic-bezier(.16,1,.3,1);
+}
+#os-desktop .os-dock-tooltip.on{
+    opacity:1;
+    transform:translate(-50%,-100%) translateY(-12px) scale(1);
+}
+@keyframes osLoadPulse{from{transform:scale(.94) rotate(-2deg);filter:saturate(.9)}to{transform:scale(1.04) rotate(2deg);filter:saturate(1.2)}}
+#os-desktop .os-window{animation:osWindowIn .28s cubic-bezier(.16,1,.3,1)}
+@keyframes osWindowIn{from{opacity:0;transform:translateY(16px) scale(.96)}to{opacity:1;transform:none}}
+#os-desktop .os-dock-item{will-change:transform}
+#theater:fullscreen,
+#theater:-webkit-full-screen{
+    width:100vw;
+    height:100vh;
+    background:#03040a;
+}
+#theater:fullscreen .th,
+#theater:-webkit-full-screen .th{
+    display:flex!important;
+    position:absolute;
+    top:0;left:0;right:0;
+    z-index:999999;
+}
+#theater:fullscreen .ifw,
+#theater:-webkit-full-screen .ifw{
+    position:absolute;
+    inset:44px 0 0 0;
+    height:auto;
+}
+#theater:fullscreen .gframe-instance.active,
+#theater:-webkit-full-screen .gframe-instance.active{
+    height:100%;
+}
+
+
+#os-desktop .os-window-layer{z-index:3000!important}
+#os-desktop .os-desktop-icons{z-index:2200!important}
+#os-desktop .os-menubar{z-index:3400!important}
+#os-desktop .os-dock-wrap{z-index:3600!important}
+#os-desktop .os-dock-hotzone{z-index:3650!important}
+#os-desktop .os-desktop-icon{position:relative;z-index:1}
+#os-desktop .os-dock-wrap.os-dodged,#os-desktop.os-dock-hidden .os-dock-wrap{transition:transform .26s cubic-bezier(.2,.8,.2,1),opacity .18s ease!important}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important}}
+`;
+        document.head.appendChild(style);
+    },
+
     // ── SYSTEM BOOT ─────────────────────────────────────────────
     boot(){
         this.detectHardware();
         this.setFavicon();
         this.css();
+        this.osModeCss();
         this.buildDOM();
         this.dots();
         this.bindEvents();
@@ -2367,3 +3539,190 @@ const nova = {
 };
 
 nova.boot();
+
+
+(function(){var s=document.createElement("style");s.id="nova-liquid-glass-overrides";s.textContent='@import url("https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@400;500;600;700&display=swap");\n:root{--lg-text:#f7f7fb;--lg-muted:rgba(247,247,251,.58);--lg-border:rgba(255,255,255,.13)}\nhtml,body{font-family:Inter,-apple-system,BlinkMacSystemFont,"SF Pro Display",sans-serif!important;color:var(--lg-text)!important;background:radial-gradient(65vw 55vw at 90% 5%,rgba(155,140,255,.20),transparent 65%),radial-gradient(55vw 50vw at 5% 90%,rgba(105,220,255,.13),transparent 65%),#070911!important}\nh1,h2,h3,.serif,.site-title,.brand-title{font-family:"DM Serif Display",Georgia,serif!important;font-weight:400!important;letter-spacing:-.025em}\nbutton,.panel,.modal,.card,.game-card,.search-box,.nav-item{border:1px solid var(--lg-border)!important;background:linear-gradient(145deg,rgba(255,255,255,.105),rgba(255,255,255,.035))!important;box-shadow:0 24px 70px rgba(0,0,0,.25),0 1px 0 rgba(255,255,255,.12) inset!important;backdrop-filter:blur(28px) saturate(155%);-webkit-backdrop-filter:blur(28px) saturate(155%)}\nbutton{color:var(--lg-text)!important;transition:transform .18s cubic-bezier(.2,.8,.2,1),background .18s,border-color .18s}button:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.22)!important}button:active{transform:scale(.985)}\n#nova-mode-selector{position:fixed;inset:0;z-index:999999;display:grid;place-items:center;font-family:Inter,-apple-system,BlinkMacSystemFont,sans-serif}.nova-selector-backdrop{position:absolute;inset:0;background:radial-gradient(40vw 35vw at 22% 28%,rgba(155,140,255,.25),transparent 70%),radial-gradient(40vw 35vw at 78% 72%,rgba(105,220,255,.18),transparent 70%),rgba(3,5,10,.72);backdrop-filter:blur(30px) saturate(160%);-webkit-backdrop-filter:blur(30px) saturate(160%)}\n.nova-selector-card{position:relative;width:min(760px,calc(100vw - 32px));padding:42px;overflow:hidden;border-radius:34px;background:linear-gradient(145deg,rgba(255,255,255,.145),rgba(255,255,255,.045));border:1px solid rgba(255,255,255,.18);box-shadow:0 55px 150px rgba(0,0,0,.55),0 1px 0 rgba(255,255,255,.18) inset;backdrop-filter:blur(48px) saturate(170%);-webkit-backdrop-filter:blur(48px) saturate(170%);animation:novaSelectorIn .55s cubic-bezier(.2,.8,.2,1)}\n.nova-selector-kicker{position:relative;font-size:10px;font-weight:700;letter-spacing:.22em;color:rgba(255,255,255,.48)}.nova-selector-card h1{position:relative;margin:10px 0 6px;font-family:"DM Serif Display",Georgia,serif!important;font-size:48px;line-height:1}.nova-selector-card p{position:relative;margin:0 0 28px;color:var(--lg-muted);font-size:14px}.nova-selector-options{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:14px}.nova-mode-option{position:relative;min-height:230px!important;padding:14px!important;display:grid!important;grid-template-rows:1fr auto;gap:15px;text-align:left!important;border-radius:23px!important;cursor:pointer;overflow:hidden}.nova-mode-preview{position:relative;min-height:128px;overflow:hidden;border-radius:16px;border:1px solid rgba(255,255,255,.09);background:#090c15}.nova-mode-preview i{position:absolute;display:block;border-radius:7px;background:rgba(255,255,255,.09)}.nova-os-preview .bar{left:8px;right:8px;top:8px;height:13px;background:rgba(255,255,255,.12)}.nova-os-preview .side{left:8px;top:29px;bottom:8px;width:25px}.nova-os-preview .window{left:42px;right:8px;top:29px;height:52px;background:rgba(155,140,255,.17)}.nova-os-preview .dock{left:65px;right:65px;bottom:8px;height:16px;background:rgba(105,220,255,.15)}.nova-classic-preview .hero{left:8px;right:8px;top:8px;height:48px;background:rgba(155,140,255,.18)}.nova-classic-preview .card{top:64px;bottom:8px;width:29%}.nova-classic-preview .one{left:8px}.nova-classic-preview .two{left:35.5%}.nova-classic-preview .three{right:8px}.nova-option-copy{display:flex;flex-direction:column;gap:3px}.nova-option-copy small{font-size:9px;letter-spacing:.16em;color:rgba(255,255,255,.45)}.nova-option-copy strong{font-size:18px;font-weight:600}.nova-option-copy em{font-style:normal;font-size:11px;color:rgba(255,255,255,.43)}.nova-arrow{position:absolute;right:20px;bottom:20px;font-size:18px;color:rgba(255,255,255,.6)}.nova-selector-footer{position:relative;margin-top:18px;text-align:center;font-size:11px;color:rgba(255,255,255,.36)}.nova-selector-leaving .nova-selector-card{animation:novaSelectorOut .36s ease forwards}@keyframes novaSelectorIn{from{opacity:0;transform:translateY(18px) scale(.965);filter:blur(9px)}to{opacity:1;transform:none;filter:none}}@keyframes novaSelectorOut{to{opacity:0;transform:translateY(-10px) scale(.98);filter:blur(8px)}}@media(max-width:680px){.nova-selector-card{padding:28px 20px}.nova-selector-card h1{font-size:37px}.nova-selector-options{grid-template-columns:1fr}.nova-mode-option{min-height:175px!important}}';document.head.appendChild(s);})();
+
+(function(){const style=document.createElement("style");style.id="nova-kde-functional-final";style.textContent=`\n.os-window-context{position:absolute;z-index:99999;min-width:190px;padding:7px;border:1px solid rgba(255,255,255,.16);border-radius:15px;background:rgba(14,16,25,.82);backdrop-filter:blur(30px) saturate(160%);box-shadow:0 24px 70px rgba(0,0,0,.5),0 1px 0 rgba(255,255,255,.12) inset;animation:novaMenuIn .16s ease-out}\n.os-window-context button{display:block;width:100%;border:0;background:transparent;color:#fff;text-align:left;padding:9px 12px;border-radius:9px;font-size:12px;cursor:pointer}.os-window-context button:hover{background:rgba(255,255,255,.09)}.os-window-context div{height:1px;background:rgba(255,255,255,.08);margin:5px 3px}\n.os-win-actions{display:flex;justify-content:flex-end;gap:5px;width:86px}.os-win-actions button{width:25px;height:25px;border:0;border-radius:7px;background:rgba(255,255,255,.06);color:rgba(255,255,255,.7);cursor:pointer}.os-win-actions button:hover{background:rgba(255,255,255,.13);color:#fff}\n.os-window.cloaked{opacity:.12!important;filter:blur(2px)!important;transform:scale(.98)!important}.os-window.always-top{box-shadow:0 0 0 1px rgba(155,140,255,.45),0 35px 110px rgba(0,0,0,.65)!important}\n.os-window.os-fullscreen{position:fixed!important;left:0!important;top:34px!important;width:100vw!important;height:calc(100vh - 34px)!important;max-width:none!important;max-height:none!important;border-radius:0!important;z-index:90000!important}\n#os-desktop.os-game-fullscreen .os-menubar,#os-desktop.os-game-fullscreen .os-desktop-icons,#os-desktop.os-game-fullscreen .os-dock-wrap,#os-desktop.os-game-fullscreen .os-quick-panel,#os-desktop.os-game-fullscreen .os-app-menu{display:none!important}\n#os-desktop.os-game-fullscreen .os-window-layer{inset:0!important;z-index:89999!important}\n#os-desktop.os-game-fullscreen .os-window.os-fullscreen .os-winbar{height:38px!important}\n#os-desktop.os-game-fullscreen .os-window.os-fullscreen .os-win-content{height:calc(100% - 38px)!important}\n.os-browser-app{height:100%;display:flex;flex-direction:column;background:rgba(4,6,12,.35)}.os-browser-toolbar{height:48px;display:flex;gap:7px;align-items:center;padding:7px 9px;border-bottom:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.045)}.os-browser-nav,.os-browser-go{height:32px;min-width:32px;border:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.06);color:#fff;border-radius:9px;cursor:pointer}.os-browser-address{flex:1;min-width:0;height:32px;border:1px solid rgba(255,255,255,.1);background:rgba(0,0,0,.22);color:#fff;border-radius:9px;padding:0 11px;outline:0}.os-browser-view{flex:1;min-height:0}.os-browser-frame{width:100%;height:100%;display:block;border:0;background:#fff}\n@keyframes novaMenuIn{from{opacity:0;transform:translateY(-5px) scale(.97)}to{opacity:1;transform:none}}\n@media(max-width:520px){.os-winbar{grid-template-columns:72px minmax(0,1fr) 72px}.os-win-controls{width:72px;gap:5px}.os-win-actions{width:72px}.os-win-actions button{width:22px;height:22px}.os-win-title{font-size:11px}.os-browser-toolbar{gap:4px}.os-browser-nav{min-width:28px}}`;document.head.appendChild(style)})();
+
+
+(function(){
+const s=document.createElement("style");
+s.id="nova-education-runtime";
+s.textContent=`.nova-education-app{height:100%;overflow:auto;padding:26px;background:linear-gradient(135deg,rgba(103,72,255,.16),rgba(20,180,255,.08));color:#fff;font-family:ui-sans-serif,system-ui,sans-serif}.nova-education-hero{display:flex;justify-content:space-between;align-items:center;padding:22px;border:1px solid rgba(255,255,255,.1);border-radius:24px;background:rgba(255,255,255,.055);backdrop-filter:blur(24px)}.nova-education-kicker{font-size:11px;letter-spacing:.18em;opacity:.65}.nova-education-hero h1{margin:7px 0;font-size:28px}.nova-education-hero p{margin:0;opacity:.65}.nova-education-badge{width:64px;height:64px;border-radius:20px;display:grid;place-items:center;font-size:32px;background:linear-gradient(135deg,#7c5cff,#22c1ff)}.nova-education-grid{display:grid;grid-template-columns:minmax(280px,1fr) minmax(240px,1fr);gap:18px;margin-top:18px}.nova-education-card{padding:18px;border:1px solid rgba(255,255,255,.1);border-radius:22px;background:rgba(255,255,255,.045)}.nova-education-card-head{display:flex;justify-content:space-between;gap:10px;margin-bottom:13px;font-weight:700}.nova-education-card-head small{opacity:.5;font-weight:400}.nova-calc-display{width:100%;box-sizing:border-box;height:52px;border:1px solid rgba(255,255,255,.12);border-radius:13px;background:rgba(0,0,0,.22);color:#fff;padding:0 14px;font-size:22px;outline:0;margin-bottom:10px}.nova-calc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.nova-calc-grid button,.nova-calc-clear,.nova-education-lessons button{min-height:44px;border:1px solid rgba(255,255,255,.1);border-radius:12px;background:rgba(255,255,255,.07);color:#fff;cursor:pointer}.nova-calc-grid button:hover,.nova-calc-clear:hover,.nova-education-lessons button:hover{background:rgba(255,255,255,.14)}.nova-calc-clear{width:100%;margin-top:8px}.nova-education-note{margin-top:12px;font-size:12px;opacity:.55}.nova-education-lessons button{display:block;width:100%;margin:8px 0;text-align:left;padding:0 13px}.nova-lesson-output{margin-top:14px;padding:14px;border-radius:13px;background:rgba(0,0,0,.18);line-height:1.5;opacity:.8}@media(max-width:700px){.nova-education-grid{grid-template-columns:1fr}.nova-education-app{padding:14px}.nova-education-hero h1{font-size:21px}}`;
+document.head.appendChild(s);
+})();
+
+(function(){
+const s=document.createElement("style");
+s.textContent=`
+.nova-browser-app .nova-browser-address,
+.nova-browser-app .browser-address,
+.nova-browser-app .address-bar,
+.nova-browser-app .browser-toolbar,
+.nova-browser-app .browser-url,
+.nova-browser-app input[type="url"],
+.nova-browser-app input[placeholder*="address" i],
+.nova-browser-app input[placeholder*="url" i]{display:none!important}
+.nova-browser-app,.nova-app-frame-wrap{width:100%;height:100%;overflow:hidden}
+.nova-app-frame{width:100%!important;height:100%!important;border:0!important;display:block!important}
+`;
+document.head.appendChild(s);
+})();
+
+(function(){
+"use strict";
+function first(){
+ if(window.__novaEducationFirstPageOpened)return;
+ const xs=[window.nova,window.Nova,window.novaOS,window.osManager];
+ for(const x of xs){
+  if(x&&typeof x.osOpenEducationWindow==="function"){
+   window.__novaEducationFirstPageOpened=true;
+   x.osOpenEducationWindow();
+   return;
+  }
+ }
+ setTimeout(first,250);
+}
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>setTimeout(first,250),{once:true});
+else setTimeout(first,250);
+})();
+
+
+(function(){
+const st=document.createElement('style');st.id='nova-final-cleanup';st.textContent=`
+button,.nova-core-dock-app,[role="button"]{outline:none!important}
+button:focus,.nova-core-dock-app:focus,[role="button"]:focus{outline:none!important}
+.os-desktop>.os-menu,.os-desktop>.desktop-menu,.os-desktop>.context-menu,
+.os-desktop>.toolbar,.os-desktop>.utility-bar,.os-desktop>[data-orphan-ui="true"]{display:none!important}
+body.nova-os-fullscreen .os-dock,body.nova-os-fullscreen .os-dock-wrap,
+body.nova-os-fullscreen .os-desktop-icons,body.nova-os-fullscreen .desktop-shortcuts,
+body.nova-os-fullscreen .os-desktop-shortcuts{display:none!important;visibility:hidden!important;pointer-events:none!important}
+body.nova-os-fullscreen .os-window.nova-fullscreen-window{z-index:2147483647!important}
+.nova-low-power .os-window,.nova-low-power .os-dock{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+.nova-low-power *{animation-duration:.08s!important;transition-duration:.06s!important}
+`;
+document.head.appendChild(st);
+})();
+(function(){
+const weak=(navigator.hardwareConcurrency||4)<=6;
+if(weak){document.documentElement.classList.add('nova-low-power');document.documentElement.style.setProperty('--nova-blur','4px')}
+})();
+
+
+
+(function(){
+"use strict";
+const NOVA_EDUCATION_START=`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#20232c;background:linear-gradient(135deg,#f8f7ff 0%,#eef5ff 55%,#f5f7fb 100%)}
+body{min-height:100vh}.nav{height:70px;display:flex;align-items:center;justify-content:space-between;padding:0 clamp(18px,5vw,58px);background:rgba(255,255,255,.74);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-bottom:1px solid rgba(50,55,80,.08);position:sticky;top:0;z-index:4}
+.logo{font:700 25px Georgia,serif}.navlinks{display:flex;gap:25px;color:#777a86;font-size:13px}.hero{max-width:1180px;margin:auto;padding:64px clamp(20px,5vw,58px) 32px}.eyebrow{font-size:11px;font-weight:800;letter-spacing:.18em;color:#6e63d7;text-transform:uppercase}.hero h1{font:400 clamp(40px,5.5vw,68px)/1.02 Georgia,serif;letter-spacing:-.04em;margin:12px 0}.hero p{max-width:700px;color:#686b77;font-size:17px;line-height:1.65;margin:0}.layout{max-width:1180px;margin:auto;padding:18px clamp(20px,5vw,58px) 70px;display:grid;grid-template-columns:minmax(0,1.08fr) minmax(280px,.72fr);gap:22px}.card{background:rgba(255,255,255,.68);border:1px solid rgba(50,55,80,.08);border-radius:28px;box-shadow:0 24px 65px rgba(48,52,80,.11);padding:25px;backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px)}.card h2{font:400 27px Georgia,serif;margin:0 0 5px}.muted{font-size:13px;color:#898b95}.display{margin:18px 0 14px;min-height:82px;padding:20px 22px;border-radius:20px;background:#20232d;color:white;display:flex;align-items:center;justify-content:flex-end;font:30px ui-monospace,SFMono-Regular,Menlo,monospace;overflow:hidden}.keys{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.keys button{height:58px;border:0;border-radius:17px;background:rgba(246,247,251,.92);color:#292b34;font-size:18px;font-weight:650;cursor:pointer;box-shadow:0 6px 18px rgba(40,44,60,.07);transition:transform .12s,filter .12s}.keys button:hover{filter:brightness(.975);transform:translateY(-1px)}.keys button:active{transform:scale(.95)}.keys .op{background:#e9e6ff;color:#5148c8}.keys .eq{background:#7067e9;color:white}.hint{font-size:12px;color:#8c8e98;margin-top:13px}.topics{display:grid;gap:12px}.topic{padding:18px;border-radius:19px;background:rgba(248,248,251,.82)}.topic b{display:block;margin-bottom:5px}.topic span{font-size:13px;color:#777a84;line-height:1.55}.footer{max-width:1180px;margin:auto;padding:0 clamp(20px,5vw,58px) 40px;color:#9698a1;font-size:12px}@media(max-width:820px){.navlinks{display:none}.layout{grid-template-columns:1fr}.hero{padding-top:42px}}
+</style></head><body>
+<header class="nav"><div class="logo">Nova Education</div><div class="navlinks"><span>Calculator</span><span>Algebra</span><span>Fractions</span><span>Geometry</span><span>Resources</span></div></header>
+<section class="hero"><div class="eyebrow">Learn smarter</div><h1>Math tools that explain the math</h1><p>Practice calculations, explore formulas and build understanding with a clean educational workspace designed for quick learning.</p></section>
+<section class="layout"><section class="card"><h2>Calculator</h2><div class="muted">Calculate an expression or explore the learning topics beside it</div><div id="display" class="display">0</div>
+<div class="keys"><button>7</button><button>8</button><button>9</button><button class="op">÷</button><button>4</button><button>5</button><button>6</button><button class="op">×</button><button>1</button><button>2</button><button>3</button><button class="op">−</button><button>0</button><button>.</button><button>C</button><button class="eq">=</button></div>
+</section>
+<section class="card topics"><h2>Learn</h2><div class="topic"><b>Algebra</b><span>Simplify expressions, work with variables and understand equations.</span></div><div class="topic"><b>Fractions</b><span>Add, subtract, multiply and divide fractions with confidence.</span></div><div class="topic"><b>Percentages</b><span>Convert percentages and solve everyday percentage problems.</span></div><div class="topic"><b>Geometry</b><span>Review areas, perimeters, angles and useful formulas.</span></div></section></section>
+<div class="footer">Nova Education · a lightweight learning workspace</div>
+<script>
+let expr="",d=document.getElementById("display");
+function press(x){
+ if(x==="C"){expr="";d.textContent="0";return}
+ if(x==="="){
+   if(expr==="1234"){parent.postMessage({type:"nova-launch-os"},"*");return}
+   try{let safe=expr.replaceAll("×","*").replaceAll("÷","/").replaceAll("−","-");if(!/^[0-9+*/().%\\s-]+$/.test(safe))throw 0;d.textContent=String(Function("return ("+safe+")")())}catch(_){d.textContent="Error"}return
+ }
+ if(d.textContent==="Error")expr="";
+ expr+=x;d.textContent=expr
+}
+document.querySelectorAll(".keys button").forEach(b=>b.onclick=()=>press(b.textContent));
+document.addEventListener("keydown",e=>{if(/[0-9.+*/-]/.test(e.key))press(e.key);if(e.key==="Enter")press("=");if(e.key==="Escape")press("C")});
+</script></body></html>`;
+
+function showEducationStart(){
+ document.querySelectorAll("#mode-chooser,.mode-chooser,#nova-pin,.nova-pin,#security-pin,.security-pin,.pin-screen,.interface-selector,#lock").forEach(el=>el.remove());
+ if(document.getElementById("nova-education-start"))return;
+ const overlay=document.createElement("div");
+ overlay.id="nova-education-start";
+ overlay.style.cssText="position:fixed;inset:0;z-index:2147483000;background:#f6f7fb;overflow:auto";
+ const iframe=document.createElement("iframe");
+ iframe.title="Nova Education";
+ iframe.style.cssText="display:block;width:100%;height:100%;border:0";
+ iframe.srcdoc=NOVA_EDUCATION_START;
+ overlay.appendChild(iframe);
+ document.body.appendChild(overlay);
+
+ const launch=()=>{
+   overlay.remove();
+   const os=nova||window.nova;
+   try{localStorage.setItem("nova_ui_mode","os")}catch(_){}
+   if(os&&typeof os.setUIMode==="function")os.setUIMode("os");
+   else if(os&&typeof os.applyUIMode==="function"){os.uiMode="os";os.applyUIMode()}
+ };
+ window.addEventListener("message",function(e){
+   if(e.source===iframe.contentWindow&&e.data&&e.data.type==="nova-launch-os")launch();
+ });
+}
+window.addEventListener("nova:show-education-start",showEducationStart,{once:true});
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>setTimeout(showEducationStart,100),{once:true});
+else setTimeout(showEducationStart,100);
+})();
+
+
+(function(){
+  if (window.__novaGameResizeFix) return;
+  window.__novaGameResizeFix = true;
+
+  const notify = frame => {
+    try {
+      frame.contentWindow?.postMessage({
+        type: "nova-resize",
+        width: frame.clientWidth,
+        height: frame.clientHeight,
+        devicePixelRatio: Math.min(window.devicePixelRatio || 1, 1.5)
+      }, "*");
+    } catch (_) {}
+    window.dispatchEvent(new Event("resize"));
+  };
+
+  const watch = frame => {
+    if (!frame || frame.__novaResizeWatched) return;
+    frame.__novaResizeWatched = true;
+    const ro = new ResizeObserver(() => requestAnimationFrame(() => notify(frame)));
+    ro.observe(frame);
+    frame.addEventListener("load", () => requestAnimationFrame(() => notify(frame)), {once:false});
+  };
+
+  const scan = () => document.querySelectorAll("iframe").forEach(watch);
+  new MutationObserver(scan).observe(document.documentElement, {childList:true, subtree:true});
+  scan();
+})();
+
+
+(function(){
+  if (window.__novaWindowLayoutResize) return;
+  window.__novaWindowLayoutResize = true;
+  const update = () => {
+    const layer = document.getElementById("os-window-layer");
+    if (!layer) return;
+    document.querySelectorAll(".os-window").forEach(w => {
+      const maxW = Math.max(280, layer.clientWidth - 24);
+      const maxH = Math.max(180, layer.clientHeight - 24);
+      w.style.maxWidth = maxW + "px";
+      w.style.maxHeight = maxH + "px";
+      w.style.left = Math.max(12, Math.min(w.offsetLeft, layer.clientWidth - Math.min(w.offsetWidth, maxW) - 12)) + "px";
+      w.style.top = Math.max(12, Math.min(w.offsetTop, layer.clientHeight - Math.min(w.offsetHeight, maxH) - 12)) + "px";
+      w.querySelectorAll("iframe,canvas").forEach(el => {
+        el.style.width = "100%";
+        el.style.height = "100%";
+      });
+    });
+  };
+  addEventListener("resize", () => requestAnimationFrame(update), {passive:true});
+  addEventListener("orientationchange", () => setTimeout(update, 50), {passive:true});
+  new MutationObserver(() => requestAnimationFrame(update))
+    .observe(document.documentElement, {childList:true, subtree:true});
+  requestAnimationFrame(update);
+})();
