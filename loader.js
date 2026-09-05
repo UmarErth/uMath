@@ -22,7 +22,7 @@ const SITE_TAGLINE = "Next-Gen HyperGlass Gaming OS";
 // ─── LOCK ───────────────────────────────────────────────────────
 
 // ─── CLOAK METADATA ─────────────────────────────────────────────
-const CLOAK_TITLE = "Home - Google Classroom";
+const CLOAK_TITLE = "Home - Classroom";
 const CLOAK_ICON  = "https://ssl.gstatic.com/classroom/favicon.png";
 
 // ─── BACKGROUND CONFIG ──────────────────────────────────────────
@@ -36,7 +36,7 @@ const SAVE_FILENAME = "NovaGaming.html";
 // ─── GOOGLE GEMINI AI CONFIG ────────────────────────────────────
 const GEMINI_API_KEY = "AQ.Ab8RN6JhWU46D44KxMFcmoRQAghUEuF3kSry4XuhmVlXnO2PLA";
 const YOUTUBE_API_KEY = "AIzaSyBBZfqeF_ZEhnMZzL0g2gNytr0OrJopfmc";
-const DEFAULT_UI_MODE = "os"; // "classic" or "os"
+const DEFAULT_UI_MODE = "os";
 
 // ─── PIPED & INVIDIOUS INSTANCE POOL ────────────────────────────
 const PIPED_EMBED_INSTANCES = [
@@ -84,8 +84,7 @@ const MENU_ITEMS = [
     { icon:"⊘", label:"Cloak Tab",      action:"cloak" },
     { icon:"⏱", label:"My YouTube",     action:`url:${currentYtInstance}/channel/UCcusQs9FwQdeB2g_v7_R45g`, newTab:true },
     { icon:"⌘", label:"OS Style", action:"custom:setOsStyle" },
-    { icon:"▤", label:"Classic", action:"custom:setClassicStyle" },
-];
+    ];
 
 // ─── HEADER BUTTONS ─────────────────────────────────────────────
 const HEADER_BUTTONS = [
@@ -559,6 +558,163 @@ const GAMES = [
     { title:"Effing Worms",              url:"https://cdn.jsdelivr.net/gh/UmarErth/uMath@main/cleffingworms.html",                     desc:"Control a giant monster worm eating everything above ground.", newTab:false, download:true }
 ];
 
+// ─── LIVE GAME CATALOG SYNC ────────────────────────────────────
+// The curated GAMES array is the fallback catalog. When Nova is online we
+// reconcile it with the actual HTML files in UmarErth/uMath so the game count
+// and launcher reflect repository additions/removals automatically.
+const NOVA_GAME_REPO = Object.freeze({ owner:"UmarErth", repo:"uMath", branch:"main" });
+const NOVA_GAME_CDN_PREFIX = `https://cdn.jsdelivr.net/gh/${NOVA_GAME_REPO.owner}/${NOVA_GAME_REPO.repo}@${NOVA_GAME_REPO.branch}/`;
+let NOVA_GAME_SYNC_PROMISE = null;
+
+function novaRepoPathFromGameUrl(url){
+    try{
+        const raw=String(url||"");
+        const marker=`cdn.jsdelivr.net/gh/${NOVA_GAME_REPO.owner}/${NOVA_GAME_REPO.repo}@${NOVA_GAME_REPO.branch}/`;
+        const at=raw.indexOf(marker);
+        if(at<0) return null;
+        let path=raw.slice(at+marker.length).split(/[?#]/,1)[0];
+        try{ path=decodeURIComponent(path); }catch{}
+        return path.replace(/^\/+/,"");
+    }catch{return null;}
+}
+
+function novaNormalizeRepoPath(path){
+    try{return decodeURIComponent(String(path||"")).replace(/^\/+/,"").replace(/\\/g,"/").toLowerCase();}
+    catch{return String(path||"").replace(/^\/+/,"").replace(/\\/g,"/").toLowerCase();}
+}
+
+function novaGameTitleFromPath(path){
+    let name=String(path||"").split("/").pop()||"New Game";
+    try{name=decodeURIComponent(name);}catch{}
+    name=name.replace(/\.html?$/i,"");
+    // Most legacy game files use a cl prefix. Remove it only when it looks
+    // like the catalog naming convention rather than part of a real word.
+    if(/^cl(?=[A-Z0-9 _.-]|[a-z0-9])/i.test(name)) name=name.slice(2);
+    name=name
+        .replace(/[_-]+/g," ")
+        .replace(/([a-z0-9])([A-Z])/g,"$1 $2")
+        .replace(/\s+/g," ")
+        .trim();
+    if(!name) return "New Game";
+    return name.split(" ").map(word=>{
+        if(/^(nes|gba|nds|ds|ps1|ps2|fnf|gta|doom|io)$/i.test(word)) return word.toUpperCase();
+        if(/^\d/.test(word)) return word;
+        return word.charAt(0).toUpperCase()+word.slice(1);
+    }).join(" ");
+}
+
+function novaCdnUrlForRepoPath(path){
+    return NOVA_GAME_CDN_PREFIX + String(path||"").split("/").map(part=>encodeURIComponent(part)).join("/");
+}
+
+async function novaFetchRepoHtmlPaths(){
+    const github=`https://api.github.com/repos/${NOVA_GAME_REPO.owner}/${NOVA_GAME_REPO.repo}/git/trees/${encodeURIComponent(NOVA_GAME_REPO.branch)}?recursive=1`;
+    try{
+        const r=await fetch(github,{cache:"no-store",headers:{Accept:"application/vnd.github+json"}});
+        if(!r.ok) throw new Error(`GitHub ${r.status}`);
+        const data=await r.json();
+        if(!Array.isArray(data.tree)) throw new Error("Invalid GitHub tree response");
+        return data.tree
+            .filter(entry=>entry?.type==="blob" && /\.html?$/i.test(entry.path||""))
+            .map(entry=>String(entry.path).replace(/^\/+/,""));
+    }catch(githubError){
+        // jsDelivr metadata is a CORS-friendly fallback for networks that block
+        // api.github.com or when the anonymous GitHub API rate limit is hit.
+        const jsd=`https://data.jsdelivr.com/v1/package/gh/${NOVA_GAME_REPO.owner}/${NOVA_GAME_REPO.repo}@${encodeURIComponent(NOVA_GAME_REPO.branch)}/flat`;
+        const r=await fetch(jsd,{cache:"no-store"});
+        if(!r.ok) throw githubError;
+        const data=await r.json();
+        if(!Array.isArray(data.files)) throw githubError;
+        return data.files
+            .map(file=>String(file?.name||"").replace(/^\/+/,""))
+            .filter(path=>/\.html?$/i.test(path));
+    }
+}
+
+async function novaSyncGameCatalog(force=false){
+    if(NOVA_GAME_SYNC_PROMISE && !force) return NOVA_GAME_SYNC_PROMISE;
+    NOVA_GAME_SYNC_PROMISE=(async()=>{
+        try{
+            const paths=await novaFetchRepoHtmlPaths();
+            const uniquePaths=[];
+            const repoPathSet=new Set();
+            for(const path of paths){
+                const key=novaNormalizeRepoPath(path);
+                if(!key || repoPathSet.has(key)) continue;
+                repoPathSet.add(key);
+                uniquePaths.push(path);
+            }
+
+            // Preserve curated names/descriptions/order for files that still
+            // exist, keep external games, drop stale/duplicate repo entries,
+            // then append newly discovered repository HTML games.
+            const curatedByPath=new Map();
+            for(const game of GAMES){
+                const path=novaRepoPathFromGameUrl(game?.url);
+                if(path){
+                    const key=novaNormalizeRepoPath(path);
+                    if(!curatedByPath.has(key)) curatedByPath.set(key,game);
+                }
+            }
+
+            const next=[];
+            const addedRepoPaths=new Set();
+            for(const game of GAMES){
+                const path=novaRepoPathFromGameUrl(game?.url);
+                if(!path){
+                    next.push(game); // external/remote game
+                    continue;
+                }
+                const key=novaNormalizeRepoPath(path);
+                if(repoPathSet.has(key) && !addedRepoPaths.has(key)){
+                    next.push(game);
+                    addedRepoPaths.add(key);
+                }
+            }
+
+            for(const path of uniquePaths){
+                const key=novaNormalizeRepoPath(path);
+                if(addedRepoPaths.has(key)) continue;
+                const curated=curatedByPath.get(key);
+                if(curated){
+                    next.push(curated);
+                }else{
+                    next.push({
+                        title:novaGameTitleFromPath(path),
+                        url:novaCdnUrlForRepoPath(path),
+                        desc:"Auto-detected from the live Nova Gaming repository.",
+                        newTab:false,
+                        download:true,
+                        autoDetected:true,
+                        repoPath:path
+                    });
+                }
+                addedRepoPaths.add(key);
+            }
+
+            GAMES.splice(0,GAMES.length,...next);
+            window.NOVA_GAME_COUNT=GAMES.length;
+            window.NOVA_GAME_CATALOG_SOURCE="live";
+            window.dispatchEvent(new CustomEvent("nova:games-updated",{detail:{count:GAMES.length,source:"live"}}));
+            return GAMES.length;
+        }catch(err){
+            console.warn("Nova live game catalog sync failed; using built-in catalog",err);
+            window.NOVA_GAME_COUNT=GAMES.length;
+            window.NOVA_GAME_CATALOG_SOURCE="fallback";
+            window.dispatchEvent(new CustomEvent("nova:games-updated",{detail:{count:GAMES.length,source:"fallback"}}));
+            return GAMES.length;
+        }
+    })();
+    return NOVA_GAME_SYNC_PROMISE;
+}
+
+// Public refresh hook for debugging/manual refreshes, while normal users get
+// an automatic background scan each page load.
+window.novaRefreshGameCatalog=()=>novaSyncGameCatalog(true);
+if("requestIdleCallback" in window) requestIdleCallback(()=>novaSyncGameCatalog(),{timeout:900});
+else setTimeout(()=>novaSyncGameCatalog(),40);
+
+
 // ════════════════════════════════════════════════════════════════
 // ULTRA HIGH-PERFORMANCE ENGINE v5.0 (HYPERGLASS OLED SYSTEM)
 // ════════════════════════════════════════════════════════════════
@@ -600,20 +756,17 @@ const nova = {
         const isEagler = /eaglercraft/i.test(url);
 
         iframe.removeAttribute("srcdoc");
+        // Do not sandbox Eaglercraft. It needs workers, WebGL, storage,
+        // pointer lock and the normal Permissions Policy chain.
+        if (isEagler) iframe.removeAttribute("sandbox");
+        else iframe.setAttribute(
+            "sandbox",
+            "allow-forms allow-modals allow-pointer-lock allow-popups allow-popups-to-escape-sandbox allow-presentation allow-same-origin allow-scripts allow-downloads"
+        );
         iframe.setAttribute(
             "allow",
-            "gamepad *; fullscreen *; autoplay *; clipboard-read *; clipboard-write *; pointer-lock *"
+            "webgl *; gamepad *; fullscreen *; autoplay *; clipboard-read *; clipboard-write *; pointer-lock *; storage-access *"
         );
-        if (!isEagler) {
-            iframe.setAttribute(
-                "sandbox",
-                "allow-forms allow-modals allow-pointer-lock allow-popups allow-popups-to-escape-sandbox allow-presentation allow-same-origin allow-scripts allow-downloads"
-            );
-        } else {
-            // Eaglercraft needs the normal iframe origin/permissions model for
-            // its input hooks and browser storage/runtime initialization.
-            iframe.removeAttribute("sandbox");
-        }
         iframe.setAttribute("scrolling", "no");
         iframe.style.width = "100%";
         iframe.style.height = "100%";
@@ -625,172 +778,90 @@ const nova = {
             iframe.parentElement?.querySelector(".os-game-loading")?.classList.add("done");
         };
 
-        // Eaglercraft and other large single-file engines are loaded through
-        // the same compatibility path as the rest of the library.  This avoids
-        // rendering a text/plain CDN response as naked source code.
         try {
-            const res = await fetch(url, {mode:"cors", credentials:"omit", cache:"no-cache"});
+            // jsDelivr/GitHub-hosted .html files can be served with a MIME type
+            // that makes browsers display the source as plain text. Fetch the
+            // bytes ourselves and recreate the page explicitly as text/html.
+            const res = await fetch(url, {
+                mode: "cors",
+                credentials: "omit",
+                cache: "default"
+            });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-            const type = (res.headers.get("content-type") || "").toLowerCase();
-            const raw = await res.text();
+            const contentType = (res.headers.get("content-type") || "").toLowerCase();
+            let raw = await res.text();
             const trimmed = raw.trimStart();
             const looksHtml =
                 /^(<!doctype\s+html|<html(?:\s|>)|<head(?:\s|>)|<body(?:\s|>))/i.test(trimmed) ||
-                /<canvas[\s>]/i.test(raw);
+                /<canvas[\s>]/i.test(raw) ||
+                /<script[\s>]/i.test(raw);
 
             let html;
-            if (looksHtml || /html|xhtml/i.test(type)) {
-                if (isEagler) {
-                    const gamepadShim = `<script>
+            if (looksHtml || /html|xhtml|text\/plain/i.test(contentType)) {
+                const a = document.createElement("a");
+                a.href = url;
+                const baseHref = a.href.substring(0, a.href.lastIndexOf("/") + 1);
+
+                // Some Eagler builds probe navigator.getGamepads during boot.
+                // A denied Permissions Policy call used to crash the runtime,
+                // so return an empty pad list if the browser rejects the probe.
+                const gamepadShim = isEagler ? `<script>
 (function(){
-  try{
-    const nativeGetGamepads = navigator.getGamepads && navigator.getGamepads.bind(navigator);
-    if(nativeGetGamepads){
-      Object.defineProperty(navigator,"getGamepads",{
-        configurable:true,
-        value:function(){
-          try{return nativeGetGamepads() || []}
-          catch(_){return []}
+  try {
+    var nativeGetGamepads = navigator.getGamepads && navigator.getGamepads.bind(navigator);
+    if (nativeGetGamepads) {
+      Object.defineProperty(navigator, "getGamepads", {
+        configurable: true,
+        value: function(){
+          try { return nativeGetGamepads() || []; }
+          catch (_) { return []; }
         }
       });
     }
-  }catch(_){}
+  } catch (_) {}
 })();
-</script>`;
-                    if (/<head(?:\\s|>)/i.test(raw)) {
-                        raw = raw.replace(/<head([^>]*)>/i, `<head$1>${gamepadShim}`);
+<\/script>` : "";
+
+                if (!/<base\s/i.test(raw)) {
+                    if (/<head(?:\s|>)/i.test(raw)) {
+                        raw = raw.replace(
+                            /<head([^>]*)>/i,
+                            `<head$1><base href="${baseHref.replace(/"/g,"&quot;")}">${gamepadShim}`
+                        );
                     } else {
-                        raw = gamepadShim + raw;
+                        raw = `<!doctype html><html><head><meta charset="utf-8"><base href="${baseHref.replace(/"/g,"&quot;")}">${gamepadShim}</head><body>${raw}</body></html>`;
                     }
+                } else if (gamepadShim) {
+                    if (/<head(?:\s|>)/i.test(raw)) raw = raw.replace(/<head([^>]*)>/i, `<head$1>${gamepadShim}`);
+                    else raw = gamepadShim + raw;
                 }
-
-                const base = document.createElement("a");
-                base.href = url;
-                const baseHref = base.href.substring(0, base.href.lastIndexOf("/") + 1);
-
-                if (/<base\s/i.test(raw)) {
-                    html = raw;
-                } else if (/<head(?:\s|>)/i.test(raw)) {
-                    html = raw.replace(
-                        /<head([^>]*)>/i,
-                        `<head$1><base href="${baseHref.replace(/"/g,"&quot;")}">`
-                    );
-                } else {
-                    html =
-                        `<!doctype html>
-<html><head><meta charset="utf-8">` +
-                        `<base href="${baseHref.replace(/"/g,"&quot;")}">` +
-                        `</head><body>${raw}</body></html>`;
-                }
+                html = raw;
             } else {
+                // JS-only entries still get a proper HTML wrapper.
                 const baseHref = url.substring(0, url.lastIndexOf("/") + 1);
-                html =
-                    `<!doctype html><html><head><meta charset="utf-8">` +
-                    `<base href="${baseHref.replace(/"/g,"&quot;")}">` +
-                    `<style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#000}canvas{display:block;max-width:100%;max-height:100%}
-/* Nova low-power rendering mode */
-@media (max-width: 900px) {
-  .glass, .window, .dock, .panel {
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-  }
-}
-
-
-:root{--nova-motion:360ms}
-@media (prefers-reduced-motion:reduce){
-  *,*::before,*::after{animation-duration:1ms!important;animation-iteration-count:1!important;transition-duration:1ms!important}
-}
-
-/* Responsive game viewport */
-.os-game-window .os-window-content,
-.os-game-window .game-frame-wrap,
-.game-frame-wrap {
-  min-width: 0 !important;
-  min-height: 0 !important;
-  width: 100% !important;
-  height: 100% !important;
-  overflow: hidden !important;
-}
-.os-game-window iframe,
-.game-frame-wrap iframe {
-  display: block !important;
-  width: 100% !important;
-  height: 100% !important;
-  max-width: 100% !important;
-  max-height: 100% !important;
-  border: 0 !important;
-  overflow: hidden !important;
-}
-.os-game-window canvas {
-  display: block !important;
-  max-width: 100% !important;
-  max-height: 100% !important;
-}
-
-
-/* Nova window containment and responsive app layout */
-#os-window-layer{position:absolute;inset:0;overflow:hidden}
-.os-window{
-  box-sizing:border-box;
-  max-width:calc(100vw - 24px);
-  max-height:calc(100vh - 24px);
-  overflow:hidden !important;
-}
-.os-window .os-window-content{
-  box-sizing:border-box;
-  width:100%;
-  height:calc(100% - var(--os-titlebar-height, 42px));
-  min-width:0;
-  min-height:0;
-  overflow:hidden !important;
-}
-.os-window .os-window-content > *{
-  min-width:0;
-  max-width:100%;
-  box-sizing:border-box;
-}
-.os-game-window .os-window-content,
-.os-game-window .game-frame-wrap{
-  width:100% !important;
-  height:100% !important;
-  min-width:0 !important;
-  min-height:0 !important;
-  overflow:hidden !important;
-}
-.os-game-window iframe,
-.os-game-window canvas,
-.game-frame-wrap iframe{
-  display:block !important;
-  width:100% !important;
-  height:100% !important;
-  min-width:0 !important;
-  min-height:0 !important;
-  max-width:100% !important;
-  max-height:100% !important;
-  border:0 !important;
-  overflow:hidden !important;
-  box-sizing:border-box !important;
-}
-
-</style>` +
-                    `</head><body><script src="${url.replace(/"/g,"&quot;")}"></script></body></html>`;
+                html = `<!doctype html><html><head><meta charset="utf-8"><base href="${baseHref.replace(/"/g,"&quot;")}"></head><body><script>${raw.replace(/<\/script/gi,"<\\/script")}</script></body></html>`;
             }
 
             const blobUrl = URL.createObjectURL(
-                new Blob([html], {type:"text/html;charset=utf-8"})
+                new Blob([html], { type: "text/html;charset=utf-8" })
             );
 
-            iframe.addEventListener("load", () => {
+            const cleanup = () => {
                 showReady();
-                setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
-            }, {once:true});
-
+                // Keep it alive long enough for late worker/resource startup.
+                setTimeout(() => URL.revokeObjectURL(blobUrl), 120000);
+            };
+            iframe.addEventListener("load", cleanup, { once: true });
             iframe.src = blobUrl;
         } catch (err) {
-            iframe.addEventListener("load", showReady, {once:true});
-            iframe.src = url;
+            console.error("Nova game renderer failed:", err);
+            // Never fall back to the raw CDN URL for HTML games because a
+            // text/plain response would just show the source code again.
+            const safe = String(err && err.message ? err.message : err).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[ch]));
+            const failName = isEagler ? "Minecraft" : "Game";
+            iframe.srcdoc = `<!doctype html><html><body style="margin:0;background:#050505;color:#fff;font:15px system-ui;display:grid;place-items:center;height:100vh"><div style="max-width:620px;padding:28px;text-align:center"><h2 style="margin:0 0 10px">${failName} failed to load</h2><p style="opacity:.72">Nova could not fetch this game file.</p><code style="opacity:.6">${safe}</code></div></body></html>`;
+            iframe.addEventListener("load", showReady, { once: true });
         }
     },
 
@@ -1295,101 +1366,23 @@ const nova = {
         }
     },
 
-    // ── INTERACTIVE PARTICLE CANVAS BACKGROUND ─────────────────────
+    // ── BACKGROUND EFFECTS ───────────────────────────────────────
+    // Disabled by default: the old particle network ran continuously and
+    // performed an O(n²) distance check every animation frame.
     dots() {
-        const c = document.createElement("canvas");
-        c.id = "particle-canvas";
-        document.body.appendChild(c);
-        const ctx = c.getContext("2d");
-        let particles = [];
-        let mx = -1e4, my = -1e4;
-
-        const resize = () => { c.width = innerWidth; c.height = innerHeight; init(); };
-        window.addEventListener("resize", resize, { passive: true });
-
-        window.addEventListener("pointermove", e => { mx = e.clientX; my = e.clientY; }, { passive: true });
-
-        const init = () => {
-            particles = [];
-            const count = this.isLowSpec ? Math.floor(PARTICLE_COUNT / 2) : PARTICLE_COUNT;
-            for (let i = 0; i < count; i++) {
-                particles.push({
-                    x: Math.random() * c.width,
-                    y: Math.random() * c.height,
-                    vx: (Math.random() - 0.5) * 0.5,
-                    vy: (Math.random() - 0.5) * 0.5,
-                    radius: Math.random() * 1.8 + 0.8
-                });
-            }
-        };
-
-        let animId = null;
-        let isTabActive = true;
-
-        document.addEventListener("visibilitychange", () => {
-            isTabActive = !document.hidden;
-            if (isTabActive && !animId) requestAnimationFrame(draw);
-        });
-
-        const draw = () => {
-            if (!isTabActive) { animId = null; return; }
-            ctx.clearRect(0, 0, c.width, c.height);
-
-            for (let i = 0; i < particles.length; i++) {
-                const p = particles[i];
-                p.x += p.vx; p.y += p.vy;
-
-                if (p.x < 0) p.x = c.width;
-                if (p.x > c.width) p.x = 0;
-                if (p.y < 0) p.y = c.height;
-                if (p.y > c.height) p.y = 0;
-
-                const dx = mx - p.x, dy = my - p.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist < 150) {
-                    const angle = Math.atan2(dy, dx);
-                    const force = (150 - dist) / 150;
-                    p.x -= Math.cos(angle) * force * 2;
-                    p.y -= Math.sin(angle) * force * 2;
-                }
-
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-                ctx.fillStyle = PARTICLE_COLOR;
-                ctx.fill();
-
-                for (let j = i + 1; j < particles.length; j++) {
-                    const p2 = particles[j];
-                    const distance = Math.sqrt((p.x - p2.x) ** 2 + (p.y - p2.y) ** 2);
-                    if (distance < 120) {
-                        ctx.beginPath();
-                        ctx.moveTo(p.x, p.y);
-                        ctx.lineTo(p2.x, p2.y);
-                        ctx.strokeStyle = `rgba(0, 255, 157, ${0.15 * (1 - distance / 120)})`;
-                        ctx.lineWidth = 0.6;
-                        ctx.stroke();
-                    }
-                }
-            }
-            animId = requestAnimationFrame(draw);
-        };
-
-        resize();
-        requestAnimationFrame(draw);
+        const old=document.getElementById("particle-canvas");
+        if(old) old.remove();
     },
 
     // ── UI MODE SYSTEM ──────────────────────────────────────────
     uiModeInit(){
-        let saved=null;
-        try{ saved=localStorage.getItem("nova_ui_mode"); }catch(e){}
-        this.uiMode=(saved==="os"||saved==="classic")?saved:DEFAULT_UI_MODE;
-        // Nova Education is now the real first page. The hidden 1234 = gate
-        // launches the OS rather than showing the old .
-        this.applyUIMode();
-        this.uiMode="classic";
+        // Nova Education is always the first page. There is no Classic mode anymore.
+        // Do not render the OS during refresh; the 1234 = gate opens it.
+        this.uiMode="education";
         document.body.classList.remove("os-mode");
         document.getElementById("os-desktop")?.remove();
-        setTimeout(()=>window.dispatchEvent(new Event("nova:show-education-start")),80);
+        try{ localStorage.removeItem("nova_ui_mode"); }catch(e){}
+        setTimeout(()=>window.dispatchEvent(new Event("nova:show-education-start")),0);
     },
     applyUIMode(){
         const os=this.uiMode==="os";
@@ -1403,8 +1396,8 @@ const nova = {
         }
     },
     setUIMode(mode){
-        this.uiMode=mode==="os"?"os":"classic";
-        try{ localStorage.setItem("nova_ui_mode",this.uiMode); }catch(e){}
+        // Classic mode has been removed. Any legacy caller now simply opens Nova OS.
+        this.uiMode="os";
         document.getElementById("mode-chooser")?.remove();
         this.applyUIMode();
     },
@@ -1426,21 +1419,29 @@ const nova = {
         desk.innerHTML=`
             <div class="os-wallpaper"><div class="os-wallpaper-orb o1"></div><div class="os-wallpaper-orb o2"></div><div class="os-wallpaper-grid"></div></div>
             <div class="os-menubar">
-                <div class="os-menu-left"><button class="os-apple" id="os-apple">✦</button><button class="os-menu-item strong">Nova</button><button class="os-menu-item">File</button><button class="os-menu-item">Edit</button><button class="os-menu-item">View</button><button class="os-menu-item">Window</button><button class="os-menu-item">Help</button></div>
+                <div class="os-menu-left"><button class="os-apple" id="os-apple">✦</button><button class="os-menu-item strong">Nova</button><button class="os-menu-item" id="nova-save-html">Save</button><button class="os-menu-item" id="nova-cloak-site">Cloak</button><button class="os-menu-item" id="nova-request-games">Request Games</button></div>
                 <div class="os-menu-right"><span class="os-status-dot"></span><span id="os-net">Online</span><span id="os-clock">--:--</span><button class="os-control" id="os-control">⌄</button></div>
             </div>
             <div class="os-desktop-icons" id="os-desktop-icons"></div>
             <div class="os-window-layer" id="os-window-layer"></div>
             <div class="os-dock-wrap"><div class="os-dock-pro" id="os-dock-pro"></div></div>
-            <div class="os-quick-panel" id="os-quick-panel"><div class="os-qhead">Control Center</div><div class="os-qgrid"><button>Wi‑Fi<br><small>Connected</small></button><button>Focus<br><small>Off</small></button><button>Brightness<br><small>100%</small></button><button>Volume<br><small>80%</small></button></div><button id="os-quick-mode">Switch to Classic</button></div>
-            <div class="os-app-menu" id="os-app-menu"><div class="os-app-menu-title">Nova</div><button data-os-action="about">About Nova</button><button data-os-action="settings">System Settings</button><div class="os-menu-sep"></div><button data-os-action="classic">Switch to Classic</button></div>
+            <div class="os-quick-panel" id="os-quick-panel"><div class="os-qhead">Control Center</div><div class="os-qgrid"><button>Wi‑Fi<br><small>Connected</small></button><button>Focus<br><small>Off</small></button><button>Brightness<br><small>100%</small></button><button>Volume<br><small>80%</small></button></div></div>
+            <div class="os-app-menu" id="os-app-menu"><div class="os-app-menu-title">Nova</div><button data-os-action="about">About Nova</button><button data-os-action="settings">System Settings</button></div>
         `;
         document.body.appendChild(desk);
         this.osBindDesktop();
         this.osRenderIcons();
         this.osRenderDock();
         this.osClockStart();
-        this.osOpenWindow("Games","games",this.osGamesBody(),{center:true,width:980,height:690,skipFocus:false});
+        window.dispatchEvent(new Event("nova:os-rendered"));
+        // Let the OS shell paint before constructing the Games window.
+        // This makes 1234 = feel instant instead of blocking on a large DOM build.
+        const openGames=()=>{
+            if(document.getElementById("os-desktop"))
+                this.osOpenWindow("Games","games",this.osGamesBody(),{center:true,width:980,height:690,skipFocus:false});
+        };
+        if("requestIdleCallback" in window) requestIdleCallback(openGames,{timeout:350});
+        else setTimeout(openGames,80);
     },
     osIcon(name){
         const common = 'viewBox="0 0 64 64" width="42" height="42" aria-hidden="true"';
@@ -1450,9 +1451,11 @@ const nova = {
             ai: `<svg ${common} class="os-vector-icon"><defs><linearGradient id="g-ai" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#b36cff"/><stop offset="1" stop-color="#ff5fc8"/></linearGradient></defs><circle cx="32" cy="32" r="24" fill="url(#g-ai)"/><path d="m32 17 3.5 9.5L45 30l-9.5 3.5L32 43l-3.5-9.5L19 30l9.5-3.5Z" fill="#fff"/></svg>`,
             youtube: `<svg ${common} class="os-vector-icon"><rect x="7" y="13" width="50" height="38" rx="12" fill="#ff1744"/><path d="m28 24 14 8-14 8Z" fill="#fff"/></svg>`,
             anime: `<svg ${common} class="os-vector-icon"><defs><linearGradient id="g-anime" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ff75c3"/><stop offset="1" stop-color="#7d6cff"/></linearGradient></defs><rect x="8" y="8" width="48" height="48" rx="16" fill="url(#g-anime)"/><circle cx="24" cy="29" r="4" fill="#fff"/><circle cx="40" cy="29" r="4" fill="#fff"/><path d="M21 39c7 5 15 5 22 0" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/></svg>`,
+            browser: `<svg ${common} class="os-vector-icon"><defs><linearGradient id="g-browser" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#36d1dc"/><stop offset="1" stop-color="#5b86e5"/></linearGradient></defs><rect x="7" y="7" width="50" height="50" rx="16" fill="url(#g-browser)"/><circle cx="32" cy="32" r="15" fill="none" stroke="#fff" stroke-width="3"/><path d="M17 32h30M32 17c5 5 8 10 8 15s-3 10-8 15c-5-5-8-10-8-15s3-10 8-15Z" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></svg>`,
+            chatroom: `<svg ${common} class="os-vector-icon"><defs><linearGradient id="g-chat" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#00d2a8"/><stop offset="1" stop-color="#2a7fff"/></linearGradient></defs><rect x="7" y="9" width="50" height="40" rx="14" fill="url(#g-chat)"/><path d="M19 49l-2 8 12-8" fill="url(#g-chat)"/><circle cx="22" cy="29" r="3" fill="#fff"/><circle cx="32" cy="29" r="3" fill="#fff"/><circle cx="42" cy="29" r="3" fill="#fff"/></svg>`,
+            education: `<svg ${common} class="os-vector-icon"><defs><linearGradient id="g-edu" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffb347"/><stop offset="1" stop-color="#ff5f6d"/></linearGradient></defs><rect x="7" y="7" width="50" height="50" rx="16" fill="url(#g-edu)"/><path d="M19 18h26v28H19z" fill="rgba(255,255,255,.18)" stroke="#fff" stroke-width="2.5"/><path d="M24 25h16M24 32h7M35 32h5M24 39h5M33 39h7" stroke="#fff" stroke-width="3" stroke-linecap="round"/></svg>`,
             settings: `<svg ${common} class="os-vector-icon"><defs><linearGradient id="g-settings" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#8d98ab"/><stop offset="1" stop-color="#526074"/></linearGradient></defs><path d="m26 7 4 5a21 21 0 0 1 4 0l4-5 7 4-2 6a21 21 0 0 1 3 3l7-1v9l-6 2a20 20 0 0 1 0 4l6 2v9l-7-1a21 21 0 0 1-3 3l2 6-7 4-4-5a21 21 0 0 1-4 0l-4 5-7-4 2-6a21 21 0 0 1-3-3l-7 1v-9l6-2a20 20 0 0 1 0-4l-6-2v-9l7 1a21 21 0 0 1 3-3l-2-6Z" fill="url(#g-settings)"/><circle cx="32" cy="32" r="9" fill="#fff" opacity=".9"/></svg>`,
             trash: `<svg ${common} class="os-vector-icon"><defs><linearGradient id="g-trash" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#9fe2ff"/><stop offset="1" stop-color="#6aa1ff"/></linearGradient></defs><path d="M17 19h30l-2 34H19Z" fill="url(#g-trash)"/><path d="M14 16h36M25 11h14v5H25Z" fill="none" stroke="#fff" stroke-width="4" stroke-linejoin="round"/><path d="M25 26v17M39 26v17" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".8"/></svg>`,
-            classic: `<svg ${common} class="os-vector-icon"><defs><linearGradient id="g-classic" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#31e7a2"/><stop offset="1" stop-color="#19a9ff"/></linearGradient></defs><rect x="9" y="9" width="46" height="46" rx="13" fill="url(#g-classic)"/><path d="M19 21h26v17H19zM26 44h12" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>`
         };
         return icons[name] || icons.games;
     },
@@ -1469,15 +1472,15 @@ const nova = {
     osRenderDock(){
         const host=document.getElementById("os-dock-pro"); if(!host)return;
         const apps=[
-            {id:"finder",label:"Files",icon:"▣",action:()=>this.osOpenWindow("Files","finder",this.osFinderBody())},
-            {id:"games",label:"Games",icon:"◈",action:()=>this.osOpenWindow("Games","games",this.osGamesBody())},
-            {id:"ai",label:"Nova AI",icon:"✦",action:()=>this.osOpenService("ai")},
-            {id:"youtube",label:"YouTube",icon:"▶",action:()=>this.osOpenService("youtube")},
-            {id:"anime",label:"Anime",icon:"◉",action:()=>this.osOpenService("anime")},
-            {id:"browser",label:"Nova Browser",icon:"◌",action:()=>this.osOpenBrowserWindow()},{id:"chatroom",label:"Nova Chatroom",icon:"☵",action:()=>this.osOpenChatroomWindow()},
-            {id:"education",label:"Nova Education",icon:"∑",action:()=>this.osOpenEducationWindow()},
-            {id:"settings",label:"Settings",icon:"⚙",action:()=>this.osOpenWindow("System Settings","settings",this.osSettingsBody())},
-            {id:"switch",label:"Classic",icon:this.osIcon("classic"),action:()=>this.setUIMode("classic")}
+            {id:"finder",label:"Files",icon:this.osIcon("files"),action:()=>this.osOpenWindow("Files","finder",this.osFinderBody())},
+            {id:"games",label:"Games",icon:this.osIcon("games"),action:()=>this.osOpenWindow("Games","games",this.osGamesBody())},
+            {id:"ai",label:"Nova AI",icon:this.osIcon("ai"),action:()=>this.osOpenService("ai")},
+            {id:"youtube",label:"YouTube",icon:this.osIcon("youtube"),action:()=>this.osOpenService("youtube")},
+            {id:"anime",label:"Anime",icon:this.osIcon("anime"),action:()=>this.osOpenService("anime")},
+            {id:"browser",label:"Nova Browser",icon:this.osIcon("browser"),action:()=>this.osOpenBrowserWindow()},
+            {id:"chatroom",label:"Nova Chatroom",icon:this.osIcon("chatroom"),action:()=>this.osOpenChatroomWindow()},
+            {id:"education",label:"Nova Education",icon:this.osIcon("education"),action:()=>this.osOpenEducationWindow()},
+            {id:"settings",label:"Settings",icon:this.osIcon("settings"),action:()=>this.osOpenWindow("System Settings","settings",this.osSettingsBody())},
         ];
         host.innerHTML=apps.map((a,i)=>`<button class="os-dock-item" data-i="${i}" title="${this.esc(a.label)}"><span class="os-dock-icon">${a.icon}</span><span class="os-dock-dot"></span></button>`).join("");
         host.querySelectorAll(".os-dock-item").forEach((b,i)=>{
@@ -1518,12 +1521,10 @@ const nova = {
         const root=document.getElementById("os-desktop");
         root.querySelector("#os-apple")?.addEventListener("click",e=>{e.stopPropagation();document.getElementById("os-app-menu")?.classList.toggle("on")});
         root.querySelector("#os-control")?.addEventListener("click",e=>{e.stopPropagation();document.getElementById("os-quick-panel")?.classList.toggle("on")});
-        root.querySelector("#os-quick-mode")?.addEventListener("click",()=>this.setUIMode("classic"));
         root.querySelectorAll("[data-os-action]").forEach(b=>b.addEventListener("click",()=>{
             const a=b.dataset.osAction;
             document.getElementById("os-app-menu")?.classList.remove("on");
-            if(a==="classic") this.setUIMode("classic");
-            else if(a==="settings") this.osOpenWindow("System Settings","settings",this.osSettingsBody());
+            if(a==="settings") this.osOpenWindow("System Settings","settings",this.osSettingsBody());
             else if(a==="about") this.osOpenWindow("About This Mac","about",this.osAboutBody());
         }));
         // Every visible desktop control gets a real action
@@ -1594,7 +1595,7 @@ const nova = {
         });
         root.addEventListener("pointerleave",()=>root.classList.remove("os-bottom-hot"));
         window.addEventListener("resize",updateDock);
-        setInterval(updateDock,180);
+        // No polling loop: dock geometry updates only on pointer movement and resize.
 
         // Add the macOS/KDE-style name tooltip to every dock item.
         root.querySelectorAll(".os-dock-item").forEach(item=>{
@@ -1777,15 +1778,85 @@ const nova = {
         }));
         setTimeout(()=>document.addEventListener('pointerdown',function close(ev){if(!menu.contains(ev.target)){menu.remove();document.removeEventListener('pointerdown',close)}},{once:true}),0);
     },
-    osToggleFullscreen(w){
-        const on=w.classList.toggle('os-fullscreen');
-        document.getElementById('os-desktop')?.classList.toggle('os-game-fullscreen',on);
-        if(on){ w.dataset.oldLeft=w.style.left; w.dataset.oldTop=w.style.top; w.dataset.oldWidth=w.style.width; w.dataset.oldHeight=w.style.height; this.osFocusWindow(w); }
-        else if(w.dataset.oldWidth){ Object.assign(w.style,{left:w.dataset.oldLeft,top:w.dataset.oldTop,width:w.dataset.oldWidth,height:w.dataset.oldHeight}); }
+    async osToggleFullscreen(w){
+        const desk=document.getElementById("os-desktop");
+        const on=!w.classList.contains("os-fullscreen");
+        if(on){
+            w.classList.add("os-fullscreen");
+            w.dataset.oldLeft=w.style.left; w.dataset.oldTop=w.style.top;
+            w.dataset.oldWidth=w.style.width; w.dataset.oldHeight=w.style.height;
+            w.dataset.wasMaximized=w.classList.contains("maximized")?"1":"0";
+            w.classList.remove("maximized");
+            Object.assign(w.style,{left:"0px",top:"0px",width:"100vw",height:"100vh"});
+            desk?.classList.add("os-game-fullscreen");
+            document.body.classList.add("nova-os-fullscreen");
+            this.osFocusWindow(w);
+            try{
+                if(document.fullscreenElement!==document.documentElement){
+                    await document.documentElement.requestFullscreen({navigationUI:"hide"});
+                }
+            }catch(e){
+                // Browser may deny fullscreen for local files or user settings.
+            }
+        }else{
+            try{ if(document.fullscreenElement) await document.exitFullscreen(); }catch(e){}
+            w.classList.remove("os-fullscreen");
+            if(w.dataset.oldWidth){
+                Object.assign(w.style,{left:w.dataset.oldLeft,top:w.dataset.oldTop,width:w.dataset.oldWidth,height:w.dataset.oldHeight});
+            }
+            desk?.classList.remove("os-game-fullscreen");
+            document.body.classList.remove("nova-os-fullscreen");
+            this.osFocusWindow(w);
+        }
     },
-    osDownloadWindow(w){
-        const url=w.dataset.gameUrl; if(!url){ alert('This window has no downloadable file'); return; }
-        const a=document.createElement('a'); a.href=url; a.download=w.dataset.gameTitle||'nova-game'; a.target='_blank'; document.body.appendChild(a); a.click(); a.remove();
+    async downloadGameFile(url,title){
+        if(!url) throw new Error('Missing game URL');
+        const cleanTitle = String(title || 'nova-game')
+            .replace(/[\/:*?"<>|]+/g,'-')
+            .replace(/\s+/g,'_')
+            .replace(/^[-_.]+|[-_.]+$/g,'') || 'nova-game';
+
+        let ext = '.html';
+        try {
+            const path = new URL(url, location.href).pathname;
+            const match = path.match(/(\.[a-z0-9]{1,8})$/i);
+            if(match) ext = match[1];
+        } catch(_) {}
+        const filename = cleanTitle.toLowerCase().endsWith(ext.toLowerCase()) ? cleanTitle : cleanTitle + ext;
+
+        // Cross-origin `download` links are often ignored by browsers. jsDelivr
+        // can also serve HTML as text/plain, which makes the browser open the
+        // source instead of saving it. Fetch the bytes first and download a
+        // local blob URL so it is always treated as a file download.
+        const response = await fetch(url,{mode:'cors',credentials:'omit',cache:'no-store'});
+        if(!response.ok) throw new Error(`Download failed (${response.status})`);
+        const remoteBlob = await response.blob();
+        const blob = remoteBlob.slice(0,remoteBlob.size,'application/octet-stream');
+        const blobUrl = URL.createObjectURL(blob);
+        try {
+            const a=document.createElement('a');
+            a.href=blobUrl;
+            a.download=filename;
+            a.rel='noopener';
+            a.style.display='none';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        } finally {
+            // Large games need the object URL to stay alive while the browser
+            // hands the download off to its download manager.
+            setTimeout(()=>URL.revokeObjectURL(blobUrl),60000);
+        }
+    },
+    async osDownloadWindow(w){
+        const url=w.dataset.gameUrl;
+        if(!url){ alert('This window has no downloadable file'); return; }
+        try {
+            await this.downloadGameFile(url,w.dataset.gameTitle||'nova-game');
+        } catch(err) {
+            console.error('Nova game download failed:',err);
+            alert('Download failed. The game host blocked the file request.');
+        }
     },
 
     osToggleMax(w){
@@ -1813,7 +1884,7 @@ const nova = {
                     <div class="os-loading-bar"><span></span></div>
                     <div class="os-loading-status">Connecting to game server</div>
                 </div>
-                <iframe class="os-game-frame" allow="gamepad; fullscreen; autoplay; clipboard-read; clipboard-write; pointer-lock; downloads; storage-access"></iframe>
+                <iframe class="os-game-frame" allow="webgl *; gamepad *; fullscreen *; autoplay *; clipboard-read *; clipboard-write *; pointer-lock *; storage-access *"></iframe>
             </div>`;
 
         const w = this.osOpenWindow(
@@ -1974,16 +2045,18 @@ const nova = {
 
     osFinderBody(){
         const folders=["Applications","Games","Nova AI","YouTube","Anime","Favorites","Downloads"];
-        return `<div class="os-finder"><aside class="os-sidebar"><div class="os-side-title">Favorites</div>${folders.map((f,i)=>`<button class="os-side-btn${i===1?" active":""}"><span>${i===1?"◈":"▣"}</span>${this.esc(f)}</button>`).join("")}<div class="os-side-title">Locations</div><button class="os-side-btn"><span>⌂</span>Nova Disk</button><button class="os-side-btn"><span>☁</span>Cloud</button></aside><main class="os-file-main"><div class="os-file-toolbar"><span>Games</span><span class="os-file-count">${GAMES.length} items</span></div><div class="os-file-grid">${GAMES.map((g,i)=>`<button class="os-file-item" data-game="${i}"><span class="os-file-icon">${this.esc((g.title||"?").charAt(0).toUpperCase())}</span><span>${this.esc(g.title)}</span></button>`).join("")}</div></main></div>`;
+        return `<div class="os-finder"><aside class="os-sidebar"><div class="os-side-title">Favorites</div>${folders.map((f,i)=>`<button class="os-side-btn${i===1?" active":""}"><span>${i===1?"◈":"▣"}</span>${this.esc(f)}</button>`).join("")}<div class="os-side-title">Locations</div><button class="os-side-btn"><span>⌂</span>Nova Disk</button><button class="os-side-btn"><span>☁</span>Cloud</button></aside><main class="os-file-main"><div class="os-file-toolbar"><span>Games</span><span class="os-file-count"><span data-nova-game-count>${GAMES.length}</span> items</span></div><div class="os-file-grid">${GAMES.map((g,i)=>`<button class="os-file-item" data-game="${i}"><span class="os-file-icon">${this.esc((g.title||"?").charAt(0).toUpperCase())}</span><span>${this.esc(g.title)}</span></button>`).join("")}</div></main></div>`;
     },
     osGamesBody(){
-        return `<div class="os-games-app"><div class="os-games-head"><div><div class="os-eyebrow">INSTALLED APPS</div><h2>Games</h2><p>${GAMES.length} games ready to launch</p></div><input id="os-games-search" placeholder="Search installed games…"></div><div class="os-gamegrid-pro" id="os-gamegrid-pro">${GAMES.map((g,i)=>`<button class="os-game-pro" data-game="${i}"><span class="os-game-icon-pro">${this.esc((g.title||"?").charAt(0).toUpperCase())}</span><span class="os-game-title-pro">${this.esc(g.title)}</span><small>Application</small></button>`).join("")}</div></div>`;
+        const initial=Math.min(GAMES.length,48);
+        const cards=GAMES.slice(0,initial).map((g,i)=>`<button class="os-game-pro" data-game="${i}"><span class="os-game-icon-pro">${this.esc((g.title||"?").charAt(0).toUpperCase())}</span><span class="os-game-title-pro">${this.esc(g.title)}</span><small>Application</small></button>`).join("");
+        return `<div class="os-games-app" data-loaded="${initial}"><div class="os-games-head"><div><div class="os-eyebrow">INSTALLED APPS</div><h2>Games</h2><p><span data-nova-game-count>${GAMES.length}</span> games ready to launch</p></div><input id="os-games-search" placeholder="Search installed games…"></div><div class="os-gamegrid-pro" id="os-gamegrid-pro">${cards}</div></div>`;
     },
     osSettingsBody(){
-        return `<div class="os-settings"><aside><div class="os-settings-brand">System Settings</div><button class="active">Appearance</button><button>Desktop & Dock</button><button>Game Center</button><button>Privacy</button><button>About</button></aside><main><h2>Appearance</h2><div class="os-setting-card"><div><strong>Interface</strong><p>Choose between the OS desktop and Classic Nova</p></div><div class="os-setting-actions"><button id="os-use-os">OS Style</button><button id="os-use-classic">Classic</button></div></div><div class="os-setting-card"><div><strong>Desktop animations</strong><p>Use enhanced window transitions and dock motion</p></div><button class="os-toggle on">On</button></div><div class="os-setting-card"><div><strong>Installed games</strong><p>${GAMES.length} game applications available</p></div><span class="os-stat">${GAMES.length}</span></div></main></div>`;
+        return `<div class="os-settings"><aside><div class="os-settings-brand">System Settings</div><button class="active">Appearance</button><button>Desktop & Dock</button><button>Game Center</button><button>Privacy</button><button>About</button></aside><main><h2>Appearance</h2><div class="os-setting-card"><div><strong>Interface</strong><p>Choose between the OS desktop and Classic Nova</p></div><div class="os-setting-actions"><button id="os-use-os">OS Style</button><button id="os-use-classic">Classic</button></div></div><div class="os-setting-card"><div><strong>Desktop animations</strong><p>Use enhanced window transitions and dock motion</p></div><button class="os-toggle on">On</button></div><div class="os-setting-card"><div><strong>Installed games</strong><p><span data-nova-game-count>${GAMES.length}</span> game applications available</p></div><span class="os-stat" data-nova-game-count>${GAMES.length}</span></div></main></div>`;
     },
     osAboutBody(){
-        return `<div class="os-about"><div class="os-about-logo">✦</div><h1>Nova Gaming</h1><p>${this.esc(SITE_TAGLINE)}</p><div class="os-about-grid"><div><small>Games</small><strong>${GAMES.length}</strong></div><div><small>Engine</small><strong>HyperGlass</strong></div><div><small>Interface</small><strong>OS Style</strong></div></div><p class="os-muted">A browser based desktop environment for games tools media and Nova apps</p></div>`;
+        return `<div class="os-about"><div class="os-about-logo">✦</div><h1>Nova Gaming</h1><p>${this.esc(SITE_TAGLINE)}</p><div class="os-about-grid"><div><small>Games</small><strong data-nova-game-count>${GAMES.length}</strong></div><div><small>Engine</small><strong>HyperGlass</strong></div><div><small>Interface</small><strong>OS Style</strong></div></div><p class="os-muted">A browser based desktop environment for games tools media and Nova apps</p></div>`;
     },
 
     // ── DOM CONSTRUCTION ────────────────────────────────────────
@@ -2072,21 +2145,71 @@ const nova = {
             </div>`;
         document.body.appendChild(aip);
 
-        this.renderCards();
-        this.tabNew("Home","home");
+        // Education is the first page. Do not build the legacy Classic game grid
+        // during boot — that work is deferred until Classic is actually requested.
+        if(!this._educationFirstBoot){
+            this.renderCards();
+            this.tabNew("Home","home");
+        }
         this.uiModeInit();
+
+        const refreshOpenGameViews=()=>{
+            document.querySelectorAll("[data-nova-game-count]").forEach(el=>{el.textContent=String(GAMES.length);});
+
+            document.querySelectorAll(".os-games-app").forEach(app=>{
+                const input=app.querySelector("#os-games-search");
+                const host=app.querySelector("#os-gamegrid-pro");
+                if(!host) return;
+                const q=(input?.value||"").toLowerCase().trim();
+                let indices=[];
+                if(q){
+                    for(let i=0;i<GAMES.length;i++){
+                        const g=GAMES[i],t=(g.title||"").toLowerCase(),d=(g.desc||"").toLowerCase();
+                        if(t.includes(q)||d.includes(q)) indices.push(i);
+                    }
+                    indices=indices.slice(0,80);
+                }else{
+                    const end=Math.min(GAMES.length,48);
+                    indices=Array.from({length:end},(_,i)=>i);
+                    app.dataset.loaded=String(end);
+                }
+                host.innerHTML=indices.map(i=>{
+                    const g=GAMES[i];
+                    return `<button class="os-game-pro" data-game="${i}"><span class="os-game-icon-pro">${this.esc((g.title||"?").charAt(0).toUpperCase())}</span><span class="os-game-title-pro">${this.esc(g.title)}</span><small>${g.autoDetected?"Live":"Application"}</small></button>`;
+                }).join("") || `<div class="os-service-copy">No games found</div>`;
+            });
+
+            document.querySelectorAll(".os-finder .os-file-grid").forEach(grid=>{
+                grid.innerHTML=GAMES.map((g,i)=>`<button class="os-file-item" data-game="${i}"><span class="os-file-icon">${this.esc((g.title||"?").charAt(0).toUpperCase())}</span><span>${this.esc(g.title)}</span></button>`).join("");
+            });
+        };
+        window.addEventListener("nova:games-updated",refreshOpenGameViews);
+        if(window.NOVA_GAME_COUNT!=null) refreshOpenGameViews();
+
         document.addEventListener("click",e=>{
             const game=e.target.closest(".os-game-pro,.os-file-item");
             if(game && this.uiMode==="os"){ const idx=+game.dataset.game; if(Number.isInteger(idx)&&GAMES[idx]) this.osOpenGameWindow(GAMES[idx]); }
             const b=e.target.closest("#os-games-search"); if(b) e.stopPropagation();
             if(e.target.id==="os-use-os") this.setUIMode("os");
-            if(e.target.id==="os-use-classic") this.setUIMode("classic");
         },true);
         document.addEventListener("input",e=>{
             if(e.target.id!=="os-games-search")return;
             const host=e.target.closest(".os-games-app")?.querySelector("#os-gamegrid-pro"); if(!host)return;
             const q=e.target.value.toLowerCase().trim();
-            host.querySelectorAll(".os-game-pro").forEach((b,i)=>{ const title=GAMES[i]?.title?.toLowerCase()||""; const desc=GAMES[i]?.desc?.toLowerCase()||""; b.style.display=!q||title.includes(q)||desc.includes(q)?"flex":"none"; });
+            if(q){
+                const matches=[];
+                for(let i=0;i<GAMES.length;i++){const g=GAMES[i];const t=(g.title||"").toLowerCase(),d=(g.desc||"").toLowerCase();if(t.includes(q)||d.includes(q))matches.push(i);}
+                host.innerHTML=matches.slice(0,80).map(i=>{const g=GAMES[i];return `<button class="os-game-pro" data-game="${i}"><span class="os-game-icon-pro">${this.esc((g.title||"?").charAt(0).toUpperCase())}</span><span class="os-game-title-pro">${this.esc(g.title)}</span><small>Application</small></button>`}).join("") || `<div class="os-service-copy">No games found</div>`;
+                return;
+            }
+            const app=e.target.closest(".os-games-app");
+            const loaded=Number(app?.dataset.loaded||0);
+            if(app && loaded<GAMES.length){
+                const end=Math.min(GAMES.length,loaded+48);
+                const frag=document.createDocumentFragment();
+                for(let i=loaded;i<end;i++){const g=GAMES[i];const b=document.createElement("button");b.className="os-game-pro";b.dataset.game=i;b.innerHTML=`<span class="os-game-icon-pro">${this.esc((g.title||"?").charAt(0).toUpperCase())}</span><span class="os-game-title-pro">${this.esc(g.title)}</span><small>Application</small>`;frag.appendChild(b);}
+                host.appendChild(frag); app.dataset.loaded=end;
+            }
         },true);
     },
 
@@ -2096,44 +2219,39 @@ const nova = {
         grid.innerHTML = "";
         this.cards=[];
 
-        const frag = document.createDocumentFragment();
-
-        GAMES.forEach((item)=>{
-            const descText = item.desc || "";
+        const frag=document.createDocumentFragment();
+        const initial=Math.min(GAMES.length,60);
+        const add=(item)=>{
+            const descText=item.desc||"";
             const card=document.createElement("div");
             card.className=`card${this.favorites.includes(item.title)?" fav":""}`;
-            card.innerHTML=`
-                <div>
-                    <h3>${this.esc(item.title)}</h3>
-                    <p>${this.esc(descText)}</p>
-                </div>
-                <span class="fvs">★</span>
-                ${item.newTab?'<span class="ntb">New Tab</span>':''}`;
-            
-            card.addEventListener("click", ()=>this.launch(item));
-            card.addEventListener("contextmenu", e=>{
-                e.preventDefault(); e.stopPropagation();
-                this.showCtx(e.clientX, e.clientY, item, card);
-            });
-
+            card.innerHTML=`<div><h3>${this.esc(item.title)}</h3><p>${this.esc(descText)}</p></div><span class="fvs">★</span>${item.newTab?'<span class="ntb">New Tab</span>':''}`;
+            card.addEventListener("click",()=>this.launch(item));
+            card.addEventListener("contextmenu",e=>{e.preventDefault();e.stopPropagation();this.showCtx(e.clientX,e.clientY,item,card);});
             frag.appendChild(card);
-            this.cards.push({el:card, title:item.title, str:`${(item.title||"").toLowerCase()} ${descText.toLowerCase()}`});
-        });
-
+            this.cards.push({el:card,title:item.title,str:`${(item.title||"").toLowerCase()} ${descText.toLowerCase()}`});
+        };
+        for(let i=0;i<initial;i++) add(GAMES[i]);
         grid.appendChild(frag);
-
-        if(!this.isLowSpec) {
-            grid.addEventListener("pointermove", e => {
-                const card = e.target.closest(".card");
-                if(card) {
-                    const r = card.getBoundingClientRect();
-                    card.style.setProperty("--mx", `${e.clientX - r.left}px`);
-                    card.style.setProperty("--my", `${e.clientY - r.top}px`);
-                }
-            }, {passive: true});
-        }
-
+        this._classicRenderedCount=initial;
         this.filter();
+    },
+
+    renderMoreClassicGames(){
+        const grid=document.getElementById("grid");
+        if(!grid||this._classicRenderedCount>=GAMES.length)return;
+        const frag=document.createDocumentFragment();
+        const end=Math.min(GAMES.length,this._classicRenderedCount+80);
+        for(let i=this._classicRenderedCount;i<end;i++){
+            const item=GAMES[i],descText=item.desc||"";
+            const card=document.createElement("div");
+            card.className=`card${this.favorites.includes(item.title)?" fav":""}`;
+            card.innerHTML=`<div><h3>${this.esc(item.title)}</h3><p>${this.esc(descText)}</p></div><span class="fvs">★</span>${item.newTab?'<span class="ntb">New Tab</span>':''}`;
+            card.addEventListener("click",()=>this.launch(item));
+            card.addEventListener("contextmenu",e=>{e.preventDefault();e.stopPropagation();this.showCtx(e.clientX,e.clientY,item,card);});
+            frag.appendChild(card); this.cards.push({el:card,title:item.title,str:`${(item.title||"").toLowerCase()} ${descText.toLowerCase()}`});
+        }
+        grid.appendChild(frag); this._classicRenderedCount=end; this.filter();
     },
 
     filter(){
@@ -2250,6 +2368,14 @@ const nova = {
 
     // ── GAME LAUNCHING & RELIABLE IFRAME ENGINE ─────────────────
     async launch(item){
+        if(item?.url && /^https:\/\/(?:www\.)?youtube\.com\/embed\//i.test(item.url)){
+            const match=item.url.match(/\/embed\/([^?&#/]+)/i);
+            if(match?.[1]){
+                this.tabUpdateActive("YouTube","youtube");
+                this.ytPlay(decodeURIComponent(match[1]),item.title||"YouTube Video");
+                return;
+            }
+        }
         if(item.newTab){ this.confirm(item.title,"⚡",()=>this.openRealTab(item.url,item.title)); return; }
 
         const existing = this._tabs.find(t => t.action === "game" && t.title === item.title);
@@ -2327,13 +2453,13 @@ const nova = {
         if(dl) dl.onclick=()=>{ this.hideCtx(); this.dlItem(item); };
     },
     hideCtx(){ document.getElementById("ctx")?.classList.remove("on"); },
-    dlItem(item){
-        fetch(item.url).then(r=>{ if(!r.ok) throw 0; return r.blob(); })
-        .then(blob => {
-            const u = URL.createObjectURL(blob), ext = item.url.includes(".html") ? ".html" : ".zip";
-            const a = Object.assign(document.createElement("a"), {href:u, download:item.title.replace(/\s+/g,"_")+ext, style:"display:none"});
-            document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(u);
-        }).catch(() => window.open(item.url,"_blank"));
+    async dlItem(item){
+        try {
+            await this.downloadGameFile(item.url,item.title);
+        } catch(err) {
+            console.error('Nova game download failed:',err);
+            alert('Download failed. The game host blocked the file request.');
+        }
     },
     toggleFav(title,cardEl){
         const idx=this.favorites.indexOf(title);
@@ -2362,7 +2488,6 @@ const nova = {
 
     dispatch(action,newTab,label,icon){
         if(action==="custom:setOsStyle"){this.setUIMode("os");return;}
-        if(action==="custom:setClassicStyle"){this.setUIMode("classic");return;}
         if(!action) return;
         const run=()=>{
             if(action==="reload")         { this.closePanel(); location.reload(); }
@@ -2881,18 +3006,34 @@ const nova = {
     async ytHome(){
         this._ytLoaded=true; const body=document.getElementById("yp-body"); body.innerHTML=`<div class="fp-spin"></div>`;
         try {
-            const data=await this._ytFetch("videos",{part:"snippet,statistics",chart:"mostPopular",regionCode:"US",maxResults:24});
-            const videos=(data.items||[]).map(v=>({videoId:v.id,title:v.snippet?.title||"Untitled",author:v.snippet?.channelTitle||"",viewCount:v.statistics?.viewCount||"",videoThumbnails:[{quality:"high",url:v.snippet?.thumbnails?.high?.url||v.snippet?.thumbnails?.medium?.url||v.snippet?.thumbnails?.default?.url}]}));
+            const data=await this._ytFetch("videos",{part:"snippet,statistics,status",chart:"mostPopular",regionCode:"US",maxResults:24});
+            const videos=(data.items||[]).filter(v=>v.status?.embeddable!==false).map(v=>({videoId:v.id,title:v.snippet?.title||"Untitled",author:v.snippet?.channelTitle||"",channelId:v.snippet?.channelId||"",viewCount:v.statistics?.viewCount||"",videoThumbnails:[{quality:"high",url:v.snippet?.thumbnails?.high?.url||v.snippet?.thumbnails?.medium?.url||v.snippet?.thumbnails?.default?.url}]}));
             this._renderYtGrid(videos,body,"YouTube Trending");
         } catch(e){ body.innerHTML=`<div class="fp-msg">YouTube API unavailable ${this.esc(e.message||"")}</div>`; }
     },
     async ytSearch(q){
-        if(!q.trim()){this.ytHome();return;} const body=document.getElementById("yp-body"); body.innerHTML=`<div class="fp-spin"></div>`;
+        q=q.trim(); if(!q){this.ytHome();return;}
+        const body=document.getElementById("yp-body"); body.innerHTML=`<div class="fp-spin"></div>`;
         try {
-            const data=await this._ytFetch("search",{part:"snippet",q:q.trim(),type:"video",videoEmbeddable:"true",maxResults:24,regionCode:"US",safeSearch:"moderate"});
-            const videos=(data.items||[]).filter(v=>v.id?.videoId).map(v=>({videoId:v.id.videoId,title:v.snippet?.title||"Untitled",author:v.snippet?.channelTitle||"",videoThumbnails:[{quality:"high",url:v.snippet?.thumbnails?.high?.url||v.snippet?.thumbnails?.medium?.url||v.snippet?.thumbnails?.default?.url}]}));
-            this._renderYtGrid(videos,body,`Search for "${q}"`);
+            const [videoData,channelData]=await Promise.all([
+                this._ytFetch("search",{part:"snippet",q,type:"video",videoEmbeddable:"true",maxResults:18,regionCode:"US",safeSearch:"moderate"}),
+                this._ytFetch("search",{part:"snippet",q,type:"channel",maxResults:12,regionCode:"US",safeSearch:"moderate"})
+            ]);
+            const videos=(videoData.items||[]).filter(v=>v.id?.videoId).map(v=>({videoId:v.id.videoId,title:v.snippet?.title||"Untitled",author:v.snippet?.channelTitle||"",channelId:v.snippet?.channelId||"",videoThumbnails:[{quality:"high",url:v.snippet?.thumbnails?.high?.url||v.snippet?.thumbnails?.medium?.url||v.snippet?.thumbnails?.default?.url}]}));
+            const channels=(channelData.items||[]).filter(v=>v.id?.channelId).map(v=>({channelId:v.id.channelId,title:v.snippet?.title||"Untitled channel",description:v.snippet?.description||"",thumbnail:v.snippet?.thumbnails?.high?.url||v.snippet?.thumbnails?.medium?.url||v.snippet?.thumbnails?.default?.url}));
+            this._renderYtSearchResults(videos,channels,body,q);
         } catch(e){ body.innerHTML=`<div class="fp-msg">YouTube search unavailable ${this.esc(e.message||"")}</div>`; }
+    },
+    _renderYtSearchResults(videos,channels,body,q){
+        let h=`<div class="fp-sec"><div class="fp-sttl">Channels</div><div class="fp-grid yt-ch-grid">`;
+        channels.forEach(c=>{h+=`<div class="acd ytc-channel" data-channel="${this.esc(c.channelId)}" data-title="${this.esc(c.title)}"><img src="${this.esc(c.thumbnail||"")}" alt=""><div class="acd-i"><div class="acd-t">${this.esc(c.title)}</div><div class="acd-m">Channel · Click to view videos</div></div></div>`});
+        if(!channels.length) h+=`<div class="fp-msg">No matching channels.</div>`;
+        h+=`</div></div><div class="fp-sec"><div class="fp-sttl">Videos for "${this.esc(q)}"</div><div class="fp-grid">`;
+        videos.forEach(v=>{const thumb=v.videoThumbnails?.[0]?.url||`https://i.ytimg.com/vi/${v.videoId}/mqdefault.jpg`;h+=`<div class="acd ytc" data-vid="${this.esc(v.videoId)}" data-title="${this.esc(v.title||"")}"><img src="${this.esc(thumb)}" alt="${this.esc(v.title||"")}" loading="lazy"><div class="acd-i"><div class="acd-t">${this.esc(v.title||"")}</div><div class="acd-m">${this.esc(v.author||"")}</div></div></div>`});
+        if(!videos.length)h+=`<div class="fp-msg">No embeddable videos found.</div>`;
+        h+=`</div></div>`; body.innerHTML=h;
+        body.querySelectorAll(".acd[data-vid]").forEach(el=>el.addEventListener("click",()=>this.ytPlay(el.dataset.vid,el.dataset.title)));
+        body.querySelectorAll(".ytc-channel[data-channel]").forEach(el=>el.addEventListener("click",()=>this.ytChannel(el.dataset.channel,el.dataset.title)));
     },
     _renderYtGrid(videos,body,sectionTitle){
         if(!videos||!videos.length){body.innerHTML=`<div class="fp-msg">No videos found.</div>`;return;}
@@ -2900,11 +3041,58 @@ const nova = {
         videos.forEach(v=>{if(!v.videoId)return;const thumb=v.videoThumbnails?.[0]?.url||`https://i.ytimg.com/vi/${v.videoId}/mqdefault.jpg`;const views=v.viewCount?Number(v.viewCount).toLocaleString()+" views":"";const meta=[v.author,views].filter(Boolean).join(" · ");h+=`<div class="acd ytc" data-vid="${this.esc(v.videoId)}" data-title="${this.esc(v.title||"")}"><img src="${this.esc(thumb)}" alt="${this.esc(v.title||"")}" loading="lazy"><div class="acd-i"><div class="acd-t">${this.esc(v.title||"")}</div><div class="acd-m">${this.esc(meta)}</div></div></div>`;});
         h+=`</div></div>`; body.innerHTML=h; body.querySelectorAll(".acd[data-vid]").forEach(el=>el.addEventListener("click",()=>this.ytPlay(el.dataset.vid,el.dataset.title)));
     },
+    async ytChannel(channelId,title){
+        const body=document.getElementById("yp-body"); body.innerHTML=`<div class="fp-spin"></div>`;
+        try{
+            const ch=await this._ytFetch("channels",{part:"snippet,contentDetails,statistics",id:channelId});
+            const c=ch.items?.[0]; if(!c)throw new Error("Channel not found");
+            const uploads=c.contentDetails?.relatedPlaylists?.uploads; if(!uploads)throw new Error("Channel uploads unavailable");
+            const data=await this._ytFetch("playlistItems",{part:"snippet,contentDetails",playlistId:uploads,maxResults:24});
+            const videos=(data.items||[]).map(v=>({videoId:v.contentDetails?.videoId,title:v.snippet?.title||"Untitled",author:c.snippet?.title||title||"",channelId,videoThumbnails:[{quality:"high",url:v.snippet?.thumbnails?.high?.url||v.snippet?.thumbnails?.medium?.url||v.snippet?.thumbnails?.default?.url}]})).filter(v=>v.videoId);
+            body.innerHTML=`<div class="yt-channel-head"><button class="fp-back" id="yt-channel-back">← Back</button><div><div class="fp-sttl">${this.esc(c.snippet?.title||title||"Channel")}</div><div class="fp-msg">${Number(c.statistics?.subscriberCount||0).toLocaleString()} subscribers · ${Number(c.statistics?.videoCount||0).toLocaleString()} videos</div></div></div><div class="fp-sec"><div class="fp-sttl">Videos</div><div class="fp-grid" id="yt-channel-grid"></div></div>`;
+            const grid=body.querySelector("#yt-channel-grid");
+            videos.forEach(v=>{const thumb=v.videoThumbnails?.[0]?.url||`https://i.ytimg.com/vi/${v.videoId}/mqdefault.jpg`; const el=document.createElement("div"); el.className="acd ytc"; el.dataset.vid=v.videoId; el.dataset.title=v.title||""; el.innerHTML=`<img src="${this.esc(thumb)}" alt="" loading="lazy"><div class="acd-i"><div class="acd-t">${this.esc(v.title||"")}</div><div class="acd-m">${this.esc(v.author||"")}</div></div>`; el.addEventListener("click",()=>this.ytPlay(el.dataset.vid,el.dataset.title)); grid?.appendChild(el);});
+            if(!videos.length && grid)grid.innerHTML=`<div class="fp-msg">No videos found on this channel.</div>`;
+            body.querySelector("#yt-channel-back")?.addEventListener("click",()=>{const q=document.getElementById("yp-srch")?.value||"";this.ytSearch(q)});
+        }catch(e){body.innerHTML=`<div class="fp-msg">Channel unavailable ${this.esc(e.message||"")}</div>`;}
+    },
+    ytPlay(videoId,title){
+        if(!videoId)return;
 
-    ytPlay(videoId, title){
-        const embedUrl = `${currentYtInstance}/embed/${videoId}?autoplay=1`;
-        const item = { title: title || "YouTube Video", url: embedUrl, newTab: false, download: false };
-        this.launch(item);
+        // YouTube is NOT a Nova game file. Do not pass YouTube embeds through
+        // launch()/attachHtmlToIframe(), because that engine fetches remote
+        // HTML bytes for game files. youtube.com/embed is meant to be loaded
+        // directly in an iframe and its response is not CORS-fetchable.
+        const body=document.getElementById("yp-body");
+        if(!body)return;
+
+        const origin=(location.protocol==="http:"||location.protocol==="https:")?location.origin:"";
+        const params=new URLSearchParams({autoplay:"1",playsinline:"1",rel:"0",modestbranding:"1"});
+        if(origin)params.set("origin",origin);
+        const embedUrl=`https://www.youtube.com/embed/${encodeURIComponent(videoId)}?${params.toString()}`;
+        const safeTitle=this.esc(title||"YouTube Video");
+
+        body.innerHTML=`
+            <div class="nova-yt-player" style="height:100%;min-height:0;display:flex;flex-direction:column;background:#05060b;">
+                <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.08);background:#0b0d14;flex:0 0 auto;">
+                    <button class="fp-back" id="yt-player-back">← Back</button>
+                    <div style="font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${safeTitle}</div>
+                </div>
+                <iframe
+                    id="yt-player-frame"
+                    title="${safeTitle}"
+                    src="${this.esc(embedUrl)}"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
+                    allowfullscreen
+                    referrerpolicy="strict-origin-when-cross-origin"
+                    style="display:block;width:100%;height:100%;min-height:0;flex:1 1 auto;border:0;background:#000;"
+                ></iframe>
+            </div>`;
+
+        body.querySelector("#yt-player-back")?.addEventListener("click",()=>{
+            const q=document.getElementById("yp-srch")?.value?.trim()||"";
+            if(q)this.ytSearch(q); else this.ytHome();
+        });
     },
 
     // ── ABOUT:BLANK CLOAKING ─────────────────────────────────────
@@ -3417,15 +3605,35 @@ body.os-mode{overflow:hidden;background:#05060b}body.os-mode #grid,body.os-mode 
 #os-desktop .os-game-frame{
     position:absolute;
     inset:0;
-    width:100%;
-    height:100%;
+    width:100% !important;
+    height:100% !important;
+    min-width:0 !important;
+    min-height:0 !important;
+    max-width:none !important;
+    max-height:none !important;
     border:0;
     background:#000;
-    opacity:0;
-    transition:opacity .35s ease,transform .45s cubic-bezier(.16,1,.3,1);
-    transform:scale(.985);
+    opacity:1;
+    display:block;
+    transform:none !important;
+    zoom:1 !important;
+    transition:none !important;
 }
-#os-desktop .os-game-frame[src]{opacity:1;transform:none}
+#os-desktop .os-game-frame[src]{opacity:1;transform:none !important;zoom:1 !important}
+
+/* Keep games at native iframe size: no Nova window/game scaling or zoom. */
+#os-desktop .os-game-window,
+#os-desktop .os-game-window iframe{
+    box-sizing:border-box !important;
+    transform:none !important;
+    zoom:1 !important;
+}
+#os-desktop .os-window:has(.os-game-window){
+    transform:none;
+}
+#os-desktop .os-window:has(.os-game-window).os-fullscreen{
+    transform:none !important;
+}
 #os-desktop .os-game-loading{
     position:absolute;
     inset:0;
@@ -3487,6 +3695,8 @@ body.os-mode{overflow:hidden;background:#05060b}body.os-mode #grid,body.os-mode 
 }
 @keyframes osLoadPulse{from{transform:scale(.94) rotate(-2deg);filter:saturate(.9)}to{transform:scale(1.04) rotate(2deg);filter:saturate(1.2)}}
 #os-desktop .os-window{animation:osWindowIn .28s cubic-bezier(.16,1,.3,1)}
+#os-desktop .os-window:has(.os-game-window){animation:osGameWindowIn .18s ease-out !important}
+@keyframes osGameWindowIn{from{opacity:0}to{opacity:1}}
 @keyframes osWindowIn{from{opacity:0;transform:translateY(16px) scale(.96)}to{opacity:1;transform:none}}
 #os-desktop .os-dock-item{will-change:transform}
 #theater:fullscreen,
@@ -3528,6 +3738,8 @@ body.os-mode{overflow:hidden;background:#05060b}body.os-mode #grid,body.os-mode 
 
     // ── SYSTEM BOOT ─────────────────────────────────────────────
     boot(){
+        // First paint is the calculator only. Legacy UI is lazy-loaded later.
+        this._educationFirstBoot=true;
         this.detectHardware();
         this.setFavicon();
         this.css();
@@ -3541,7 +3753,7 @@ body.os-mode{overflow:hidden;background:#05060b}body.os-mode #grid,body.os-mode 
 nova.boot();
 
 
-(function(){var s=document.createElement("style");s.id="nova-liquid-glass-overrides";s.textContent='@import url("https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@400;500;600;700&display=swap");\n:root{--lg-text:#f7f7fb;--lg-muted:rgba(247,247,251,.58);--lg-border:rgba(255,255,255,.13)}\nhtml,body{font-family:Inter,-apple-system,BlinkMacSystemFont,"SF Pro Display",sans-serif!important;color:var(--lg-text)!important;background:radial-gradient(65vw 55vw at 90% 5%,rgba(155,140,255,.20),transparent 65%),radial-gradient(55vw 50vw at 5% 90%,rgba(105,220,255,.13),transparent 65%),#070911!important}\nh1,h2,h3,.serif,.site-title,.brand-title{font-family:"DM Serif Display",Georgia,serif!important;font-weight:400!important;letter-spacing:-.025em}\nbutton,.panel,.modal,.card,.game-card,.search-box,.nav-item{border:1px solid var(--lg-border)!important;background:linear-gradient(145deg,rgba(255,255,255,.105),rgba(255,255,255,.035))!important;box-shadow:0 24px 70px rgba(0,0,0,.25),0 1px 0 rgba(255,255,255,.12) inset!important;backdrop-filter:blur(28px) saturate(155%);-webkit-backdrop-filter:blur(28px) saturate(155%)}\nbutton{color:var(--lg-text)!important;transition:transform .18s cubic-bezier(.2,.8,.2,1),background .18s,border-color .18s}button:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.22)!important}button:active{transform:scale(.985)}\n#nova-mode-selector{position:fixed;inset:0;z-index:999999;display:grid;place-items:center;font-family:Inter,-apple-system,BlinkMacSystemFont,sans-serif}.nova-selector-backdrop{position:absolute;inset:0;background:radial-gradient(40vw 35vw at 22% 28%,rgba(155,140,255,.25),transparent 70%),radial-gradient(40vw 35vw at 78% 72%,rgba(105,220,255,.18),transparent 70%),rgba(3,5,10,.72);backdrop-filter:blur(30px) saturate(160%);-webkit-backdrop-filter:blur(30px) saturate(160%)}\n.nova-selector-card{position:relative;width:min(760px,calc(100vw - 32px));padding:42px;overflow:hidden;border-radius:34px;background:linear-gradient(145deg,rgba(255,255,255,.145),rgba(255,255,255,.045));border:1px solid rgba(255,255,255,.18);box-shadow:0 55px 150px rgba(0,0,0,.55),0 1px 0 rgba(255,255,255,.18) inset;backdrop-filter:blur(48px) saturate(170%);-webkit-backdrop-filter:blur(48px) saturate(170%);animation:novaSelectorIn .55s cubic-bezier(.2,.8,.2,1)}\n.nova-selector-kicker{position:relative;font-size:10px;font-weight:700;letter-spacing:.22em;color:rgba(255,255,255,.48)}.nova-selector-card h1{position:relative;margin:10px 0 6px;font-family:"DM Serif Display",Georgia,serif!important;font-size:48px;line-height:1}.nova-selector-card p{position:relative;margin:0 0 28px;color:var(--lg-muted);font-size:14px}.nova-selector-options{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:14px}.nova-mode-option{position:relative;min-height:230px!important;padding:14px!important;display:grid!important;grid-template-rows:1fr auto;gap:15px;text-align:left!important;border-radius:23px!important;cursor:pointer;overflow:hidden}.nova-mode-preview{position:relative;min-height:128px;overflow:hidden;border-radius:16px;border:1px solid rgba(255,255,255,.09);background:#090c15}.nova-mode-preview i{position:absolute;display:block;border-radius:7px;background:rgba(255,255,255,.09)}.nova-os-preview .bar{left:8px;right:8px;top:8px;height:13px;background:rgba(255,255,255,.12)}.nova-os-preview .side{left:8px;top:29px;bottom:8px;width:25px}.nova-os-preview .window{left:42px;right:8px;top:29px;height:52px;background:rgba(155,140,255,.17)}.nova-os-preview .dock{left:65px;right:65px;bottom:8px;height:16px;background:rgba(105,220,255,.15)}.nova-classic-preview .hero{left:8px;right:8px;top:8px;height:48px;background:rgba(155,140,255,.18)}.nova-classic-preview .card{top:64px;bottom:8px;width:29%}.nova-classic-preview .one{left:8px}.nova-classic-preview .two{left:35.5%}.nova-classic-preview .three{right:8px}.nova-option-copy{display:flex;flex-direction:column;gap:3px}.nova-option-copy small{font-size:9px;letter-spacing:.16em;color:rgba(255,255,255,.45)}.nova-option-copy strong{font-size:18px;font-weight:600}.nova-option-copy em{font-style:normal;font-size:11px;color:rgba(255,255,255,.43)}.nova-arrow{position:absolute;right:20px;bottom:20px;font-size:18px;color:rgba(255,255,255,.6)}.nova-selector-footer{position:relative;margin-top:18px;text-align:center;font-size:11px;color:rgba(255,255,255,.36)}.nova-selector-leaving .nova-selector-card{animation:novaSelectorOut .36s ease forwards}@keyframes novaSelectorIn{from{opacity:0;transform:translateY(18px) scale(.965);filter:blur(9px)}to{opacity:1;transform:none;filter:none}}@keyframes novaSelectorOut{to{opacity:0;transform:translateY(-10px) scale(.98);filter:blur(8px)}}@media(max-width:680px){.nova-selector-card{padding:28px 20px}.nova-selector-card h1{font-size:37px}.nova-selector-options{grid-template-columns:1fr}.nova-mode-option{min-height:175px!important}}';document.head.appendChild(s);})();
+(function(){var s=document.createElement("style");s.id="nova-liquid-glass-overrides";s.textContent='\n:root{--lg-text:#f7f7fb;--lg-muted:rgba(247,247,251,.58);--lg-border:rgba(255,255,255,.13)}\nhtml,body{font-family:Inter,-apple-system,BlinkMacSystemFont,"SF Pro Display",sans-serif!important;color:var(--lg-text)!important;background:radial-gradient(65vw 55vw at 90% 5%,rgba(155,140,255,.20),transparent 65%),radial-gradient(55vw 50vw at 5% 90%,rgba(105,220,255,.13),transparent 65%),#070911!important}\nh1,h2,h3,.serif,.site-title,.brand-title{font-family:"DM Serif Display",Georgia,serif!important;font-weight:400!important;letter-spacing:-.025em}\nbutton,.panel,.modal,.card,.game-card,.search-box,.nav-item{border:1px solid var(--lg-border)!important;background:linear-gradient(145deg,rgba(255,255,255,.105),rgba(255,255,255,.035))!important;box-shadow:0 24px 70px rgba(0,0,0,.25),0 1px 0 rgba(255,255,255,.12) inset!important;backdrop-filter:blur(28px) saturate(155%);-webkit-backdrop-filter:blur(28px) saturate(155%)}\nbutton{color:var(--lg-text)!important;transition:transform .18s cubic-bezier(.2,.8,.2,1),background .18s,border-color .18s}button:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.22)!important}button:active{transform:scale(.985)}\n#nova-mode-selector{position:fixed;inset:0;z-index:999999;display:grid;place-items:center;font-family:Inter,-apple-system,BlinkMacSystemFont,sans-serif}.nova-selector-backdrop{position:absolute;inset:0;background:radial-gradient(40vw 35vw at 22% 28%,rgba(155,140,255,.25),transparent 70%),radial-gradient(40vw 35vw at 78% 72%,rgba(105,220,255,.18),transparent 70%),rgba(3,5,10,.72);backdrop-filter:blur(30px) saturate(160%);-webkit-backdrop-filter:blur(30px) saturate(160%)}\n.nova-selector-card{position:relative;width:min(760px,calc(100vw - 32px));padding:42px;overflow:hidden;border-radius:34px;background:linear-gradient(145deg,rgba(255,255,255,.145),rgba(255,255,255,.045));border:1px solid rgba(255,255,255,.18);box-shadow:0 55px 150px rgba(0,0,0,.55),0 1px 0 rgba(255,255,255,.18) inset;backdrop-filter:blur(48px) saturate(170%);-webkit-backdrop-filter:blur(48px) saturate(170%);animation:novaSelectorIn .55s cubic-bezier(.2,.8,.2,1)}\n.nova-selector-kicker{position:relative;font-size:10px;font-weight:700;letter-spacing:.22em;color:rgba(255,255,255,.48)}.nova-selector-card h1{position:relative;margin:10px 0 6px;font-family:"DM Serif Display",Georgia,serif!important;font-size:48px;line-height:1}.nova-selector-card p{position:relative;margin:0 0 28px;color:var(--lg-muted);font-size:14px}.nova-selector-options{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:14px}.nova-mode-option{position:relative;min-height:230px!important;padding:14px!important;display:grid!important;grid-template-rows:1fr auto;gap:15px;text-align:left!important;border-radius:23px!important;cursor:pointer;overflow:hidden}.nova-mode-preview{position:relative;min-height:128px;overflow:hidden;border-radius:16px;border:1px solid rgba(255,255,255,.09);background:#090c15}.nova-mode-preview i{position:absolute;display:block;border-radius:7px;background:rgba(255,255,255,.09)}.nova-os-preview .bar{left:8px;right:8px;top:8px;height:13px;background:rgba(255,255,255,.12)}.nova-os-preview .side{left:8px;top:29px;bottom:8px;width:25px}.nova-os-preview .window{left:42px;right:8px;top:29px;height:52px;background:rgba(155,140,255,.17)}.nova-os-preview .dock{left:65px;right:65px;bottom:8px;height:16px;background:rgba(105,220,255,.15)}.nova-classic-preview .hero{left:8px;right:8px;top:8px;height:48px;background:rgba(155,140,255,.18)}.nova-classic-preview .card{top:64px;bottom:8px;width:29%}.nova-classic-preview .one{left:8px}.nova-classic-preview .two{left:35.5%}.nova-classic-preview .three{right:8px}.nova-option-copy{display:flex;flex-direction:column;gap:3px}.nova-option-copy small{font-size:9px;letter-spacing:.16em;color:rgba(255,255,255,.45)}.nova-option-copy strong{font-size:18px;font-weight:600}.nova-option-copy em{font-style:normal;font-size:11px;color:rgba(255,255,255,.43)}.nova-arrow{position:absolute;right:20px;bottom:20px;font-size:18px;color:rgba(255,255,255,.6)}.nova-selector-footer{position:relative;margin-top:18px;text-align:center;font-size:11px;color:rgba(255,255,255,.36)}.nova-selector-leaving .nova-selector-card{animation:novaSelectorOut .36s ease forwards}@keyframes novaSelectorIn{from{opacity:0;transform:translateY(18px) scale(.965);filter:blur(9px)}to{opacity:1;transform:none;filter:none}}@keyframes novaSelectorOut{to{opacity:0;transform:translateY(-10px) scale(.98);filter:blur(8px)}}@media(max-width:680px){.nova-selector-card{padding:28px 20px}.nova-selector-card h1{font-size:37px}.nova-selector-options{grid-template-columns:1fr}.nova-mode-option{min-height:175px!important}}';document.head.appendChild(s);})();
 
 (function(){const style=document.createElement("style");style.id="nova-kde-functional-final";style.textContent=`\n.os-window-context{position:absolute;z-index:99999;min-width:190px;padding:7px;border:1px solid rgba(255,255,255,.16);border-radius:15px;background:rgba(14,16,25,.82);backdrop-filter:blur(30px) saturate(160%);box-shadow:0 24px 70px rgba(0,0,0,.5),0 1px 0 rgba(255,255,255,.12) inset;animation:novaMenuIn .16s ease-out}\n.os-window-context button{display:block;width:100%;border:0;background:transparent;color:#fff;text-align:left;padding:9px 12px;border-radius:9px;font-size:12px;cursor:pointer}.os-window-context button:hover{background:rgba(255,255,255,.09)}.os-window-context div{height:1px;background:rgba(255,255,255,.08);margin:5px 3px}\n.os-win-actions{display:flex;justify-content:flex-end;gap:5px;width:86px}.os-win-actions button{width:25px;height:25px;border:0;border-radius:7px;background:rgba(255,255,255,.06);color:rgba(255,255,255,.7);cursor:pointer}.os-win-actions button:hover{background:rgba(255,255,255,.13);color:#fff}\n.os-window.cloaked{opacity:.12!important;filter:blur(2px)!important;transform:scale(.98)!important}.os-window.always-top{box-shadow:0 0 0 1px rgba(155,140,255,.45),0 35px 110px rgba(0,0,0,.65)!important}\n.os-window.os-fullscreen{position:fixed!important;left:0!important;top:34px!important;width:100vw!important;height:calc(100vh - 34px)!important;max-width:none!important;max-height:none!important;border-radius:0!important;z-index:90000!important}\n#os-desktop.os-game-fullscreen .os-menubar,#os-desktop.os-game-fullscreen .os-desktop-icons,#os-desktop.os-game-fullscreen .os-dock-wrap,#os-desktop.os-game-fullscreen .os-quick-panel,#os-desktop.os-game-fullscreen .os-app-menu{display:none!important}\n#os-desktop.os-game-fullscreen .os-window-layer{inset:0!important;z-index:89999!important}\n#os-desktop.os-game-fullscreen .os-window.os-fullscreen .os-winbar{height:38px!important}\n#os-desktop.os-game-fullscreen .os-window.os-fullscreen .os-win-content{height:calc(100% - 38px)!important}\n.os-browser-app{height:100%;display:flex;flex-direction:column;background:rgba(4,6,12,.35)}.os-browser-toolbar{height:48px;display:flex;gap:7px;align-items:center;padding:7px 9px;border-bottom:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.045)}.os-browser-nav,.os-browser-go{height:32px;min-width:32px;border:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.06);color:#fff;border-radius:9px;cursor:pointer}.os-browser-address{flex:1;min-width:0;height:32px;border:1px solid rgba(255,255,255,.1);background:rgba(0,0,0,.22);color:#fff;border-radius:9px;padding:0 11px;outline:0}.os-browser-view{flex:1;min-height:0}.os-browser-frame{width:100%;height:100%;display:block;border:0;background:#fff}\n@keyframes novaMenuIn{from{opacity:0;transform:translateY(-5px) scale(.97)}to{opacity:1;transform:none}}\n@media(max-width:520px){.os-winbar{grid-template-columns:72px minmax(0,1fr) 72px}.os-win-controls{width:72px;gap:5px}.os-win-actions{width:72px}.os-win-actions button{width:22px;height:22px}.os-win-title{font-size:11px}.os-browser-toolbar{gap:4px}.os-browser-nav{min-width:28px}}`;document.head.appendChild(style)})();
 
@@ -3658,6 +3870,7 @@ function showEducationStart(){
    overlay.remove();
    const os=nova||window.nova;
    try{localStorage.setItem("nova_ui_mode","os")}catch(_){}
+   // Do not auto-cloak here: opening a second full Nova instance doubled startup CPU/RAM.
    if(os&&typeof os.setUIMode==="function")os.setUIMode("os");
    else if(os&&typeof os.applyUIMode==="function"){os.uiMode="os";os.applyUIMode()}
  };
@@ -3695,9 +3908,11 @@ else setTimeout(showEducationStart,100);
     frame.addEventListener("load", () => requestAnimationFrame(() => notify(frame)), {once:false});
   };
 
-  const scan = () => document.querySelectorAll("iframe").forEach(watch);
-  new MutationObserver(scan).observe(document.documentElement, {childList:true, subtree:true});
+  // Do not observe the entire document. Nova creates many nodes during boot and a
+  // document-wide observer caused repeated iframe scans and layout work.
+  const scan = () => document.querySelectorAll("#os-desktop iframe").forEach(watch);
   scan();
+  window.addEventListener("nova:iframe-added", e=>watch(e.detail), {passive:true});
 })();
 
 
@@ -3722,7 +3937,470 @@ else setTimeout(showEducationStart,100);
   };
   addEventListener("resize", () => requestAnimationFrame(update), {passive:true});
   addEventListener("orientationchange", () => setTimeout(update, 50), {passive:true});
-  new MutationObserver(() => requestAnimationFrame(update))
-    .observe(document.documentElement, {childList:true, subtree:true});
+  // Layout only needs to react to actual viewport changes, not every DOM mutation.
   requestAnimationFrame(update);
+})();
+
+
+(function(){
+"use strict";
+if(window.__novaFinalControls)return;
+window.__novaFinalControls=true;
+
+function saveEntireSite(){
+  try{
+    const clone=document.documentElement.cloneNode(true);
+    clone.querySelectorAll("script").forEach(s=>{
+      // Keep scripts because this is the full Nova HTML snapshot
+    });
+    const html="<!doctype html>\n"+clone.outerHTML;
+    const blob=new Blob([html],{type:"text/html;charset=utf-8"});
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download="novagaming.html";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),1500);
+  }catch(e){console.error("Nova save failed",e)}
+}
+
+function openCloakPopup(){
+  if(location.search.includes("nova_cloak_child=1"))return null;
+  const w=window.open("about:blank","_blank");
+  if(!w)return null;
+  try{
+    const u=new URL(location.href);
+    u.searchParams.set("nova_cloak_child","1");
+    w.document.open();
+    w.document.write(`<!doctype html><html><head><title>Home - Classroom</title></head><body style="margin:0;overflow:hidden;background:#000"><iframe src="${u.href.replace(/"/g,"&quot;")}" style="border:0;width:100vw;height:100vh;display:block" allow="fullscreen;autoplay;gamepad"></iframe></body></html>`);
+    w.document.close();
+  }catch(e){console.error("Nova cloak failed",e)}
+  return w;
+}
+
+function bind(){
+  const save=document.getElementById("nova-save-html");
+  const cloak=document.getElementById("nova-cloak-site");
+  const request=document.getElementById("nova-request-games");
+  if(save&&!save.__novaBound){save.__novaBound=true;save.addEventListener("click",saveEntireSite)}
+  if(cloak&&!cloak.__novaBound){cloak.__novaBound=true;cloak.addEventListener("click",openCloakPopup)}
+  if(request&&!request.__novaBound){request.__novaBound=true;request.addEventListener("click",()=>window.open("https://docs.google.com/forms/d/e/1FAIpQLScUplsBOvmVzOcef_Xh9p9XD4sYRlqvYJBzZBG2WSK6JS-MEA/viewform?usp=sharing&ouid=109218267907837189296","_blank","noopener,noreferrer"))}
+}
+// Controls are created by the OS renderer; bind once now and again from the
+// renderer when needed instead of watching the entire DOM forever.
+bind();
+window.addEventListener("nova:os-rendered", bind, {passive:true});
+
+window.novaOpenAutoCloak=openCloakPopup;
+window.novaSaveEntireSite=saveEntireSite;
+
+document.addEventListener("fullscreenchange",()=>{
+  const fs=!!document.fullscreenElement;
+  document.body.classList.toggle("nova-os-fullscreen",fs);
+  const desk=document.getElementById("os-desktop");
+  if(!fs){
+    desk?.classList.remove("os-game-fullscreen");
+    document.querySelectorAll("#os-window-layer .os-window.os-fullscreen").forEach(w=>{
+      w.classList.remove("os-fullscreen");
+      if(w.dataset.oldWidth)Object.assign(w.style,{left:w.dataset.oldLeft,top:w.dataset.oldTop,width:w.dataset.oldWidth,height:w.dataset.oldHeight});
+    });
+  }
+});
+})();
+
+try{document.title='Home - Classroom'}catch(_){}
+
+(function(){
+  document.documentElement.classList.add("nova-perf-mode");
+  const s=document.createElement("style");
+  s.id="nova-ultra-performance";
+  s.textContent=`
+    #particle-canvas{display:none!important}
+    html.nova-perf-mode *,html.nova-perf-mode *::before,html.nova-perf-mode *::after{animation-duration:.001ms!important;transition-duration:.001ms!important}
+    html.nova-perf-mode .os-window,html.nova-perf-mode .os-menubar,html.nova-perf-mode .os-dock-wrap,html.nova-perf-mode .os-quick-panel,html.nova-perf-mode .os-app-menu{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;box-shadow:0 8px 24px rgba(0,0,0,.28)!important}
+    html.nova-perf-mode .os-gamegrid-pro,html.nova-perf-mode .os-file-grid{contain:layout paint style;content-visibility:auto}
+    html.nova-perf-mode .os-game-pro{contain:layout paint;will-change:auto!important}
+    html.nova-perf-mode .os-dock-item:hover{transform:none!important;filter:none!important}
+    html.nova-perf-mode button,html.nova-perf-mode .panel,html.nova-perf-mode .card,html.nova-perf-mode .fpanel,html.nova-perf-mode #bd,html.nova-perf-mode #panel,html.nova-perf-mode #ntov,html.nova-perf-mode #theater{
+      backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
+      box-shadow:none!important;
+    }
+    html.nova-perf-mode .os-wallpaper-orb{display:none!important}
+    html.nova-perf-mode .os-wallpaper-grid{opacity:.12!important}
+    html.nova-perf-mode .os-window-layer{contain:layout style!important}
+    html.nova-perf-mode #grid{content-visibility:auto;contain:layout paint style!important}
+    html.nova-perf-mode img{content-visibility:auto;}
+  `;
+  document.head.appendChild(s);
+})();
+
+
+(function(){
+  if(window.__novaSystemStatus) return;
+  window.__novaSystemStatus=true;
+
+  const esc = s => String(s).replace(/[&<>"']/g,c=>({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  }[c]));
+
+  function addBar(){
+    const bar=document.querySelector("#os-desktop .os-menubar");
+    if(!bar) return false;
+    let box=bar.querySelector(".nova-system-status");
+    if(!box){
+      box=document.createElement("div");
+      box.className="nova-system-status";
+      box.innerHTML=`
+        <span class="nova-stat nova-time">--:--</span>
+        <span class="nova-stat nova-battery">Battery --</span>
+        <span class="nova-stat nova-extra nova-network"><span class="nova-dot"></span> Online</span>
+        <span class="nova-stat nova-extra nova-hardware">CPU --</span>`;
+      bar.appendChild(box);
+    }
+    return true;
+  }
+
+  function updateTime(){
+    const el=document.querySelector(".nova-system-status .nova-time");
+    if(!el)return;
+    const now=new Date();
+    el.textContent=now.toLocaleTimeString([],{
+      hour:"numeric",minute:"2-digit"
+    });
+  }
+
+  async function updateBattery(){
+    const el=document.querySelector(".nova-system-status .nova-battery");
+    if(!el)return;
+    if(!navigator.getBattery){
+      el.textContent="Battery n/a";
+      return;
+    }
+    try{
+      const b=await navigator.getBattery();
+      const render=()=>{
+        const pct=Math.round(b.level*100);
+        el.textContent=(b.charging ? "Charging " : "Battery ")+pct+"%";
+      };
+      ["levelchange","chargingchange"].forEach(e=>b.addEventListener(e,render));
+      render();
+    }catch(_){el.textContent="Battery n/a";}
+  }
+
+  function updateStats(){
+    const cpu=document.querySelector(".nova-system-status .nova-hardware");
+    if(cpu){
+      const n=navigator.hardwareConcurrency;
+      cpu.textContent=n ? "CPU "+n+" cores" : "CPU n/a";
+    }
+    const net=document.querySelector(".nova-system-status .nova-network");
+    if(net){
+      const online=navigator.onLine;
+      net.innerHTML=`<span class="nova-dot" style="background:${online?"#22c55e":"#ef4444"}"></span> ${online?"Online":"Offline"}`;
+    }
+  }
+
+  function init(){
+    if(!addBar()) return;
+    updateTime(); updateStats(); updateBattery();
+  }
+
+  init();
+  setInterval(updateTime,5000);
+  addEventListener("online",updateStats,{passive:true});
+  addEventListener("offline",updateStats,{passive:true});
+  // System stats are updated when the desktop is rendered, not on every DOM change.
+  window.addEventListener("nova:os-rendered",init,{passive:true});
+})();
+
+
+
+/* NOVA MEGA APPEARANCE SYSTEM — wallpapers, themes, cursor, scale, dock, fonts, motion and more. */
+(function(){
+  const STORAGE='nova_appearance_v2';
+  const defaults={theme:'midnight',accent:'#7c5cff',wallpaper:'nova',wallpaperUrl:'',cursor:'default',font:'system',scale:100,radius:18,dockSize:64,dockPosition:'bottom',animations:true,desktopGrid:true,showLabels:true,highContrast:false};
+  const themes={
+    midnight:{name:'Midnight',bg:'#080b12',surface:'#151821',bar:'#0b0d14',text:'#f7f8ff'},
+    ocean:{name:'Ocean',bg:'#061018',surface:'#0e1c27',bar:'#07131b',text:'#f1fbff'},
+    violet:{name:'Violet',bg:'#0e0818',surface:'#191226',bar:'#100a1b',text:'#fbf7ff'},
+    forest:{name:'Forest',bg:'#07120e',surface:'#102019',bar:'#09150f',text:'#f2fff8'},
+    rose:{name:'Rose',bg:'#170a10',surface:'#24131a',bar:'#180b11',text:'#fff5f8'},
+    arctic:{name:'Arctic',bg:'#eaf1f8',surface:'#ffffff',bar:'#f5f8fc',text:'#101722'},
+    sunset:{name:'Sunset',bg:'#1a0c06',surface:'#27150d',bar:'#1b0d07',text:'#fff8f1'}
+  };
+  const wallpapers={
+    nova:'radial-gradient(70vw 55vw at 20% 20%,rgba(124,92,255,.30),transparent 60%),radial-gradient(65vw 55vw at 85% 80%,rgba(34,193,255,.22),transparent 60%),#080b12',
+    aurora:'radial-gradient(55vw 55vw at 15% 65%,rgba(0,255,170,.24),transparent 60%),radial-gradient(55vw 55vw at 80% 20%,rgba(40,130,255,.28),transparent 60%),#061018',
+    purple:'radial-gradient(60vw 60vw at 50% 0%,rgba(170,70,255,.32),transparent 62%),radial-gradient(50vw 50vw at 100% 100%,rgba(70,100,255,.22),transparent 60%),#0c0715',
+    sunset:'radial-gradient(60vw 55vw at 10% 10%,rgba(255,105,50,.30),transparent 62%),radial-gradient(55vw 55vw at 90% 80%,rgba(255,40,140,.20),transparent 62%),#170a06',
+    plain:'linear-gradient(#080b12,#080b12)'
+  };
+  function load(){try{return {...defaults,...JSON.parse(localStorage.getItem(STORAGE)||'{}')}}catch{return {...defaults}}}
+  function save(a){try{localStorage.setItem(STORAGE,JSON.stringify(a))}catch{}}
+  function apply(){
+    const a=load(), t=themes[a.theme]||themes.midnight, root=document.documentElement;
+    root.style.setProperty('--nova-accent',a.accent);
+    root.style.setProperty('--nova-ui-scale',(Math.max(85,Math.min(120,+a.scale||100))/100).toFixed(2));
+    root.style.setProperty('--nova-radius',Math.max(4,Math.min(32,+a.radius||18))+'px');
+    root.style.setProperty('--nova-surface',t.surface);
+    root.style.setProperty('--nova-bar',t.bar);
+    root.style.setProperty('--nova-text',t.text);
+    root.style.setProperty('--nova-theme-bg',t.bg);
+    root.style.setProperty('--nova-theme-border',a.accent);
+    document.body.dataset.novaTheme=a.theme; document.body.dataset.novaFont=a.font; document.body.dataset.novaCursor=a.cursor;
+    document.body.classList.toggle('nova-no-animations',!a.animations);
+    document.body.classList.toggle('nova-high-contrast',!!a.highContrast);
+    document.body.classList.toggle('nova-hide-desktop-grid',!a.desktopGrid);
+    document.body.classList.toggle('nova-hide-dock-labels',!a.showLabels);
+    const cursor=(a.cursor||'default').startsWith('url(')?a.cursor:a.cursor||'default';
+    root.style.setProperty('--nova-cursor',cursor);
+    root.style.cursor=cursor;
+    document.body.style.cursor=cursor;
+    const desk=document.getElementById('os-desktop');
+    if(desk){
+      desk.style.setProperty('--nova-dock-size',(Math.max(48,Math.min(92,+a.dockSize||64)))+'px');
+      desk.dataset.dockPosition=a.dockPosition||'bottom';
+      desk.style.setProperty('--nova-radius',Math.max(4,Math.min(32,+a.radius||18))+'px');
+      const wp=a.wallpaper==='custom'&&a.wallpaperUrl ? `url(${JSON.stringify(a.wallpaperUrl)}) center/cover no-repeat` : (wallpapers[a.wallpaper]||wallpapers.nova);
+      desk.querySelector('.os-wallpaper')?.style.setProperty('background',wp,'important');
+      desk.querySelector('.os-wallpaper')?.style.setProperty('background-size','cover','important');
+      desk.querySelectorAll('button,a,input,select,textarea').forEach(el=>el.style.cursor=cursor);
+    }
+  }
+  function esc(v){return String(v).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+  nova.osSettingsBody=function(){
+    const a=load();
+    return `<div class="nova-mega-settings">
+      <aside class="nova-settings-side"><div class="nova-settings-brand">Nova Settings</div>
+        <button class="nova-set-tab active" data-set-tab="appearance">🎨 Appearance</button>
+        <button class="nova-set-tab" data-set-tab="wallpaper">🖼️ Wallpaper</button>
+        <button class="nova-set-tab" data-set-tab="interface">🧩 Interface</button>
+        <button class="nova-set-tab" data-set-tab="dock">🚀 Dock</button>
+        <button class="nova-set-tab" data-set-tab="cursor">🖱️ Cursor</button>
+        <button class="nova-set-tab" data-set-tab="typography">🔤 Typography</button>
+        <button class="nova-set-tab" data-set-tab="performance">⚡ Performance</button>
+      </aside>
+      <main class="nova-settings-main">
+        <section class="nova-set-page active" data-set-page="appearance"><h2>Appearance</h2><p class="nova-settings-sub">Make Nova look exactly how you want.</p>
+          <div class="nova-theme-grid">${Object.entries(themes).map(([k,t])=>`<button class="nova-theme-card${a.theme===k?' selected':''}" data-theme="${k}"><span style="background:${t.bg}"><i style="background:${a.accent}"></i></span><strong>${t.name}</strong><small>${k==='arctic'?'Light mode':'Dark mode'}</small></button>`).join('')}</div>
+          <div class="nova-control-grid"><label>Accent color <input id="nova-accent" type="color" value="${esc(a.accent)}"></label><label>Corner radius <output id="nova-radius-out">${a.radius}px</output><input id="nova-radius" type="range" min="4" max="32" value="${a.radius}"></label><label>UI scale <output id="nova-scale-out">${a.scale}%</output><input id="nova-scale" type="range" min="85" max="120" value="${a.scale}"></label></div>
+        </section>
+        <section class="nova-set-page" data-set-page="wallpaper"><h2>Wallpaper</h2><p class="nova-settings-sub">Pick a built-in background or use your own image.</p>
+          <div class="nova-wall-grid">${Object.keys(wallpapers).map(k=>`<button class="nova-wall-card${a.wallpaper===k?' selected':''}" data-wallpaper="${k}"><span style="background:${wallpapers[k]}"></span><strong>${k[0].toUpperCase()+k.slice(1)}</strong></button>`).join('')}<button class="nova-wall-card${a.wallpaper==='custom'?' selected':''}" data-wallpaper="custom"><span class="nova-custom-wall"></span><strong>Custom</strong></button></div>
+          <div class="nova-upload-row"><input id="nova-wall-file" type="file" accept="image/*"><input id="nova-wall-url" type="url" placeholder="Paste image URL…" value="${esc(a.wallpaperUrl)}"><button id="nova-wall-apply">Apply</button></div>
+        </section>
+        <section class="nova-set-page" data-set-page="interface"><h2>Interface</h2><p class="nova-settings-sub">Control the desktop itself.</p>
+          <label class="nova-switch-row"><span><b>Desktop grid</b><small>Show the decorative desktop grid</small></span><input type="checkbox" data-pref="desktopGrid" ${a.desktopGrid?'checked':''}></label>
+          <label class="nova-switch-row"><span><b>App labels</b><small>Show labels beneath desktop and dock icons</small></span><input type="checkbox" data-pref="showLabels" ${a.showLabels?'checked':''}></label>
+          <label class="nova-switch-row"><span><b>Animations</b><small>Use Nova's window and dock motion</small></span><input type="checkbox" data-pref="animations" ${a.animations?'checked':''}></label>
+          <label class="nova-switch-row"><span><b>High contrast</b><small>Increase text and border contrast</small></span><input type="checkbox" data-pref="highContrast" ${a.highContrast?'checked':''}></label>
+        </section>
+        <section class="nova-set-page" data-set-page="dock"><h2>Dock</h2><p class="nova-settings-sub">Tune the Nova dock.</p>
+          <label>Dock size <output id="nova-dock-out">${a.dockSize}px</output><input id="nova-dock" type="range" min="48" max="92" value="${a.dockSize}"></label>
+          <label>Dock position <select id="nova-dock-position"><option value="bottom" ${a.dockPosition==='bottom'?'selected':''}>Bottom</option><option value="left" ${a.dockPosition==='left'?'selected':''}>Left</option><option value="right" ${a.dockPosition==='right'?'selected':''}>Right</option></select></label>
+          <div class="nova-mini-note">Dock settings are saved automatically.</div>
+        </section>
+        <section class="nova-set-page" data-set-page="cursor"><h2>Cursor</h2><p class="nova-settings-sub">Choose your pointer style.</p>
+          <div class="nova-cursor-grid">${[['default','Arrow'],['pointer','Hand'],['crosshair','Crosshair'],['cell','Cell'],['grab','Grab'],['zoom-in','Zoom']].map(([k,n])=>`<button class="nova-cursor-card${a.cursor===k?' selected':''}" data-cursor="${k}"><span style="cursor:${k}">↖</span><strong>${n}</strong></button>`).join('')}</div>
+          <label>Custom cursor URL <input id="nova-cursor-url" type="url" placeholder="https://…/cursor.cur or .png"><button id="nova-cursor-url-apply">Use custom cursor</button></label>
+        </section>
+        <section class="nova-set-page" data-set-page="typography"><h2>Typography</h2><p class="nova-settings-sub">Change the Nova system font.</p>
+          <div class="nova-font-grid">${[['system','System'],['serif','Serif'],['mono','Monospace'],['rounded','Rounded'],['condensed','Condensed']].map(([k,n])=>`<button class="nova-font-card${a.font===k?' selected':''}" data-font="${k}"><span class="font-${k}">Aa</span><strong>${n}</strong></button>`).join('')}</div>
+        </section>
+        <section class="nova-set-page" data-set-page="performance"><h2>Performance</h2><p class="nova-settings-sub">Keep the desktop smooth on older hardware.</p>
+          <div class="nova-perf-card"><b>Performance mode</b><span>Disables non-essential animation and visual effects.</span><button id="nova-performance">${a.animations?'Enable':'Enabled'}</button></div>
+          <div class="nova-perf-card"><b>Reset appearance</b><span>Restore every Nova appearance setting to default.</span><button id="nova-appearance-reset">Reset</button></div>
+        </section>
+      </main></div>`;
+  };
+  function update(key,val){const a=load();a[key]=val;save(a);apply();}
+  document.addEventListener('click',e=>{
+    const tab=e.target.closest('[data-set-tab]'); if(tab){const root=tab.closest('.nova-mega-settings');root?.querySelectorAll('.nova-set-tab').forEach(x=>x.classList.toggle('active',x===tab));root?.querySelectorAll('.nova-set-page').forEach(x=>x.classList.toggle('active',x.dataset.setPage===tab.dataset.setTab));return;}
+    const theme=e.target.closest('[data-theme]');if(theme){update('theme',theme.dataset.theme);theme.closest('.nova-mega-settings')?.querySelectorAll('[data-theme]').forEach(x=>x.classList.toggle('selected',x===theme));return;}
+    const wall=e.target.closest('[data-wallpaper]');if(wall){update('wallpaper',wall.dataset.wallpaper);wall.closest('.nova-mega-settings')?.querySelectorAll('[data-wallpaper]').forEach(x=>x.classList.toggle('selected',x===wall));return;}
+    const cur=e.target.closest('[data-cursor]');if(cur){update('cursor',cur.dataset.cursor);cur.closest('.nova-mega-settings')?.querySelectorAll('[data-cursor]').forEach(x=>x.classList.toggle('selected',x===cur));return;}
+    const font=e.target.closest('[data-font]');if(font){update('font',font.dataset.font);font.closest('.nova-mega-settings')?.querySelectorAll('[data-font]').forEach(x=>x.classList.toggle('selected',x===font));return;}
+    if(e.target.id==='nova-wall-apply'){const u=e.target.closest('.nova-mega-settings')?.querySelector('#nova-wall-url')?.value.trim();if(u)update('wallpaperUrl',u),update('wallpaper','custom');return;}
+    if(e.target.id==='nova-cursor-url-apply'){const u=e.target.closest('.nova-mega-settings')?.querySelector('#nova-cursor-url')?.value.trim();if(u){const a=load();a.cursor='url("'+u.replace(/"/g,'')+'") 16 16, auto';save(a);apply();}return;}
+    if(e.target.id==='nova-performance'){update('animations',false);return;}
+    if(e.target.id==='nova-appearance-reset'){save({...defaults});apply();const w=e.target.closest('.os-window');if(w) w.querySelector('.os-win-content').innerHTML=nova.osSettingsBody();return;}
+  },true);
+  document.addEventListener('change',e=>{
+    const t=e.target;
+    if(t.matches('[data-pref]')) update(t.dataset.pref,t.checked);
+    if(t.id==='nova-accent') update('accent',t.value);
+    if(t.id==='nova-radius') update('radius',+t.value);
+    if(t.id==='nova-scale') update('scale',+t.value);
+    if(t.id==='nova-dock') update('dockSize',+t.value);
+    if(t.id==='nova-dock-position') update('dockPosition',t.value);
+    if(t.id==='nova-wall-file'&&t.files?.[0]){const r=new FileReader();r.onload=()=>{const a=load();a.wallpaper='custom';a.wallpaperUrl=r.result;save(a);apply();};r.readAsDataURL(t.files[0]);}
+  },true);
+  document.addEventListener('input',e=>{
+    const t=e.target;
+    if(t.id==='nova-radius') {const o=t.parentElement.querySelector('output');if(o)o.textContent=t.value+'px';}
+    if(t.id==='nova-scale') {const o=t.parentElement.querySelector('output');if(o)o.textContent=t.value+'%';}
+    if(t.id==='nova-dock') {const o=t.parentElement.querySelector('output');if(o)o.textContent=t.value+'px';}
+  },true);
+  const style=document.createElement('style');style.id='nova-mega-appearance-style';style.textContent=`
+    :root{--nova-accent:#7c5cff;--nova-ui-scale:1;--nova-radius:18px;--nova-surface:#151821;--nova-bar:#0b0d14;--nova-text:#f7f8ff;--nova-theme-bg:#080b12;--nova-cursor:default}
+    /* Make appearance controls affect the actual OS, not just settings previews. */
+    #os-desktop{background:var(--nova-theme-bg)!important;color:var(--nova-text)!important;zoom:var(--nova-ui-scale)}
+    #os-desktop .os-window{background:var(--nova-surface)!important;color:var(--nova-text)!important;border-radius:var(--nova-radius)!important}
+    #os-desktop .os-winbar,#os-desktop .os-menubar{background:var(--nova-bar)!important}
+    #os-desktop .os-dock-wrap{border-radius:calc(var(--nova-radius) + 6px)!important}
+    #os-desktop .os-dock-item{width:var(--nova-dock-size)!important;height:var(--nova-dock-size)!important}
+    #os-desktop .os-dock-icon{width:calc(var(--nova-dock-size) - 6px)!important;height:calc(var(--nova-dock-size) - 6px)!important;border-radius:calc(var(--nova-radius) - 2px)!important}
+    #os-desktop .os-dicon,#os-desktop .os-game-pro,#os-desktop .os-file-item{border-radius:var(--nova-radius)!important}
+    #os-desktop button:hover{border-color:color-mix(in srgb,var(--nova-accent) 55%,transparent)!important}
+    #os-desktop .os-status-dot{background:var(--nova-accent)!important;box-shadow:0 0 12px color-mix(in srgb,var(--nova-accent) 70%,transparent)!important}
+    #os-desktop .os-window-opening{transform:translateY(18px) scale(calc(.97 * var(--nova-ui-scale)))!important}
+    .nova-high-contrast #os-desktop{color:var(--nova-text)!important}
+    body{--nova-font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif}
+    body[data-nova-font="serif"]{--nova-font-family:Georgia,"Times New Roman",serif}body[data-nova-font="mono"]{--nova-font-family:ui-monospace,SFMono-Regular,Consolas,monospace}body[data-nova-font="rounded"]{--nova-font-family:ui-rounded,"SF Pro Rounded",system-ui,sans-serif}body[data-nova-font="condensed"]{--nova-font-family:"Arial Narrow","Roboto Condensed",sans-serif}
+    #os-desktop{font-family:var(--nova-font-family)!important}#os-desktop .os-wallpaper{background-size:cover!important;background-position:center!important}#os-desktop .os-wallpaper-grid{opacity:.22}.nova-hide-desktop-grid #os-desktop .os-wallpaper-grid{display:none!important}
+    .nova-no-animations *{animation-duration:0s!important;transition-duration:0s!important}.nova-high-contrast #os-desktop{filter:contrast(1.08)}
+    #os-desktop .os-dock-wrap{font-size:calc(var(--nova-dock-size) * .18)}
+    #os-desktop[data-dock-position="left"] .os-dock-wrap{left:14px;right:auto;top:50%;bottom:auto;transform:translateY(-50%)}#os-desktop[data-dock-position="left"] .os-dock-pro{flex-direction:column}#os-desktop[data-dock-position="right"] .os-dock-wrap{right:14px;left:auto;top:50%;bottom:auto;transform:translateY(-50%)}#os-desktop[data-dock-position="right"] .os-dock-pro{flex-direction:column}
+    .nova-hide-dock-labels .os-dock-tooltip{display:none!important}
+    .nova-mega-settings{height:100%;display:grid;grid-template-columns:210px minmax(0,1fr);background:#11141c;color:#fff;font-family:var(--nova-font-family)}.nova-settings-side{padding:16px;border-right:1px solid rgba(255,255,255,.08);background:#0d1017}.nova-settings-brand{font-size:17px;font-weight:800;padding:10px 10px 18px}.nova-set-tab{display:block;width:100%;padding:10px 12px;margin:3px 0;border:0!important;border-radius:10px;background:transparent!important;color:rgba(255,255,255,.62)!important;text-align:left;cursor:pointer;box-shadow:none!important}.nova-set-tab.active,.nova-set-tab:hover{background:#202532!important;color:#fff!important}.nova-settings-main{padding:28px;overflow:auto}.nova-set-page{display:none}.nova-set-page.active{display:block}.nova-set-page h2{font-size:27px;margin:0 0 5px}.nova-settings-sub{opacity:.55;margin:0 0 22px}.nova-theme-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(125px,1fr));gap:10px}.nova-theme-card,.nova-wall-card,.nova-cursor-card,.nova-font-card{border:1px solid rgba(255,255,255,.09)!important;background:#181c26!important;color:#fff!important;border-radius:14px!important;padding:8px!important;text-align:left;cursor:pointer;box-shadow:none!important}.nova-theme-card.selected,.nova-wall-card.selected,.nova-cursor-card.selected,.nova-font-card.selected{outline:2px solid var(--nova-accent)!important}.nova-theme-card>span{height:65px;display:block;border-radius:9px;position:relative}.nova-theme-card i{position:absolute;width:22px;height:22px;border-radius:50%;left:10px;bottom:10px}.nova-theme-card strong,.nova-theme-card small,.nova-wall-card strong,.nova-cursor-card strong,.nova-font-card strong{display:block;margin-top:7px}.nova-theme-card small{opacity:.5}.nova-control-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:18px}.nova-control-grid label,.nova-set-page>label{display:flex;flex-direction:column;gap:8px;font-size:12px;color:rgba(255,255,255,.7)}.nova-control-grid output,.nova-set-page output{font-size:11px;opacity:.6}.nova-control-grid input[type=range],.nova-set-page input[type=range]{width:100%}.nova-wall-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}.nova-wall-card span{display:block;height:82px;border-radius:10px}.nova-custom-wall{background:repeating-linear-gradient(45deg,#222 0 10px,#333 10px 20px)!important}.nova-upload-row{display:grid;grid-template-columns:1fr 1.5fr auto;gap:8px;margin-top:18px}.nova-upload-row input,.nova-set-page input[type=url],.nova-set-page select{box-sizing:border-box;background:#090b10;border:1px solid rgba(255,255,255,.1);color:#fff;border-radius:9px;padding:10px}.nova-upload-row button,.nova-set-page button{background:#202532;color:#fff;border:1px solid rgba(255,255,255,.1);border-radius:9px;padding:9px 13px;cursor:pointer}.nova-switch-row{display:flex!important;flex-direction:row!important;justify-content:space-between;align-items:center;padding:15px;border-radius:12px;background:#181c26;margin:9px 0}.nova-switch-row span{display:flex;flex-direction:column;gap:4px}.nova-switch-row small{opacity:.5}.nova-cursor-grid,.nova-font-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px}.nova-cursor-card{text-align:center!important}.nova-cursor-card span{display:block;font-size:34px;height:45px}.nova-font-card{text-align:center!important}.nova-font-card span{display:block;font-size:32px}.font-serif{font-family:Georgia}.font-mono{font-family:monospace}.font-rounded{font-family:ui-rounded}.font-condensed{font-family:"Arial Narrow"}.nova-mini-note{margin-top:15px;opacity:.45;font-size:11px}.nova-perf-card{display:flex;align-items:center;gap:14px;padding:16px;margin:10px 0;background:#181c26;border-radius:13px}.nova-perf-card b{min-width:140px}.nova-perf-card span{flex:1;opacity:.55;font-size:12px}.nova-perf-card button{background:#202532;color:#fff;border:1px solid rgba(255,255,255,.1);border-radius:9px;padding:9px 13px}
+    @media(max-width:700px){.nova-mega-settings{grid-template-columns:1fr}.nova-settings-side{display:flex;overflow:auto;border-right:0;border-bottom:1px solid rgba(255,255,255,.08)}.nova-settings-brand{display:none}.nova-set-tab{white-space:nowrap;width:auto}.nova-control-grid{grid-template-columns:1fr}.nova-upload-row{grid-template-columns:1fr}}
+  `;document.head.appendChild(style);
+  apply();
+})();
+
+/* NOVA OPAQUE UI PATCH — keep the glass styling colorful, but stop the entire OS from looking see-through. */
+(function(){
+  const style=document.createElement('style');
+  style.id='nova-opaque-ui-final';
+  style.textContent=`
+    /* Main desktop surfaces */
+    #os-desktop .os-menubar{background:#0b0d14!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+    #os-desktop .os-window{background:#151821!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+    #os-desktop .os-winbar{background:#10131b!important}
+    #os-desktop .os-dock-wrap{background:#11141c!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+    #os-desktop .os-dicon,
+    #os-desktop .os-dock-icon{background:#202532!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+    #os-desktop .os-quick-panel,
+    #os-desktop .os-app-menu,
+    #os-desktop .os-window-context{background:#151821!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+
+    /* Common OS app cards / panels */
+    #os-desktop .os-games-app,
+    #os-desktop .os-finder-app,
+    #os-desktop .os-browser-app,
+    #os-desktop .os-education-app,
+    #os-desktop .os-app-panel,
+    #os-desktop .os-panel{background:#11141c!important}
+    #os-desktop .os-game-card,
+    #os-desktop .os-finder-item,
+    #os-desktop .os-app-card,
+    #os-desktop .os-qgrid button,
+    #os-desktop .os-quick-panel>button,
+    #os-desktop .os-app-menu button{background:#202532!important}
+
+    /* Browser/game surfaces stay fully opaque */
+    #os-desktop .os-browser-toolbar{background:#10131b!important}
+    #os-desktop .os-browser-address{background:#090b10!important}
+    #os-desktop .os-browser-frame{background:#000!important}
+
+    /* Don't make the actual game transparent */
+    #os-desktop iframe{background:#000!important}
+
+    /* Keep separators visible without glass */
+    #os-desktop .os-winbar,
+    #os-desktop .os-browser-toolbar{border-color:rgba(255,255,255,.10)!important}
+  `;
+  document.head.appendChild(style);
+})();
+
+(function(){const s=document.createElement("style");s.textContent=`
+#os-desktop:fullscreen{width:100vw!important;height:100vh!important}
+#os-desktop.os-game-fullscreen{position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;z-index:2147483647!important}
+html:fullscreen body{width:100vw!important;height:100vh!important;overflow:hidden!important}
+.yt-ch-grid{grid-template-columns:repeat(auto-fill,minmax(260px,1fr))!important}
+.ytc-channel{cursor:pointer}
+.ytc-channel img{object-fit:cover;aspect-ratio:1/1;max-height:120px;width:120px!important;border-radius:50%!important;margin:12px auto 0;display:block}
+.yt-channel-head{display:flex;gap:14px;align-items:center;margin-bottom:10px}
+`;document.head.appendChild(s)})();
+
+
+/* ── NOVA DOCK FINAL FIX ─────────────────────────────────────────
+   Prevent flexbox from squashing dock buttons into vertical pills,
+   keep every icon perfectly square, and use the vector app artwork. */
+(function(){
+  const style=document.createElement("style");
+  style.id="nova-dock-final-fix";
+  style.textContent=`
+    #os-desktop .os-dock-wrap{
+      width:max-content!important;
+      max-width:calc(100vw - 24px)!important;
+      overflow-x:auto!important;
+      overflow-y:visible!important;
+      scrollbar-width:none;
+    }
+    #os-desktop .os-dock-wrap::-webkit-scrollbar{display:none}
+    #os-desktop .os-dock-pro{
+      display:flex!important;
+      flex-wrap:nowrap!important;
+      align-items:center!important;
+      justify-content:center!important;
+      width:max-content!important;
+      min-width:max-content!important;
+    }
+    #os-desktop .os-dock-item{
+      flex:0 0 var(--nova-dock-size,64px)!important;
+      width:var(--nova-dock-size,64px)!important;
+      min-width:var(--nova-dock-size,64px)!important;
+      max-width:var(--nova-dock-size,64px)!important;
+      height:var(--nova-dock-size,64px)!important;
+      min-height:var(--nova-dock-size,64px)!important;
+      max-height:var(--nova-dock-size,64px)!important;
+      aspect-ratio:1/1!important;
+      padding:4px!important;
+      display:grid!important;
+      place-items:center!important;
+      overflow:visible!important;
+    }
+    #os-desktop .os-dock-icon{
+      flex:0 0 auto!important;
+      width:calc(var(--nova-dock-size,64px) - 8px)!important;
+      min-width:calc(var(--nova-dock-size,64px) - 8px)!important;
+      max-width:calc(var(--nova-dock-size,64px) - 8px)!important;
+      height:calc(var(--nova-dock-size,64px) - 8px)!important;
+      min-height:calc(var(--nova-dock-size,64px) - 8px)!important;
+      max-height:calc(var(--nova-dock-size,64px) - 8px)!important;
+      aspect-ratio:1/1!important;
+      display:grid!important;
+      place-items:center!important;
+      padding:0!important;
+      line-height:1!important;
+      border-radius:calc(var(--nova-radius,18px) - 2px)!important;
+      overflow:hidden!important;
+    }
+    #os-desktop .os-dock-icon .os-vector-icon{
+      display:block!important;
+      width:82%!important;
+      height:82%!important;
+      max-width:none!important;
+      max-height:none!important;
+      flex:none!important;
+    }
+    #os-desktop[data-dock-position="left"] .os-dock-wrap,
+    #os-desktop[data-dock-position="right"] .os-dock-wrap{
+      width:auto!important;
+      max-width:none!important;
+      max-height:calc(100vh - 70px)!important;
+      overflow-x:visible!important;
+      overflow-y:auto!important;
+    }
+    #os-desktop[data-dock-position="left"] .os-dock-pro,
+    #os-desktop[data-dock-position="right"] .os-dock-pro{
+      width:auto!important;
+      min-width:0!important;
+      height:max-content!important;
+      min-height:max-content!important;
+    }
+  `;
+  document.head.appendChild(style);
 })();
