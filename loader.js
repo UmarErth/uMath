@@ -2,6 +2,69 @@
 (function novaLoader(){
 if(window.__novaLoaderStarted)return;
 window.__novaLoaderStarted=true;
+// Only the outer launcher opens a tab; the embedded copy starts Nova normally.
+function isCloakedOrEmbedded(){
+    return window.top!==window || new URLSearchParams(location.search).get('nova_cloak_child')==='1';
+}
+let cloakWindow=null;
+function openNovaCloak(){
+    if(isCloakedOrEmbedded())return null;
+    try{
+        if(cloakWindow && !cloakWindow.closed){cloakWindow.focus();return cloakWindow;}
+    }catch{cloakWindow=null;}
+    let popup=null;
+    try{
+        popup=window.open('about:blank','_blank');
+        if(!popup)return null;
+        const url=new URL(location.href);
+        url.searchParams.set('nova_cloak_child','1');
+        const doc=popup.document;
+        doc.title='Home - Classroom';
+        const icon=doc.createElement('link');
+        icon.rel='icon';icon.href='https://ssl.gstatic.com/classroom/favicon.png';
+        doc.head.appendChild(icon);
+        doc.body.style.cssText='margin:0;height:100vh;overflow:hidden;background:#080b12';
+        const frame=doc.createElement('iframe');
+        frame.title='Nova Gaming';
+        frame.style.cssText='display:block;border:0;width:100%;height:100%';
+        frame.allow='fullscreen; autoplay; gamepad; clipboard-read; clipboard-write';
+        frame.allowFullscreen=true;
+        frame.src=url.href;
+        doc.body.appendChild(frame);
+        cloakWindow=popup;
+        return popup;
+    }catch(error){
+        try{popup?.close();}catch{}
+        console.warn('Nova could not open its cloaked tab.',error);
+        return null;
+    }
+}
+function launchNova(){
+    if(isCloakedOrEmbedded()){startNova();return;}
+    const opened=openNovaCloak();
+    const launcher=document.createElement('div');
+    launcher.id='nova-cloak-launcher';
+    launcher.style.cssText='position:fixed;inset:0;z-index:2147483647;display:grid;place-items:center;background:#080b12;color:#f7f8ff;font-family:system-ui,sans-serif;padding:24px;box-sizing:border-box';
+    const card=document.createElement('main');
+    card.style.cssText='max-width:420px;width:100%;text-align:center';
+    const title=document.createElement('h1');title.textContent='Nova Gaming';
+    title.style.cssText='font-size:36px;letter-spacing:-1px;margin:0 0 16px';
+    const status=document.createElement('p');status.setAttribute('role','status');
+    status.style.cssText='color:#b5bbcc;line-height:1.65;margin:0 0 24px';
+    const open=document.createElement('button');open.type='button';
+    open.style.cssText='font:600 15px system-ui;border:0;border-radius:12px;padding:14px 22px;background:#7c5cff;color:white;cursor:pointer';
+    const update=success=>{
+        status.textContent=success?'Nova opened in an about:blank tab. You can return to it below.':'Your browser blocked the automatic tab. Click below to open Nova in an about:blank tab.';
+        open.textContent=success?'Return to Nova':'Open Nova';
+    };
+    open.addEventListener('click',()=>update(!!openNovaCloak()));
+    const stay=document.createElement('button');stay.type='button';stay.textContent='Continue in this tab';
+    stay.style.cssText='display:block;margin:18px auto 0;font:13px system-ui;border:0;padding:10px;background:transparent;color:#b5bbcc;cursor:pointer;text-decoration:underline';
+    stay.addEventListener('click',()=>{launcher.remove();startNova();},{once:true});
+    update(!!opened);
+    card.append(title,status,open,stay);launcher.appendChild(card);document.body.appendChild(launcher);
+}
+
 function startNova(){
 /**
  * ╔══════════════════════════════════════════════════════════════════╗
@@ -3196,21 +3259,8 @@ const nova = {
     },
 
     cloakSite(){
-        const win = window.open("about:blank", "_blank");
-        if (!win) { alert("Popup blocked! Allow popups to cloak."); return; }
-        win.document.title = CLOAK_TITLE;
-        
-        const link = win.document.createElement("link");
-        link.rel = "icon"; link.type = "image/png"; link.href = CLOAK_ICON;
-        win.document.head.appendChild(link);
-
-        win.document.body.style.cssText = "margin:0;height:100vh;overflow:hidden;background:#03040a;";
-        const iframe = win.document.createElement("iframe");
-        iframe.style.cssText = "border:none;width:100%;height:100%;display:block;";
-        iframe.allow = "gamepad; fullscreen; autoplay; allow-forms; allow-pointer-lock; allow-same-origin; allow-scripts; allow-modals; allow-downloads";
-        iframe.src = window.location.href;
-        
-        win.document.body.appendChild(iframe);
+        const win=openNovaCloak();
+        if(!win && !isCloakedOrEmbedded())alert("Popup blocked. Allow popups for this page, then try again.");
         this.closePanel();
     },
 
@@ -4044,17 +4094,7 @@ function saveEntireSite(){
 }
 
 function openCloakPopup(){
-  if(location.search.includes("nova_cloak_child=1"))return null;
-  const w=window.open("about:blank","_blank");
-  if(!w)return null;
-  try{
-    const u=new URL(location.href);
-    u.searchParams.set("nova_cloak_child","1");
-    w.document.open();
-    w.document.write(`<!doctype html><html><head><title>Home - Classroom</title></head><body style="margin:0;overflow:hidden;background:#000"><iframe src="${u.href.replace(/"/g,"&quot;")}" style="border:0;width:100vw;height:100vh;display:block" allow="fullscreen;autoplay;gamepad"></iframe></body></html>`);
-    w.document.close();
-  }catch(e){console.error("Nova cloak failed",e)}
-  return w;
+  return openNovaCloak();
 }
 
 function bind(){
@@ -4567,6 +4607,6 @@ document.head.appendChild(style);
 })();
 
 }
-if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",startNova,{once:true});
-else startNova();
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",launchNova,{once:true});
+else launchNova();
 })();
