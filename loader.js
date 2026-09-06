@@ -1,3 +1,8 @@
+// Nova Gaming 6 — single-file desktop engine. No build step required.
+(function novaLoader(){
+if(window.__novaLoaderStarted)return;
+window.__novaLoaderStarted=true;
+function startNova(){
 /**
  * ╔══════════════════════════════════════════════════════════════════╗
  * ║        NOVA GAMING — HYPERGLASS OS ENGINE v5.0 (OLED EDITION)    ║
@@ -607,12 +612,19 @@ function novaCdnUrlForRepoPath(path){
     return NOVA_GAME_CDN_PREFIX + String(path||"").split("/").map(part=>encodeURIComponent(part)).join("/");
 }
 
+async function novaCatalogFetch(url,options={}){
+    const controller=new AbortController();
+    const timer=setTimeout(()=>controller.abort(),12000);
+    try{const response=await fetch(url,{...options,signal:controller.signal});
+        if(!response.ok)throw new Error(`Catalog request failed (${response.status})`);
+        return await response.json();
+    }finally{clearTimeout(timer);}
+}
 async function novaFetchRepoHtmlPaths(){
     const github=`https://api.github.com/repos/${NOVA_GAME_REPO.owner}/${NOVA_GAME_REPO.repo}/git/trees/${encodeURIComponent(NOVA_GAME_REPO.branch)}?recursive=1`;
     try{
-        const r=await fetch(github,{cache:"no-store",headers:{Accept:"application/vnd.github+json"}});
-        if(!r.ok) throw new Error(`GitHub ${r.status}`);
-        const data=await r.json();
+        const data=await novaCatalogFetch(github,{cache:"no-store",headers:{Accept:"application/vnd.github+json"}});
+        if(data.truncated)throw new Error("Incomplete GitHub catalog");
         if(!Array.isArray(data.tree)) throw new Error("Invalid GitHub tree response");
         return data.tree
             .filter(entry=>entry?.type==="blob" && /\.html?$/i.test(entry.path||""))
@@ -621,9 +633,7 @@ async function novaFetchRepoHtmlPaths(){
         // jsDelivr metadata is a CORS-friendly fallback for networks that block
         // api.github.com or when the anonymous GitHub API rate limit is hit.
         const jsd=`https://data.jsdelivr.com/v1/package/gh/${NOVA_GAME_REPO.owner}/${NOVA_GAME_REPO.repo}@${encodeURIComponent(NOVA_GAME_REPO.branch)}/flat`;
-        const r=await fetch(jsd,{cache:"no-store"});
-        if(!r.ok) throw githubError;
-        const data=await r.json();
+        const data=await novaCatalogFetch(jsd,{cache:"no-store"});
         if(!Array.isArray(data.files)) throw githubError;
         return data.files
             .map(file=>String(file?.name||"").replace(/^\/+/,""))
@@ -632,13 +642,14 @@ async function novaFetchRepoHtmlPaths(){
 }
 
 async function novaSyncGameCatalog(force=false){
-    if(NOVA_GAME_SYNC_PROMISE && !force) return NOVA_GAME_SYNC_PROMISE;
+    if(NOVA_GAME_SYNC_PROMISE) return NOVA_GAME_SYNC_PROMISE;
     NOVA_GAME_SYNC_PROMISE=(async()=>{
         try{
             const paths=await novaFetchRepoHtmlPaths();
             const uniquePaths=[];
             const repoPathSet=new Set();
             for(const path of paths){
+                if(/^(?:index|singlefile|altsingle)\.html?$/i.test(path))continue;
                 const key=novaNormalizeRepoPath(path);
                 if(!key || repoPathSet.has(key)) continue;
                 repoPathSet.add(key);
@@ -705,7 +716,7 @@ async function novaSyncGameCatalog(force=false){
             return GAMES.length;
         }
     })();
-    return NOVA_GAME_SYNC_PROMISE;
+    try{return await NOVA_GAME_SYNC_PROMISE;}finally{NOVA_GAME_SYNC_PROMISE=null;}
 }
 
 // Public refresh hook for debugging/manual refreshes, while normal users get
@@ -1622,12 +1633,6 @@ const nova = {
         }, true);
 
         root.addEventListener("click",e=>{
-            const file=e.target.closest(".os-file-item");
-            if(file){
-                const idx=Number(file.dataset.game);
-                if(Number.isInteger(idx)&&GAMES[idx]) this.osOpenGameWindow(GAMES[idx]);
-            }
-
             const menuAction=e.target.closest(".os-menu-item");
             if(!e.target.closest("#os-apple,#os-app-menu") && !menuAction)
                 document.getElementById("os-app-menu")?.classList.remove("on");
@@ -1677,7 +1682,7 @@ const nova = {
 
         const layer=document.getElementById("os-window-layer"); if(!layer)return null;
         const existing=layer.querySelector(`.os-window[data-key="${CSS.escape(key)}"]`);
-        if(existing){ this.osFocusWindow(existing); return existing; }
+        if(existing){ existing.classList.remove("minimized"); this.osFocusWindow(existing); return existing; }
         const id=`osw_${Date.now()}_${Math.random().toString(36).slice(2,7)}`;
         const w=document.createElement("section"); w.className="os-window os-window-opening"; w.dataset.key=key; w.id=id;
         const width=opt.width||760,height=opt.height||520;
@@ -1687,8 +1692,8 @@ const nova = {
         const layerRect = layer.getBoundingClientRect();
         const openCount = layer.querySelectorAll(".os-window").length - 1;
         const cascade = Math.min(28, Math.max(0, openCount * 14));
-        const safeWidth = Math.min(width, Math.max(420, layerRect.width - 32));
-        const safeHeight = Math.min(height, Math.max(300, layerRect.height - 32));
+        const safeWidth = Math.min(width, Math.max(120, layer.clientWidth - 32));
+        const safeHeight = Math.min(height, Math.max(120, layer.clientHeight - 32));
         w.style.width = safeWidth + "px";
         w.style.height = safeHeight + "px";
         const center = opt.center === true;
@@ -1704,7 +1709,9 @@ const nova = {
     osClampWindowToLayer(w){
         const layer=document.getElementById("os-window-layer");
         if(!layer || !w || w.classList.contains("maximized")) return;
-        const lr=layer.getBoundingClientRect();
+        const lr={width:layer.clientWidth,height:layer.clientHeight};
+        w.style.width=Math.min(w.offsetWidth,Math.max(120,lr.width-32))+"px";
+        w.style.height=Math.min(w.offsetHeight,Math.max(120,lr.height-32))+"px";
         const maxLeft=Math.max(16,lr.width-w.offsetWidth-16);
         const maxTop=Math.max(16,lr.height-w.offsetHeight-16);
         const left=Math.max(16,Math.min(parseFloat(w.style.left)||0,maxLeft));
@@ -1755,7 +1762,13 @@ const nova = {
         w.addEventListener("contextmenu",e=>{ if(e.target.closest('.os-winbar')) return; e.preventDefault(); this.osShowWindowMenu(w,e.clientX,e.clientY); });
         const resize=w.querySelector(".os-resize"); let resizing=false,rsx=0,rsy=0,rw=0,rh=0;
         resize.addEventListener("pointerdown",e=>{resizing=true;rsx=e.clientX;rsy=e.clientY;rw=w.offsetWidth;rh=w.offsetHeight;resize.setPointerCapture?.(e.pointerId);e.stopPropagation();});
-        resize.addEventListener("pointermove",e=>{if(!resizing)return;w.style.width=Math.max(420,rw+e.clientX-rsx)+"px";w.style.height=Math.max(300,rh+e.clientY-rsy)+"px";});
+        resize.addEventListener("pointermove",e=>{
+            if(!resizing)return;
+            const layer=document.getElementById("os-window-layer");if(!layer)return;
+            w.style.width=Math.min(Math.max(120,layer.clientWidth-32),Math.max(420,rw+e.clientX-rsx))+"px";
+            w.style.height=Math.min(Math.max(120,layer.clientHeight-32),Math.max(300,rh+e.clientY-rsy))+"px";
+            this.osClampWindowToLayer(w);
+        });
         resize.addEventListener("pointerup",()=>resizing=false); resize.addEventListener("pointercancel",()=>resizing=false);
     },
     osShowWindowMenu(w,x,y){
@@ -1866,6 +1879,9 @@ const nova = {
     },
     async osOpenGameWindow(item){
         if(!item || !item.url) return null;
+        this._recentGames=[item.url,...this._recentGames.filter(url=>url!==item.url)].slice(0,24);
+        try{localStorage.setItem("nova_recent_games",JSON.stringify(this._recentGames));}catch{}
+        this.osRefreshLibrary();
         const key = "game:" + item.title;
         const existing = document.querySelector(`.os-window[data-key="${CSS.escape(key)}"]`);
         if(existing){
@@ -2047,11 +2063,104 @@ const nova = {
         const folders=["Applications","Games","Nova AI","YouTube","Anime","Favorites","Downloads"];
         return `<div class="os-finder"><aside class="os-sidebar"><div class="os-side-title">Favorites</div>${folders.map((f,i)=>`<button class="os-side-btn${i===1?" active":""}"><span>${i===1?"◈":"▣"}</span>${this.esc(f)}</button>`).join("")}<div class="os-side-title">Locations</div><button class="os-side-btn"><span>⌂</span>Nova Disk</button><button class="os-side-btn"><span>☁</span>Cloud</button></aside><main class="os-file-main"><div class="os-file-toolbar"><span>Games</span><span class="os-file-count"><span data-nova-game-count>${GAMES.length}</span> items</span></div><div class="os-file-grid">${GAMES.map((g,i)=>`<button class="os-file-item" data-game="${i}"><span class="os-file-icon">${this.esc((g.title||"?").charAt(0).toUpperCase())}</span><span>${this.esc(g.title)}</span></button>`).join("")}</div></main></div>`;
     },
-    osGamesBody(){
-        const initial=Math.min(GAMES.length,48);
-        const cards=GAMES.slice(0,initial).map((g,i)=>`<button class="os-game-pro" data-game="${i}"><span class="os-game-icon-pro">${this.esc((g.title||"?").charAt(0).toUpperCase())}</span><span class="os-game-title-pro">${this.esc(g.title)}</span><small>Application</small></button>`).join("");
-        return `<div class="os-games-app" data-loaded="${initial}"><div class="os-games-head"><div><div class="os-eyebrow">INSTALLED APPS</div><h2>Games</h2><p><span data-nova-game-count>${GAMES.length}</span> games ready to launch</p></div><input id="os-games-search" placeholder="Search installed games…"></div><div class="os-gamegrid-pro" id="os-gamegrid-pro">${cards}</div></div>`;
+    // Game library state uses URLs for recents so catalog refreshes cannot shift it.
+    _library: {query:"", view:"all", sort:"featured", limit:48},
+    _recentGames: [],
+    osLibraryMatches(){
+        const state=this._library;
+        const terms=state.query.toLocaleLowerCase().trim().split(/\s+/).filter(Boolean);
+        const recent=new Map(this._recentGames.map((url,i)=>[url,i]));
+        const results=GAMES.map((game,index)=>({game,index})).filter(({game})=>{
+            if(state.view==="favorites" && !this.favorites.includes(game.title)) return false;
+            if(state.view==="recent" && !recent.has(game.url)) return false;
+            const text=((game.title||"")+" "+(game.desc||"")).toLocaleLowerCase();
+            return terms.every(term=>text.includes(term));
+        });
+        if(state.view==="recent") results.sort((a,b)=>recent.get(a.game.url)-recent.get(b.game.url));
+        else if(state.sort==="az") results.sort((a,b)=>a.game.title.localeCompare(b.game.title,undefined,{numeric:true}));
+        else if(state.sort==="za") results.sort((a,b)=>b.game.title.localeCompare(a.game.title,undefined,{numeric:true}));
+        return results;
     },
+    osLibraryCards(matches){
+        return matches.map(({game:g,index:i})=>{
+            const favorite=this.favorites.includes(g.title);
+            const hue=Array.from(g.title).reduce((n,c)=>(n*31+c.charCodeAt(0))%360,0);
+            const initials=g.title.split(/\s+/).slice(0,2).map(word=>word[0]).join("");
+            return `<article class="nova-library-card" style="--game-hue:${hue}">
+                <button class="nova-library-launch" data-library-game="${i}" aria-label="Play ${this.esc(g.title)}">
+                    <span class="nova-game-art" aria-hidden="true"><span>${this.esc(initials)}</span><i>↗</i></span>
+                    <span class="nova-game-copy"><strong>${this.esc(g.title)}</strong><small>${this.esc(g.desc||"Ready for your next session.")}</small></span>
+                </button>
+                <div class="nova-game-footer"><span>${g.autoDetected?"DISCOVERED":"PLAY IN BROWSER"}</span><button data-library-fav="${i}" aria-pressed="${favorite}" aria-label="${favorite?"Remove":"Add"} ${this.esc(g.title)} ${favorite?"from":"to"} favorites">${favorite?"★":"☆"}</button></div>
+            </article>`;
+        }).join("");
+    },
+    osGamesBody(){
+        const s=this._library, matches=this.osLibraryMatches();
+        return `<div class="os-games-app nova-library">
+            <header class="nova-library-header"><div><span class="nova-library-kicker">NOVA / PLAY</span><h2>Your next escape.</h2><p>A whole world of games. One place to play.</p></div><span class="nova-library-total"><b data-nova-game-count>${GAMES.length}</b> games</span></header>
+            <div class="nova-library-tools"><label class="nova-library-search"><span aria-hidden="true">⌕</span><input id="nova-library-search" type="search" placeholder="Find your next game…" aria-label="Search games" value="${this.esc(s.query)}"><kbd>/</kbd></label><select id="nova-library-sort" aria-label="Sort games"><option value="featured" ${s.sort==="featured"?"selected":""}>Featured</option><option value="az" ${s.sort==="az"?"selected":""}>Name: A–Z</option><option value="za" ${s.sort==="za"?"selected":""}>Name: Z–A</option></select></div>
+            <nav class="nova-library-tabs" aria-label="Game collections">${[["all","All games"],["favorites","Favorites"],["recent","Recently played"]].map(([key,label])=>`<button data-library-view="${key}" aria-pressed="${s.view===key}">${label}</button>`).join("")}<span class="nova-library-result" role="status">${matches.length} games</span></nav>
+            <div class="nova-library-scroll"><div class="nova-library-grid">${this.osLibraryCards(matches.slice(0,s.limit))}</div><div class="nova-library-empty" ${matches.length?"hidden":""}><span aria-hidden="true">✦</span><h3>${s.view==="favorites"?"Keep your favorites close.":s.view==="recent"?"Your next session starts here.":"No games found."}</h3><p>${s.view==="favorites"?"Tap a star on any game to save it here.":s.view==="recent"?"Games you launch appear here for a quick return.":"Try a different title or a shorter search."}</p><button data-library-reset>Browse all games</button></div><button class="nova-library-more" data-library-more ${matches.length<=s.limit?"hidden":""}>Show more games</button></div>
+            <footer class="nova-library-status"><span class="nova-library-connection">${navigator.onLine?"Online":"Offline · games may need a connection"}</span><span>Made for a little downtime.</span></footer>
+        </div>`;
+    },
+    osRefreshLibrary(){
+        const matches=this.osLibraryMatches(), s=this._library;
+        document.querySelectorAll(".nova-library").forEach(app=>{
+            app.querySelector(".nova-library-grid").innerHTML=this.osLibraryCards(matches.slice(0,s.limit));
+            app.querySelector(".nova-library-result").textContent=`${Math.min(matches.length,s.limit)} of ${matches.length} games`;
+            app.querySelector("[data-library-more]").hidden=matches.length<=s.limit;
+            const empty=app.querySelector(".nova-library-empty");
+            empty.hidden=matches.length>0;
+            empty.querySelector("h3").textContent=s.query?"No games found.":s.view==="favorites"?"Keep your favorites close.":s.view==="recent"?"Your next session starts here.":"No games found.";
+            empty.querySelector("p").textContent=s.query?"Try a different title or a shorter search.":s.view==="favorites"?"Tap a star on any game to save it here.":s.view==="recent"?"Games you launch appear here for a quick return.":"Try a different search.";
+            app.querySelectorAll("[data-library-view]").forEach(button=>button.setAttribute("aria-pressed",String(button.dataset.libraryView===s.view)));
+        });
+    },
+    osBindLibrary(){
+        document.addEventListener("click",e=>{
+            const app=e.target.closest(".nova-library"); if(!app) return;
+            const play=e.target.closest("[data-library-game]");
+            if(play){const game=GAMES[Number(play.dataset.libraryGame)];if(game)this.osOpenGameWindow(game);return;}
+            const favorite=e.target.closest("[data-library-fav]");
+            if(favorite){
+                const game=GAMES[Number(favorite.dataset.libraryFav)]; if(!game)return;
+                const i=this.favorites.indexOf(game.title);
+                if(i<0)this.favorites.push(game.title);else this.favorites.splice(i,1);
+                try{localStorage.setItem("ng_f",JSON.stringify(this.favorites));}catch{}
+                this.osRefreshLibrary();
+                app.querySelector(`[data-library-fav="${favorite.dataset.libraryFav}"]`)?.focus();
+                return;
+            }
+            const tab=e.target.closest("[data-library-view]");
+            if(tab){this._library.view=tab.dataset.libraryView;this._library.limit=48;}
+            else if(e.target.closest("[data-library-more]")){this._library.limit+=48;}
+            else if(e.target.closest("[data-library-reset]")){Object.assign(this._library,{query:"",view:"all",limit:48});app.querySelector("input").value="";}
+            else return;
+            this.osRefreshLibrary();
+            if(tab)app.querySelector(".nova-library-scroll").scrollTop=0;
+        });
+        document.addEventListener("input",e=>{
+            if(e.target.id!=="nova-library-search")return;
+            this._library.query=e.target.value;this._library.limit=48;
+            this.osRefreshLibrary();
+            e.target.closest(".nova-library").querySelector(".nova-library-scroll").scrollTop=0;
+        });
+        document.addEventListener("change",e=>{
+            if(e.target.id!=="nova-library-sort")return;
+            this._library.sort=e.target.value;this._library.limit=48;this.osRefreshLibrary();
+        });
+        document.addEventListener("keydown",e=>{
+            if(e.key!=="/" || e.ctrlKey || e.metaKey || e.altKey || e.target.closest("input,textarea,select,[contenteditable]"))return;
+            const search=document.querySelector('.os-window.focused:not(.minimized) #nova-library-search');
+            if(search){e.preventDefault();search.focus();}
+        });
+        const connection=()=>document.querySelectorAll(".nova-library-connection").forEach(el=>el.textContent=navigator.onLine?"Online":"Offline · games may need a connection");
+        window.addEventListener("online",connection);window.addEventListener("offline",connection);
+        window.addEventListener("nova:games-updated",()=>this.osRefreshLibrary());
+    },
+
     osSettingsBody(){
         return `<div class="os-settings"><aside><div class="os-settings-brand">System Settings</div><button class="active">Appearance</button><button>Desktop & Dock</button><button>Game Center</button><button>Privacy</button><button>About</button></aside><main><h2>Appearance</h2><div class="os-setting-card"><div><strong>Interface</strong><p>Choose between the OS desktop and Classic Nova</p></div><div class="os-setting-actions"><button id="os-use-os">OS Style</button><button id="os-use-classic">Classic</button></div></div><div class="os-setting-card"><div><strong>Desktop animations</strong><p>Use enhanced window transitions and dock motion</p></div><button class="os-toggle on">On</button></div><div class="os-setting-card"><div><strong>Installed games</strong><p><span data-nova-game-count>${GAMES.length}</span> game applications available</p></div><span class="os-stat" data-nova-game-count>${GAMES.length}</span></div></main></div>`;
     },
@@ -2061,7 +2170,12 @@ const nova = {
 
     // ── DOM CONSTRUCTION ────────────────────────────────────────
     buildDOM(){
-        try{ this.favorites=JSON.parse(localStorage.getItem("ng_f")||"[]"); }catch(e){}
+        try{
+            const saved=JSON.parse(localStorage.getItem("ng_f")||"[]");
+            this.favorites=Array.isArray(saved)?saved.filter(v=>typeof v==="string"):[];
+            const recent=JSON.parse(localStorage.getItem("nova_recent_games")||"[]");
+            this._recentGames=Array.isArray(recent)?recent.filter(v=>typeof v==="string").slice(0,24):[];
+        }catch(e){}
 
         // Main App Wrapper
         const app=document.createElement("div"); app.id="app";
@@ -2156,28 +2270,7 @@ const nova = {
         const refreshOpenGameViews=()=>{
             document.querySelectorAll("[data-nova-game-count]").forEach(el=>{el.textContent=String(GAMES.length);});
 
-            document.querySelectorAll(".os-games-app").forEach(app=>{
-                const input=app.querySelector("#os-games-search");
-                const host=app.querySelector("#os-gamegrid-pro");
-                if(!host) return;
-                const q=(input?.value||"").toLowerCase().trim();
-                let indices=[];
-                if(q){
-                    for(let i=0;i<GAMES.length;i++){
-                        const g=GAMES[i],t=(g.title||"").toLowerCase(),d=(g.desc||"").toLowerCase();
-                        if(t.includes(q)||d.includes(q)) indices.push(i);
-                    }
-                    indices=indices.slice(0,80);
-                }else{
-                    const end=Math.min(GAMES.length,48);
-                    indices=Array.from({length:end},(_,i)=>i);
-                    app.dataset.loaded=String(end);
-                }
-                host.innerHTML=indices.map(i=>{
-                    const g=GAMES[i];
-                    return `<button class="os-game-pro" data-game="${i}"><span class="os-game-icon-pro">${this.esc((g.title||"?").charAt(0).toUpperCase())}</span><span class="os-game-title-pro">${this.esc(g.title)}</span><small>${g.autoDetected?"Live":"Application"}</small></button>`;
-                }).join("") || `<div class="os-service-copy">No games found</div>`;
-            });
+            this.osRefreshLibrary();
 
             document.querySelectorAll(".os-finder .os-file-grid").forEach(grid=>{
                 grid.innerHTML=GAMES.map((g,i)=>`<button class="os-file-item" data-game="${i}"><span class="os-file-icon">${this.esc((g.title||"?").charAt(0).toUpperCase())}</span><span>${this.esc(g.title)}</span></button>`).join("");
@@ -2192,25 +2285,7 @@ const nova = {
             const b=e.target.closest("#os-games-search"); if(b) e.stopPropagation();
             if(e.target.id==="os-use-os") this.setUIMode("os");
         },true);
-        document.addEventListener("input",e=>{
-            if(e.target.id!=="os-games-search")return;
-            const host=e.target.closest(".os-games-app")?.querySelector("#os-gamegrid-pro"); if(!host)return;
-            const q=e.target.value.toLowerCase().trim();
-            if(q){
-                const matches=[];
-                for(let i=0;i<GAMES.length;i++){const g=GAMES[i];const t=(g.title||"").toLowerCase(),d=(g.desc||"").toLowerCase();if(t.includes(q)||d.includes(q))matches.push(i);}
-                host.innerHTML=matches.slice(0,80).map(i=>{const g=GAMES[i];return `<button class="os-game-pro" data-game="${i}"><span class="os-game-icon-pro">${this.esc((g.title||"?").charAt(0).toUpperCase())}</span><span class="os-game-title-pro">${this.esc(g.title)}</span><small>Application</small></button>`}).join("") || `<div class="os-service-copy">No games found</div>`;
-                return;
-            }
-            const app=e.target.closest(".os-games-app");
-            const loaded=Number(app?.dataset.loaded||0);
-            if(app && loaded<GAMES.length){
-                const end=Math.min(GAMES.length,loaded+48);
-                const frag=document.createDocumentFragment();
-                for(let i=loaded;i<end;i++){const g=GAMES[i];const b=document.createElement("button");b.className="os-game-pro";b.dataset.game=i;b.innerHTML=`<span class="os-game-icon-pro">${this.esc((g.title||"?").charAt(0).toUpperCase())}</span><span class="os-game-title-pro">${this.esc(g.title)}</span><small>Application</small>`;frag.appendChild(b);}
-                host.appendChild(frag); app.dataset.loaded=end;
-            }
-        },true);
+
     },
 
     // ── CARDS & FILTERING ───────────────────────────────────────
@@ -2466,7 +2541,7 @@ const nova = {
         if(idx>-1){ this.favorites.splice(idx,1); cardEl.classList.remove("fav"); }
         else{ this.favorites.push(title); cardEl.classList.add("fav"); }
         try{ localStorage.setItem("ng_f",JSON.stringify(this.favorites)); }catch(e){}
-        this.filter(); this.hideCtx();
+        this.filter(); this.hideCtx(); this.osRefreshLibrary();
     },
 
     // ── SAVE OFFLINE ────────────────────────────────────────────
@@ -3747,9 +3822,11 @@ body.os-mode{overflow:hidden;background:#05060b}body.os-mode #grid,body.os-mode 
         this.buildDOM();
         this.dots();
         this.bindEvents();
+        this.osBindLibrary();
     }
 };
 
+window.nova = nova;
 nova.boot();
 
 
@@ -3842,15 +3919,16 @@ body{min-height:100vh}.nav{height:70px;display:flex;align-items:center;justify-c
 let expr="",d=document.getElementById("display");
 function press(x){
  if(x==="C"){expr="";d.textContent="0";return}
+ if(x==="Backspace"){expr=expr.slice(0,-1);d.textContent=expr||"0";return}
  if(x==="="){
    if(expr==="1234"){parent.postMessage({type:"nova-launch-os"},"*");return}
-   try{let safe=expr.replaceAll("×","*").replaceAll("÷","/").replaceAll("−","-");if(!/^[0-9+*/().%\\s-]+$/.test(safe))throw 0;d.textContent=String(Function("return ("+safe+")")())}catch(_){d.textContent="Error"}return
+   try{let safe=expr.replaceAll("×","*").replaceAll("÷","/").replaceAll("−","-");if(!/^[0-9+*/().%\\s-]+$/.test(safe))throw 0;const value=Function("return ("+safe+")")();if(!Number.isFinite(value))throw 0;expr=String(value);d.textContent=expr}catch(_){d.textContent="Error"}return
  }
  if(d.textContent==="Error")expr="";
  expr+=x;d.textContent=expr
 }
 document.querySelectorAll(".keys button").forEach(b=>b.onclick=()=>press(b.textContent));
-document.addEventListener("keydown",e=>{if(/[0-9.+*/-]/.test(e.key))press(e.key);if(e.key==="Enter")press("=");if(e.key==="Escape")press("C")});
+document.addEventListener("keydown",e=>{if(e.ctrlKey||e.metaKey||e.altKey)return;const key=e.key;if(/^[0-9.+*/()-]$/.test(key)||["Enter","Escape","Backspace","="].includes(key)){e.preventDefault();press(key==="Enter"?"=":key==="Escape"?"C":key)}});
 </script></body></html>`;
 
 function showEducationStart(){
@@ -4012,7 +4090,7 @@ document.addEventListener("fullscreenchange",()=>{
 try{document.title='Home - Classroom'}catch(_){}
 
 (function(){
-  document.documentElement.classList.add("nova-perf-mode");
+  document.documentElement.classList.toggle("nova-perf-mode", nova.isLowSpec);
   const s=document.createElement("style");
   s.id="nova-ultra-performance";
   s.textContent=`
@@ -4136,7 +4214,20 @@ try{document.title='Home - Classroom'}catch(_){}
     sunset:'radial-gradient(60vw 55vw at 10% 10%,rgba(255,105,50,.30),transparent 62%),radial-gradient(55vw 55vw at 90% 80%,rgba(255,40,140,.20),transparent 62%),#170a06',
     plain:'linear-gradient(#080b12,#080b12)'
   };
-  function load(){try{return {...defaults,...JSON.parse(localStorage.getItem(STORAGE)||'{}')}}catch{return {...defaults}}}
+  function load(){
+    let raw={};try{raw=JSON.parse(localStorage.getItem(STORAGE)||'{}')||{}}catch{}
+    const a={...defaults};
+    if(typeof raw!=='object'||Array.isArray(raw))return a;
+    for(const [key,allowed] of Object.entries({theme:Object.keys(themes),wallpaper:[...Object.keys(wallpapers),'custom'],font:['system','serif','mono','rounded','condensed'],dockPosition:['bottom','left','right']})){
+      if(allowed.includes(raw[key]))a[key]=raw[key];
+    }
+    for(const key of ['animations','desktopGrid','showLabels','highContrast'])if(typeof raw[key]==='boolean')a[key]=raw[key];
+    for(const [key,min,max] of [['scale',85,120],['radius',4,32],['dockSize',48,92]])if(Number.isFinite(raw[key]))a[key]=Math.max(min,Math.min(max,raw[key]));
+    if(/^#[0-9a-f]{6}$/i.test(raw.accent))a.accent=raw.accent;
+    if(typeof raw.wallpaperUrl==='string'&&/^(https?:|data:image\/)/i.test(raw.wallpaperUrl))a.wallpaperUrl=raw.wallpaperUrl;
+    if(['default','pointer','crosshair','cell','grab','zoom-in'].includes(raw.cursor)||typeof raw.cursor==='string'&&/^url\("https?:[^"\r\n]+"\) 16 16, auto$/.test(raw.cursor))a.cursor=raw.cursor;
+    return a;
+  }
   function save(a){try{localStorage.setItem(STORAGE,JSON.stringify(a))}catch{}}
   function apply(){
     const a=load(), t=themes[a.theme]||themes.midnight, root=document.documentElement;
@@ -4150,6 +4241,7 @@ try{document.title='Home - Classroom'}catch(_){}
     root.style.setProperty('--nova-theme-border',a.accent);
     document.body.dataset.novaTheme=a.theme; document.body.dataset.novaFont=a.font; document.body.dataset.novaCursor=a.cursor;
     document.body.classList.toggle('nova-no-animations',!a.animations);
+    root.classList.toggle('nova-perf-mode',nova.isLowSpec || !a.animations);
     document.body.classList.toggle('nova-high-contrast',!!a.highContrast);
     document.body.classList.toggle('nova-hide-desktop-grid',!a.desktopGrid);
     document.body.classList.toggle('nova-hide-dock-labels',!a.showLabels);
@@ -4216,6 +4308,7 @@ try{document.title='Home - Classroom'}catch(_){}
   };
   function update(key,val){const a=load();a[key]=val;save(a);apply();}
   document.addEventListener('click',e=>{
+    if(!e.target.closest('.nova-mega-settings'))return;
     const tab=e.target.closest('[data-set-tab]'); if(tab){const root=tab.closest('.nova-mega-settings');root?.querySelectorAll('.nova-set-tab').forEach(x=>x.classList.toggle('active',x===tab));root?.querySelectorAll('.nova-set-page').forEach(x=>x.classList.toggle('active',x.dataset.setPage===tab.dataset.setTab));return;}
     const theme=e.target.closest('[data-theme]');if(theme){update('theme',theme.dataset.theme);theme.closest('.nova-mega-settings')?.querySelectorAll('[data-theme]').forEach(x=>x.classList.toggle('selected',x===theme));return;}
     const wall=e.target.closest('[data-wallpaper]');if(wall){update('wallpaper',wall.dataset.wallpaper);wall.closest('.nova-mega-settings')?.querySelectorAll('[data-wallpaper]').forEach(x=>x.classList.toggle('selected',x===wall));return;}
@@ -4223,10 +4316,11 @@ try{document.title='Home - Classroom'}catch(_){}
     const font=e.target.closest('[data-font]');if(font){update('font',font.dataset.font);font.closest('.nova-mega-settings')?.querySelectorAll('[data-font]').forEach(x=>x.classList.toggle('selected',x===font));return;}
     if(e.target.id==='nova-wall-apply'){const u=e.target.closest('.nova-mega-settings')?.querySelector('#nova-wall-url')?.value.trim();if(u)update('wallpaperUrl',u),update('wallpaper','custom');return;}
     if(e.target.id==='nova-cursor-url-apply'){const u=e.target.closest('.nova-mega-settings')?.querySelector('#nova-cursor-url')?.value.trim();if(u){const a=load();a.cursor='url("'+u.replace(/"/g,'')+'") 16 16, auto';save(a);apply();}return;}
-    if(e.target.id==='nova-performance'){update('animations',false);return;}
+    if(e.target.id==='nova-performance'){const enabled=!load().animations;update('animations',enabled);e.target.textContent=enabled?'Enable':'Enabled';return;}
     if(e.target.id==='nova-appearance-reset'){save({...defaults});apply();const w=e.target.closest('.os-window');if(w) w.querySelector('.os-win-content').innerHTML=nova.osSettingsBody();return;}
   },true);
   document.addEventListener('change',e=>{
+    if(!e.target.closest('.nova-mega-settings'))return;
     const t=e.target;
     if(t.matches('[data-pref]')) update(t.dataset.pref,t.checked);
     if(t.id==='nova-accent') update('accent',t.value);
@@ -4266,6 +4360,7 @@ try{document.title='Home - Classroom'}catch(_){}
     .nova-mega-settings{height:100%;display:grid;grid-template-columns:210px minmax(0,1fr);background:#11141c;color:#fff;font-family:var(--nova-font-family)}.nova-settings-side{padding:16px;border-right:1px solid rgba(255,255,255,.08);background:#0d1017}.nova-settings-brand{font-size:17px;font-weight:800;padding:10px 10px 18px}.nova-set-tab{display:block;width:100%;padding:10px 12px;margin:3px 0;border:0!important;border-radius:10px;background:transparent!important;color:rgba(255,255,255,.62)!important;text-align:left;cursor:pointer;box-shadow:none!important}.nova-set-tab.active,.nova-set-tab:hover{background:#202532!important;color:#fff!important}.nova-settings-main{padding:28px;overflow:auto}.nova-set-page{display:none}.nova-set-page.active{display:block}.nova-set-page h2{font-size:27px;margin:0 0 5px}.nova-settings-sub{opacity:.55;margin:0 0 22px}.nova-theme-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(125px,1fr));gap:10px}.nova-theme-card,.nova-wall-card,.nova-cursor-card,.nova-font-card{border:1px solid rgba(255,255,255,.09)!important;background:#181c26!important;color:#fff!important;border-radius:14px!important;padding:8px!important;text-align:left;cursor:pointer;box-shadow:none!important}.nova-theme-card.selected,.nova-wall-card.selected,.nova-cursor-card.selected,.nova-font-card.selected{outline:2px solid var(--nova-accent)!important}.nova-theme-card>span{height:65px;display:block;border-radius:9px;position:relative}.nova-theme-card i{position:absolute;width:22px;height:22px;border-radius:50%;left:10px;bottom:10px}.nova-theme-card strong,.nova-theme-card small,.nova-wall-card strong,.nova-cursor-card strong,.nova-font-card strong{display:block;margin-top:7px}.nova-theme-card small{opacity:.5}.nova-control-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:18px}.nova-control-grid label,.nova-set-page>label{display:flex;flex-direction:column;gap:8px;font-size:12px;color:rgba(255,255,255,.7)}.nova-control-grid output,.nova-set-page output{font-size:11px;opacity:.6}.nova-control-grid input[type=range],.nova-set-page input[type=range]{width:100%}.nova-wall-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}.nova-wall-card span{display:block;height:82px;border-radius:10px}.nova-custom-wall{background:repeating-linear-gradient(45deg,#222 0 10px,#333 10px 20px)!important}.nova-upload-row{display:grid;grid-template-columns:1fr 1.5fr auto;gap:8px;margin-top:18px}.nova-upload-row input,.nova-set-page input[type=url],.nova-set-page select{box-sizing:border-box;background:#090b10;border:1px solid rgba(255,255,255,.1);color:#fff;border-radius:9px;padding:10px}.nova-upload-row button,.nova-set-page button{background:#202532;color:#fff;border:1px solid rgba(255,255,255,.1);border-radius:9px;padding:9px 13px;cursor:pointer}.nova-switch-row{display:flex!important;flex-direction:row!important;justify-content:space-between;align-items:center;padding:15px;border-radius:12px;background:#181c26;margin:9px 0}.nova-switch-row span{display:flex;flex-direction:column;gap:4px}.nova-switch-row small{opacity:.5}.nova-cursor-grid,.nova-font-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px}.nova-cursor-card{text-align:center!important}.nova-cursor-card span{display:block;font-size:34px;height:45px}.nova-font-card{text-align:center!important}.nova-font-card span{display:block;font-size:32px}.font-serif{font-family:Georgia}.font-mono{font-family:monospace}.font-rounded{font-family:ui-rounded}.font-condensed{font-family:"Arial Narrow"}.nova-mini-note{margin-top:15px;opacity:.45;font-size:11px}.nova-perf-card{display:flex;align-items:center;gap:14px;padding:16px;margin:10px 0;background:#181c26;border-radius:13px}.nova-perf-card b{min-width:140px}.nova-perf-card span{flex:1;opacity:.55;font-size:12px}.nova-perf-card button{background:#202532;color:#fff;border:1px solid rgba(255,255,255,.1);border-radius:9px;padding:9px 13px}
     @media(max-width:700px){.nova-mega-settings{grid-template-columns:1fr}.nova-settings-side{display:flex;overflow:auto;border-right:0;border-bottom:1px solid rgba(255,255,255,.08)}.nova-settings-brand{display:none}.nova-set-tab{white-space:nowrap;width:auto}.nova-control-grid{grid-template-columns:1fr}.nova-upload-row{grid-template-columns:1fr}}
   `;document.head.appendChild(style);
+  window.addEventListener('nova:os-rendered',apply);
   apply();
 })();
 
@@ -4403,4 +4498,75 @@ html:fullscreen body{width:100vw!important;height:100vh!important;overflow:hidde
     }
   `;
   document.head.appendChild(style);
+})();
+
+// Nova 6 shared theme and library styles.
+(function(){
+const style=document.createElement("style");
+style.id="nova-v6-design";
+style.textContent=`/* Nova 6: opaque, theme-aware surfaces and a responsive game library. */
+#os-desktop{--nova-muted:color-mix(in srgb,var(--nova-text) 58%,transparent);--nova-line:color-mix(in srgb,var(--nova-text) 12%,transparent);--nova-raised:color-mix(in srgb,var(--nova-surface) 93%,var(--nova-text));color-scheme:dark}
+body[data-nova-theme="arctic"] #os-desktop{color-scheme:light}
+#os-desktop h1,#os-desktop h2,#os-desktop h3{font-family:var(--nova-font-family)!important;font-weight:750!important;letter-spacing:-.04em}
+#os-desktop button,#os-desktop input,#os-desktop select{font-family:inherit;box-shadow:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+#os-desktop :is(button,input,select,a):focus-visible{outline:2px solid var(--nova-accent)!important;outline-offset:3px}
+#os-desktop .os-window{min-width:min(420px,calc(100% - 32px))!important;min-height:min(300px,calc(100% - 32px))!important;max-width:calc(100% - 32px);max-height:calc(100% - 32px);border:1px solid var(--nova-line)!important;box-shadow:0 24px 80px #0005!important}
+#os-desktop .os-window:is(.maximized,.os-fullscreen){max-width:100%;max-height:100%}
+#os-desktop .os-window.focused{border-color:color-mix(in srgb,var(--nova-accent) 45%,var(--nova-line))!important}
+#os-desktop :is(.os-menubar,.os-winbar,.os-dock-wrap,.os-browser-toolbar){background:var(--nova-bar)!important;color:var(--nova-text)!important}
+#os-desktop :is(.os-window,.os-quick-panel,.os-app-menu,.os-window-context,.os-games-app,.os-finder-app,.os-browser-app,.os-education-app,.os-app-panel,.os-panel){background:var(--nova-surface)!important;color:var(--nova-text)!important}
+#os-desktop :is(.os-dicon,.os-dock-icon,.os-file-item,.os-qgrid button,.os-app-menu button){background:var(--nova-raised)!important;color:var(--nova-text)!important}
+#os-desktop :is(input,select,textarea){background:var(--nova-bar)!important;color:var(--nova-text)!important;border-color:var(--nova-line)!important}
+#os-desktop input::placeholder{color:var(--nova-muted)}
+#os-desktop :is(.os-win-title,.os-menu-item,.os-menu-right,.os-menu-left,.os-control){color:var(--nova-text)!important}
+#os-desktop .nova-library{height:100%;min-height:0;overflow:hidden;display:flex;flex-direction:column;background:var(--nova-surface)!important;color:var(--nova-text)}
+.nova-library *{box-sizing:border-box}
+.nova-library-header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:28px 28px 22px;background:radial-gradient(ellipse at 100% 0%,color-mix(in srgb,var(--nova-accent) 15%,transparent),transparent 65%);flex-shrink:0}
+.nova-library-kicker{font-size:10px;letter-spacing:.22em;font-weight:800;color:var(--nova-accent)}
+#os-desktop .nova-library-header h2{font-size:clamp(25px,3vw,38px);line-height:1.12;margin:9px 0}
+.nova-library-header p{font-size:12px;margin:0;color:var(--nova-muted)}
+.nova-library-total{display:grid;text-align:right;gap:3px;font-size:11px;color:var(--nova-muted);white-space:nowrap}.nova-library-total b{font-size:26px;letter-spacing:-.05em;color:var(--nova-text)}
+.nova-library-tools{display:flex;gap:10px;padding:0 28px 18px;flex-shrink:0}
+.nova-library-search{display:flex;align-items:center;gap:9px;flex:1;min-width:0;border:1px solid var(--nova-line);border-radius:12px;padding:0 12px;background:var(--nova-bar)}
+.nova-library-search>span{font-size:24px;color:var(--nova-muted)}
+#os-desktop .nova-library-search input{width:100%;min-width:0;padding:12px 0!important;border:0!important;background:transparent!important;border-radius:0!important;font-size:13px;outline-offset:1px}
+.nova-library-search kbd{border:1px solid var(--nova-line);border-radius:4px;padding:1px 5px;color:var(--nova-muted);font-size:11px}
+#os-desktop #nova-library-sort{max-width:145px;border:1px solid var(--nova-line);border-radius:12px;padding:0 10px;font-size:12px}
+.nova-library-tabs{display:flex;align-items:center;gap:5px;padding:0 28px 14px;border-bottom:1px solid var(--nova-line);flex-shrink:0}
+#os-desktop .nova-library-tabs button{padding:8px 11px;font-size:12px;border:1px solid transparent!important;border-radius:8px;background:transparent!important;color:var(--nova-muted)!important;cursor:pointer}
+#os-desktop .nova-library-tabs button[aria-pressed="true"]{background:color-mix(in srgb,var(--nova-accent) 14%,transparent)!important;color:var(--nova-text)!important;border-color:color-mix(in srgb,var(--nova-accent) 32%,transparent)!important}
+.nova-library-result{margin-left:auto;font-size:10px;color:var(--nova-muted);white-space:nowrap}
+.nova-library-scroll{overflow:auto;min-height:0;flex:1;padding:20px 28px;scrollbar-width:thin;scrollbar-color:var(--nova-line) transparent}
+.nova-library-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(165px,1fr));gap:16px}
+.nova-library-card{min-width:0;background:var(--nova-raised);border:1px solid var(--nova-line);border-radius:14px;overflow:hidden;transition:border-color .16s,translate .16s}
+.nova-library-card:hover{border-color:color-mix(in srgb,var(--nova-accent) 65%,transparent);translate:0 -3px}
+.nova-no-animations .nova-library-card:hover{translate:none}
+#os-desktop .nova-library-launch{display:block;width:100%;border:0!important;border-radius:0!important;background:transparent!important;color:var(--nova-text)!important;padding:0;text-align:left;cursor:pointer;transform:none!important}
+.nova-game-art{height:108px;position:relative;display:grid;place-items:center;overflow:hidden;background:radial-gradient(ellipse at 10% 10%,hsl(var(--game-hue) 68% 65% / .6),transparent 70%),linear-gradient(130deg,hsl(var(--game-hue) 50% 29%),hsl(calc(var(--game-hue) + 45) 48% 13%));color:white}
+.nova-game-art::before,.nova-game-art::after{content:"";position:absolute;width:100px;height:100px;rotate:-30deg;border:1px solid #ffffff20;border-radius:25px;right:-10px;top:-30px}.nova-game-art::after{right:auto;top:auto;left:-35px;bottom:-75px;width:180px;height:180px;border-radius:50%}
+.nova-game-art>span{font-size:33px;letter-spacing:-.08em;font-weight:850;text-shadow:0 3px 15px #0004}.nova-game-art i{position:absolute;bottom:9px;right:12px;font-style:normal;font-size:15px;opacity:.7}
+.nova-game-copy{display:grid;gap:7px;padding:13px 13px 8px}.nova-game-copy strong{font-size:12px;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.nova-game-copy small{font-size:10px;line-height:1.5;color:var(--nova-muted);height:30px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.nova-game-footer{padding:0 9px 9px 13px;display:flex;align-items:center;justify-content:space-between;gap:4px}.nova-game-footer>span{font-size:8px;letter-spacing:.09em;color:var(--nova-muted)}
+#os-desktop .nova-game-footer button{width:32px;height:32px;padding:0;background:transparent!important;border:0!important;color:var(--nova-muted)!important;border-radius:8px;cursor:pointer;font-size:21px}
+#os-desktop .nova-game-footer button[aria-pressed="true"]{color:var(--nova-accent)!important}
+.nova-library-empty{text-align:center;padding:40px 15px;color:var(--nova-muted)}.nova-library-empty>span{font-size:32px;color:var(--nova-accent)}.nova-library-empty h3{font-size:22px;color:var(--nova-text)}.nova-library-empty p{font-size:12px}
+#os-desktop :is(.nova-library-more,[data-library-reset]){display:block;margin:20px auto 4px;border:1px solid var(--nova-line)!important;background:var(--nova-raised)!important;border-radius:10px;padding:10px 18px;color:var(--nova-text)!important;cursor:pointer;font-size:12px}
+#os-desktop .nova-library [hidden]{display:none!important}
+.nova-library-status{display:flex;justify-content:space-between;gap:10px;padding:10px 28px;border-top:1px solid var(--nova-line);font-size:9px;color:var(--nova-muted);flex-shrink:0}
+#os-desktop :is(.nova-mega-settings,.nova-settings-main){background:var(--nova-surface)!important;color:var(--nova-text)!important}
+#os-desktop .nova-settings-side{background:var(--nova-bar)!important;border-color:var(--nova-line)}
+#os-desktop :is(.nova-theme-card,.nova-wall-card,.nova-cursor-card,.nova-font-card,.nova-switch-row,.nova-perf-card){background:var(--nova-raised)!important;color:var(--nova-text)!important;border-color:var(--nova-line)!important}
+#os-desktop :is(.nova-set-tab,.nova-control-grid label,.nova-set-page>label){color:var(--nova-text)!important}
+#os-desktop .nova-set-tab.active{background:var(--nova-raised)!important}
+#os-desktop .nova-set-page button{color:var(--nova-text)!important}
+#os-desktop[data-dock-position="left"] .os-dock-wrap,#os-desktop[data-dock-position="right"] .os-dock-wrap{opacity:1!important;pointer-events:auto!important;transform:translateY(-50%)!important}
+@media(max-width:600px){.nova-library-header{padding:18px 16px 14px}.nova-library-tools{padding:0 16px 12px}.nova-library-tabs{padding:0 16px 12px;flex-wrap:wrap}.nova-library-scroll{padding:14px 16px}.nova-library-grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}.nova-library-result{display:none}.nova-library-status{padding:10px 16px}.nova-library-status>span:last-child{display:none}.nova-library-total{display:none}.nova-library-tabs button{font-size:11px!important;padding:7px 8px!important}.nova-library-search kbd{display:none}.nova-game-art{height:90px}.nova-perf-card{flex-wrap:wrap}.nova-perf-card b{min-width:0}}
+@media(prefers-reduced-motion:reduce){#os-desktop *,#os-desktop *::before,#os-desktop *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}.nova-library-card:hover{translate:none}}
+`;
+document.head.appendChild(style);
+})();
+
+}
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",startNova,{once:true});
+else startNova();
 })();
