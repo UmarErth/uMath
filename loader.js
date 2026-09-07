@@ -102,8 +102,8 @@ const SAVE_URL      = "https://cdn.jsdelivr.net/gh/UmarErth/uMath@main/singlefil
 const SAVE_FILENAME = "NovaGaming.html";
 
 // ─── GOOGLE GEMINI AI CONFIG ────────────────────────────────────
-const GEMINI_API_KEY = "AQ.Ab8RN6JhWU46D44KxMFcmoRQAghUEuF3kSry4XuhmVlXnO2PLA";
-const YOUTUBE_API_KEY = "AIzaSyBBZfqeF_ZEhnMZzL0g2gNytr0OrJopfmc";
+const GEMINI_API_KEY = typeof window.NOVA_API_KEYS?.gemini === "string" ? window.NOVA_API_KEYS.gemini : "";
+const YOUTUBE_API_KEY = typeof window.NOVA_API_KEYS?.youtube === "string" ? window.NOVA_API_KEYS.youtube : "";
 const DEFAULT_UI_MODE = "os";
 
 // ─── PIPED & INVIDIOUS INSTANCE POOL ────────────────────────────
@@ -1507,6 +1507,7 @@ const nova = {
         this.osRenderIcons();
         this.osRenderDock();
         this.osClockStart();
+        this.osChatNotificationControls();
         window.dispatchEvent(new Event("nova:os-rendered"));
         // Let the OS shell paint before constructing the Games window.
         // This makes 1234 = feel instant instead of blocking on a large DOM build.
@@ -1784,7 +1785,7 @@ const nova = {
     },
 
     osFocusWindow(w){
-        if(!w)return; let max=1001; document.querySelectorAll(".os-window").forEach(x=>max=Math.max(max,parseInt(x.style.zIndex||1000,10))); w.style.zIndex=max+1; document.querySelectorAll(".os-window").forEach(x=>x.classList.remove("focused")); w.classList.add("focused");
+        if(!w)return; let max=1001; document.querySelectorAll(".os-window").forEach(x=>max=Math.max(max,parseInt(x.style.zIndex||1000,10))); w.style.zIndex=max+1; document.querySelectorAll(".os-window").forEach(x=>x.classList.remove("focused")); w.classList.add("focused"); this.osChatVisibility();
     },
     osMakeWindowInteractive(w){
         const bar=w.querySelector(".os-winbar"); let dragging=false,sx=0,sy=0,sl=0,st=0;
@@ -1821,7 +1822,7 @@ const nova = {
         bar.addEventListener("pointercancel",stopDrag);
         bar.addEventListener("lostpointercapture",stopDrag);
         w.addEventListener("pointerdown",()=>this.osFocusWindow(w));
-        w.querySelectorAll("[data-win]").forEach(b=>b.addEventListener("click",()=>{const a=b.dataset.win;if(a==="close")w.remove();else if(a==="min")w.classList.toggle("minimized");else if(a==="max")this.osToggleMax(w);else if(a==="fullscreen")this.osToggleFullscreen(w);else if(a==="more")this.osShowWindowMenu(w,b.getBoundingClientRect().left,b.getBoundingClientRect().bottom);}));
+        w.querySelectorAll("[data-win]").forEach(b=>b.addEventListener("click",()=>{const a=b.dataset.win;if(a==="close")this.osCloseWindow(w);else if(a==="min")w.classList.toggle("minimized");else if(a==="max")this.osToggleMax(w);else if(a==="fullscreen")this.osToggleFullscreen(w);else if(a==="more")this.osShowWindowMenu(w,b.getBoundingClientRect().left,b.getBoundingClientRect().bottom);}));
         w.addEventListener("contextmenu",e=>{ if(e.target.closest('.os-winbar')) return; e.preventDefault(); this.osShowWindowMenu(w,e.clientX,e.clientY); });
         const resize=w.querySelector(".os-resize"); let resizing=false,rsx=0,rsy=0,rw=0,rh=0;
         resize.addEventListener("pointerdown",e=>{resizing=true;rsx=e.clientX;rsy=e.clientY;rw=w.offsetWidth;rh=w.offsetHeight;resize.setPointerCapture?.(e.pointerId);e.stopPropagation();});
@@ -1850,7 +1851,7 @@ const nova = {
             else if(a==='cloak')w.classList.toggle('cloaked');
             else if(a==='top'){w.classList.toggle('always-top'); this.osFocusWindow(w);}
             else if(a==='download')this.osDownloadWindow(w);
-            else if(a==='close')w.remove();
+            else if(a==='close')this.osCloseWindow(w);
         }));
         setTimeout(()=>document.addEventListener('pointerdown',function close(ev){if(!menu.contains(ev.target)){menu.remove();document.removeEventListener('pointerdown',close)}},{once:true}),0);
     },
@@ -2094,13 +2095,89 @@ const nova = {
         return w;
     },
 
+    // A private MessagePort is transferred only to the known Nova Chat origin.
+    osChatConnect(w){
+        const frame=w.querySelector('iframe');if(!frame)return;
+        const attach=()=>{
+            this._chatPort?.close();
+            const channel=new MessageChannel();this._chatPort=channel.port1;
+            this._chatPort.onmessage=event=>{
+                const data=event.data;
+                if(!data || typeof data!=='object')return;
+                if(data.type==='ready'){this.osChatVisibility();return;}
+                if(data.type==='focus' && !w.classList.contains('minimized')){this.osFocusWindow(w);return;}
+                if(data.type==='unread' && Number.isSafeInteger(data.count) && data.count>=0){
+                    this._chatUnread=Math.min(data.count,9999);this.osChatBadge();
+                    if(!data.count){document.getElementById('nova-chat-toast')?.remove();this._chatSystemAlert?.close();}
+                }
+                if(data.type==='dm' && typeof data.peer==='string' && /^[a-f0-9]{64}$/.test(data.peer) && typeof data.user==='string' && typeof data.text==='string'){
+                    this._chatLatest=data.peer;this.osChatNotify(data);
+                }
+            };
+            channel.port1.start();
+            frame.contentWindow.postMessage({type:'nova-chat-connect'},'https://global-chat.umarerthteam.workers.dev',[channel.port2]);
+        };
+        frame.addEventListener('load',attach);
+        // The load event handles both the initial page and reconnecting after navigation.
+        this.osChatVisibility();
+    },
+    osChatVisibility(){
+        const w=document.querySelector('.os-window[data-key="nova-chatroom"]');
+        const visible=!!w && !w.classList.contains('minimized') && w.classList.contains('focused') && !document.hidden && document.hasFocus();
+        try{this._chatPort?.postMessage({type:'visibility',visible});}catch{}
+    },
+    osChatBadge(){
+        const button=document.getElementById('nova-chat-notifications');
+        if(button){button.textContent='DMs'+(this._chatUnread?' · '+this._chatUnread:'');button.setAttribute('aria-label',(this._chatUnread||0)+' unread direct messages');}
+    },
+    osChatNotify(data){
+        document.getElementById('nova-chat-toast')?.remove();
+        const toast=document.createElement('div');toast.id='nova-chat-toast';toast.setAttribute('role','status');
+        toast.style.cssText='position:fixed;right:18px;top:54px;z-index:2147483001;max-width:360px;width:calc(100% - 36px);display:flex;gap:8px;padding:14px;border:1px solid #7c5cff80;border-radius:16px;background:#151821;color:#f7f8ff;box-shadow:0 12px 36px #0006;font:13px system-ui';
+        const open=document.createElement('button');open.type='button';open.style.cssText='flex:1;min-width:0;padding:4px;text-align:left;background:transparent;color:inherit;border:0;cursor:pointer';
+        const title=document.createElement('strong');title.textContent=data.user.slice(0,20)+' sent you a DM';
+        const text=document.createElement('span');text.textContent=data.text.slice(0,160);text.style.cssText='display:block;margin-top:6px;overflow-wrap:anywhere;line-height:1.5;opacity:.8';
+        open.append(title,text);open.addEventListener('click',()=>{this.osChatOpenPeer(data.peer);toast.remove();});
+        const close=document.createElement('button');close.type='button';close.textContent='×';close.setAttribute('aria-label','Dismiss notification');close.style.cssText='align-self:start;background:transparent;border:0;color:inherit;cursor:pointer;font-size:20px';close.addEventListener('click',()=>toast.remove());
+        toast.append(open,close);document.getElementById('os-desktop')?.appendChild(toast);
+        clearTimeout(this._chatToastTimer);this._chatToastTimer=setTimeout(()=>toast.remove(),12000);
+        let enabled=false;try{enabled=localStorage.getItem('nova_chat_alerts')==='on';}catch{}
+        if(enabled && 'Notification' in window && Notification.permission==='granted'){
+            try{this._chatSystemAlert?.close();const alert=new Notification('Nova Chat · '+data.user.slice(0,20),{body:data.text.slice(0,160),tag:'nova-chat-dm'});this._chatSystemAlert=alert;alert.onclick=()=>{window.focus();this.osChatOpenPeer(data.peer);alert.close();};}catch{}
+        }
+    },
+    osChatOpenPeer(peer){
+        this.osOpenChatroomWindow();this.osChatVisibility();
+        if(peer)try{this._chatPort?.postMessage({type:'open-dm',peer});}catch{}
+    },
+    osChatNotificationControls(){
+        const host=document.querySelector('#os-desktop .os-menu-right');if(!host || document.getElementById('nova-chat-notifications'))return;
+        const inbox=document.createElement('button');inbox.id='nova-chat-notifications';inbox.type='button';inbox.className='os-menu-item';
+        inbox.title='Direct messages · open Nova Chat once to connect';inbox.addEventListener('click',()=>this.osChatOpenPeer(this._chatLatest));
+        const enable=document.createElement('button');enable.type='button';enable.className='os-menu-item';
+        const update=()=>{let on=false;try{on=localStorage.getItem('nova_chat_alerts')==='on';}catch{}enable.textContent=on?'Alerts on':'Enable alerts';enable.setAttribute('aria-pressed',String(on));};
+        enable.addEventListener('click',async()=>{
+            let on=false;try{on=localStorage.getItem('nova_chat_alerts')==='on';}catch{}
+            if(on){try{localStorage.setItem('nova_chat_alerts','off');}catch{}this._chatSystemAlert?.close();update();return;}
+            if(!window.isSecureContext || window.parent!==window || !('Notification' in window)){enable.textContent='In-app alerts on';enable.title='Browser alerts require opening Nova directly over HTTPS. In-app alerts work here.';return;}
+            try{const permission=await Notification.requestPermission();if(permission==='granted'){localStorage.setItem('nova_chat_alerts','on');update();}else{enable.textContent='In-app alerts on';enable.title='Browser permission was not granted; in-app alerts still work.';}}catch{enable.textContent='In-app alerts on';}
+        });
+        update();host.prepend(inbox,enable);this.osChatBadge();
+    },
+    osCloseWindow(w){
+        if(w.dataset.key==='nova-chatroom'){
+            w.classList.add('minimized');this.osChatVisibility();
+        }else w.remove();
+    },
+
     osOpenChatroomWindow(){
         const key="nova-chatroom";
         const existing=document.querySelector(`.os-window[data-key="${CSS.escape(key)}"]`);
         if(existing){ this.osFocusWindow(existing); existing.classList.remove("minimized"); return existing; }
-        const url="https://global-chat.umarerthteam.workers.dev/";
+        const url="https://global-chat.umarerthteam.workers.dev/?novaEmbed=1";
         const body=`<div class="nova-app-frame-wrap"><iframe class="nova-app-frame" src="${url}" title="Nova Chatroom" allow="clipboard-read; clipboard-write"></iframe></div>`;
-        return this.osOpenWindow("Nova Chatroom",key,body,{center:true,width:1000,height:700});
+        const w=this.osOpenWindow("Nova Chatroom",key,body,{center:true,width:1000,height:700});
+        if(w)this.osChatConnect(w);return w;
     },
 
     osOpenBrowserWindow(){
@@ -3132,7 +3209,7 @@ const nova = {
 
     // ── OFFICIAL YOUTUBE DATA API ENGINE ──────────────────────────
     async _ytFetch(path, params={}) {
-        if (!YOUTUBE_API_KEY || YOUTUBE_API_KEY.includes("PASTE_YOUR")) throw new Error("Set YOUTUBE_API_KEY at the top of loader.js");
+        if (!YOUTUBE_API_KEY || YOUTUBE_API_KEY.includes("PASTE_YOUR")) throw new Error("Configure a YouTube API key in the host page before loading Nova.");
         const url=new URL(`https://www.googleapis.com/youtube/v3/${path}`);
         url.searchParams.set("key",YOUTUBE_API_KEY);
         Object.entries(params).forEach(([k,v])=>url.searchParams.set(k,String(v)));
@@ -3873,6 +3950,10 @@ body.os-mode{overflow:hidden;background:#05060b}body.os-mode #grid,body.os-mode 
         this.dots();
         this.bindEvents();
         this.osBindLibrary();
+        document.addEventListener('visibilitychange',()=>this.osChatVisibility());
+        window.addEventListener('focus',()=>this.osChatVisibility());
+        window.addEventListener('blur',()=>this.osChatVisibility());
+        document.addEventListener('click',()=>setTimeout(()=>this.osChatVisibility(),0));
     }
 };
 
