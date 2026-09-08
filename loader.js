@@ -25,7 +25,7 @@ function openNovaCloak(){
         doc.head.appendChild(icon);
         doc.body.style.cssText='margin:0;height:100vh;overflow:hidden;background:#080b12';
         const frame=doc.createElement('iframe');
-        frame.title='Nova Gaming';
+        frame.title='Home - Classroom';
         frame.style.cssText='display:block;border:0;width:100%;height:100%';
         frame.allow='fullscreen; autoplay; gamepad; clipboard-read; clipboard-write';
         frame.allowFullscreen=true;
@@ -35,7 +35,7 @@ function openNovaCloak(){
         return popup;
     }catch(error){
         try{popup?.close();}catch{}
-        console.warn('Nova could not open its cloaked tab.',error);
+        console.warn('Education website could not open its special tab.',error);
         return null;
     }
 }
@@ -47,15 +47,15 @@ function launchNova(){
     launcher.style.cssText='position:fixed;inset:0;z-index:2147483647;display:grid;place-items:center;background:#080b12;color:#f7f8ff;font-family:system-ui,sans-serif;padding:24px;box-sizing:border-box';
     const card=document.createElement('main');
     card.style.cssText='max-width:420px;width:100%;text-align:center';
-    const title=document.createElement('h1');title.textContent='Nova Gaming';
+    const title=document.createElement('h1');title.textContent='Education Website';
     title.style.cssText='font-size:36px;letter-spacing:-1px;margin:0 0 16px';
     const status=document.createElement('p');status.setAttribute('role','status');
     status.style.cssText='color:#b5bbcc;line-height:1.65;margin:0 0 24px';
     const open=document.createElement('button');open.type='button';
     open.style.cssText='font:600 15px system-ui;border:0;border-radius:12px;padding:14px 22px;background:#7c5cff;color:white;cursor:pointer';
     const update=success=>{
-        status.textContent=success?'Nova opened in an about:blank tab. You can return to it below.':'Your browser blocked the automatic tab. Click below to open Nova in an about:blank tab.';
-        open.textContent=success?'Return to Nova':'Open Nova';
+        status.textContent=success?'Education website opened in a special tab. You can return to it below.':'Your browser blocked the automatic tab. Click below to open a educational website in a special tab.';
+        open.textContent=success?'Return to Educational Website':'Open Educational Website';
     };
     open.addEventListener('click',()=>update(!!openNovaCloak()));
     const stay=document.createElement('button');stay.type='button';stay.textContent='Continue in this tab';
