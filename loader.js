@@ -3276,7 +3276,7 @@ const nova = {
 
         // YouTube is NOT a Nova game file. Do not pass YouTube embeds through
         // launch()/attachHtmlToIframe(), because that engine fetches remote
-        // HTML bytes for game files. youtube.com/embed is meant to be loaded
+        // HTML bytes for game files. youtube-nocookie.com/embed is meant to be loaded
         // directly in an iframe and its response is not CORS-fetchable.
         const body=document.getElementById("yp-body");
         if(!body)return;
@@ -3284,7 +3284,7 @@ const nova = {
         const origin=(location.protocol==="http:"||location.protocol==="https:")?location.origin:"";
         const params=new URLSearchParams({autoplay:"1",playsinline:"1",rel:"0",modestbranding:"1"});
         if(origin)params.set("origin",origin);
-        const embedUrl=`https://www.youtube.com/embed/${encodeURIComponent(videoId)}?${params.toString()}`;
+        const embedUrl=`https://www.youtube-nocookie.com/embed/${encodeURIComponent(videoId)}?${params.toString()}`;
         const safeTitle=this.esc(title||"YouTube Video");
 
         body.innerHTML=`
