@@ -799,7 +799,7 @@ const nova = {
     _animeState:"overview",
     _htmlCache: new Map(),
     _aiChats:[], _currentChatId:null, _aiGenerating:false,
-    _aiModels:[], _selectedModel:"gemini-1.5-flash",
+    _aiModels:[], _selectedModel:"gemini-2.5-flash",
     _aiAttachments:[],
     isLowSpec: false,
 
@@ -2739,10 +2739,11 @@ const nova = {
             let pageToken = "";
             do {
                 const url = new URL("https://generativelanguage.googleapis.com/v1beta/models");
-                url.searchParams.set("key", GEMINI_API_KEY);
                 url.searchParams.set("pageSize", "1000");
                 if (pageToken) url.searchParams.set("pageToken", pageToken);
-                const res = await fetch(url.toString());
+                const res = await fetch(url.toString(), {
+                    headers: { "x-goog-api-key": GEMINI_API_KEY }
+                });
                 if (!res.ok) {
                     const body = await res.text().catch(() => "");
                     throw new Error(`Models request failed (${res.status}) ${body}`);
@@ -3047,9 +3048,12 @@ const nova = {
                 };
             });
 
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${this._selectedModel}:generateContent?key=${GEMINI_API_KEY}`, {
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${this._selectedModel}:generateContent`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    "x-goog-api-key": GEMINI_API_KEY
+                },
                 body: JSON.stringify({ contents })
             });
 
