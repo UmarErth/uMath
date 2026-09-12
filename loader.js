@@ -2323,7 +2323,7 @@ const nova = {
         app.innerHTML=`
             <nav class="nova-topbar" aria-label="Primary navigation">
                 <button class="nova-wordmark" id="nova-home" type="button" aria-label="Nova Gaming home"><span class="nova-bolt">ϟ</span><strong>nova</strong><span>gaming</span></button>
-                <div class="nova-primary-links"><button data-nova-action="home" class="active">Games</button><button data-nova-action="ai">Nova AI</button><button data-nova-action="url:https://single-nova-worker.umarerthteam.workers.dev">Browser</button><button data-nova-action="url:https://global-chat.umarerthteam.workers.dev">Chat</button><button data-nova-action="os">OS style</button></div>
+                <div class="nova-primary-links"><button data-nova-action="home" class="active">Games</button><button data-nova-action="ai">Nova AI</button><button data-nova-action="youtube">YouTube</button><button data-nova-action="browser">Browser</button><button data-nova-action="chat">Chat</button><button data-nova-action="settings">Settings</button><button data-nova-action="os">OS style</button></div>
             </nav>
             <div id="tbr"><button class="tb-new" id="tb-new" title="New tab">+</button></div>
             <header>
@@ -2345,11 +2345,6 @@ const nova = {
             <div class="pbody">${MENU_ITEMS.map(m=>m.action==="separator"?`<div class="mdiv"></div>`:`<div class="mi" data-action="${m.action}" ${m.newTab?'data-nt="1"':''}><span class="miw">${m.icon}</span><span class="mil">${this.esc(m.label)}</span></div>`).join("")}</div>
             <div class="pft">${this.esc(SITE_TAGLINE)}</div>`;
         document.body.appendChild(panel);
-
-        // Bottom Dock Nav Bar
-        const bnav=document.createElement("div"); bnav.id="bnav";
-        bnav.innerHTML=BOTTOM_NAV.filter(t=>!t.hidden).map(t=>`<button class="ntab${t.action==="home"?" on":""}" id="${t.id}" data-action="${t.action}"><span class="ni">${t.icon}</span><span>${this.esc(t.label)}</span></button>`).join("");
-        document.body.appendChild(bnav);
 
         // Confirm Modal
         const ntov=document.createElement("div"); ntov.id="ntov";
@@ -2405,11 +2400,21 @@ const nova = {
             </div>`;
         document.body.appendChild(aip);
 
-        // Education is the first page. Do not build the legacy Classic game grid
-        // during boot — that work is deferred until Classic is actually requested.
+        // Browser, chat, and settings stay inside the Nova workspace and participate in tabs.
+        const bp=document.createElement("div"); bp.id="browser-panel"; bp.className="fpanel nova-embed-panel";
+        bp.innerHTML=`<iframe title="Nova Browser" src="https://single-nova-worker.umarerthteam.workers.dev" allow="clipboard-read; clipboard-write; fullscreen" referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
+        document.body.appendChild(bp);
+        const cp=document.createElement("div"); cp.id="chat-panel"; cp.className="fpanel nova-embed-panel";
+        cp.innerHTML=`<iframe title="Nova Chat" src="https://global-chat.umarerthteam.workers.dev?novaEmbed=1" allow="notifications" referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
+        document.body.appendChild(cp);
+        const sp=document.createElement("div"); sp.id="settings-panel"; sp.className="fpanel nova-settings-panel";
+        sp.innerHTML=`<div class="fpbar"><div class="fp-ttl">Nova Settings</div></div><div class="fp-body">${this.osSettingsBody()}</div>`;
+        document.body.appendChild(sp);
+
+        // Open directly into the focused game library; OS style remains optional.
         if(!this._educationFirstBoot){
             this.renderCards();
-            this.tabNew("Home","home");
+            this.tabNew("Games","home");
         }
         this.uiModeInit();
 
@@ -2430,12 +2435,16 @@ const nova = {
             if(game && this.uiMode==="os"){ const idx=+game.dataset.game; if(Number.isInteger(idx)&&GAMES[idx]) this.osOpenGameWindow(GAMES[idx]); }
             const b=e.target.closest("#os-games-search"); if(b) e.stopPropagation();
             if(e.target.id==="os-use-os") this.setUIMode("os");
+            if(e.target.id==="os-use-classic") this.setUIMode("classic");
         },true);
-        app.querySelector("#nova-home")?.addEventListener("click",()=>this.dispatch("home"));
+        app.querySelector("#nova-home")?.addEventListener("click",()=>this.openWorkspaceTab("Games","home"));
         app.querySelectorAll("[data-nova-action]").forEach(button=>button.addEventListener("click",()=>{
             const action=button.dataset.novaAction;
             if(action==="os") this.setUIMode("os");
-            else this.dispatch(action);
+            else {
+                const titles={home:"Games",ai:"Nova AI",youtube:"YouTube",browser:"Browser",chat:"Chat",settings:"Settings"};
+                this.openWorkspaceTab(titles[action]||"Nova",action);
+            }
         }));
 
     },
@@ -2452,7 +2461,7 @@ const nova = {
             const descText=item.desc||"";
             const card=document.createElement("div");
             card.className=`card${this.favorites.includes(item.title)?" fav":""}`;
-            card.innerHTML=`<div class="game-art" aria-hidden="true"><span>${this.esc((item.title||"?").charAt(0).toUpperCase())}</span></div><div class="game-copy"><h3>${this.esc(item.title)}</h3><p>${this.esc(descText)}</p><span class="game-play">▶ Play now</span></div><span class="fvs">★</span>${item.newTab?'<span class="ntb">New Tab</span>':''}`;
+            card.innerHTML=`<div class="game-art" aria-hidden="true"><span>${this.esc((item.title||"?").charAt(0).toUpperCase())}</span></div><div class="game-copy"><h3>${this.esc(item.title)}</h3><p>${this.esc(descText)}</p><span class="game-play">▶ Play now</span></div><span class="fvs">★</span>`;
             card.addEventListener("click",()=>this.launch(item));
             card.addEventListener("contextmenu",e=>{e.preventDefault();e.stopPropagation();this.showCtx(e.clientX,e.clientY,item,card);});
             frag.appendChild(card);
@@ -2473,7 +2482,7 @@ const nova = {
             const item=GAMES[i],descText=item.desc||"";
             const card=document.createElement("div");
             card.className=`card${this.favorites.includes(item.title)?" fav":""}`;
-            card.innerHTML=`<div class="game-art" aria-hidden="true"><span>${this.esc((item.title||"?").charAt(0).toUpperCase())}</span></div><div class="game-copy"><h3>${this.esc(item.title)}</h3><p>${this.esc(descText)}</p><span class="game-play">▶ Play now</span></div><span class="fvs">★</span>${item.newTab?'<span class="ntb">New Tab</span>':''}`;
+            card.innerHTML=`<div class="game-art" aria-hidden="true"><span>${this.esc((item.title||"?").charAt(0).toUpperCase())}</span></div><div class="game-copy"><h3>${this.esc(item.title)}</h3><p>${this.esc(descText)}</p><span class="game-play">▶ Play now</span></div><span class="fvs">★</span>`;
             card.addEventListener("click",()=>this.launch(item));
             card.addEventListener("contextmenu",e=>{e.preventDefault();e.stopPropagation();this.showCtx(e.clientX,e.clientY,item,card);});
             frag.appendChild(card); this.cards.push({el:card,title:item.title,str:`${(item.title||"").toLowerCase()} ${descText.toLowerCase()}`});
@@ -2497,6 +2506,11 @@ const nova = {
         this.tabActivate(id);
         return id;
     },
+    openWorkspaceTab(title,action){
+        const existing=this._tabs.find(t=>t.action===action);
+        if(existing){this.tabActivate(existing.id);return existing.id;}
+        return this.tabNew(title,action);
+    },
     tabUpdateActive(title,action,url="",gameItem=null){
         const activeTab = this._tabs.find(t=>t.active);
         if(activeTab){
@@ -2516,10 +2530,11 @@ const nova = {
         const bar=document.getElementById("tbr"); if(!bar) return;
         bar.querySelectorAll(".tbt").forEach(t=>t.remove());
         const nb=document.getElementById("tb-new");
+        const icons={home:"⌂",game:"▶",ai:"✦",youtube:"▷",anime:"◆",browser:"◎",chat:"#",settings:"⚙",favorites:"★"};
         this._tabs.forEach(t=>{
             const el=document.createElement("button");
             el.className=`tbt${t.active?" on":""}`; el.dataset.id=t.id;
-            el.innerHTML=`<span class="tb-ttl">${this.esc(t.title)}</span><span class="tb-x" data-close="${t.id}">✕</span>`;
+            el.innerHTML=`<span class="tb-icon" aria-hidden="true">${icons[t.action]||"•"}</span><span class="tb-ttl">${this.esc(t.title)}</span><span class="tb-x" data-close="${t.id}" aria-label="Close tab">×</span>`;
             el.addEventListener("click",ev=>{
                 if(ev.target.dataset.close){ ev.stopPropagation(); this.tabClose(+ev.target.dataset.close); }
                 else this.tabActivate(t.id);
@@ -2556,6 +2571,10 @@ const nova = {
         document.getElementById("anime-panel")?.classList.toggle("on", action==="anime");
         document.getElementById("yt-panel")?.classList.toggle("on", action==="youtube");
         document.getElementById("ai-panel")?.classList.toggle("on", action==="ai");
+        document.getElementById("browser-panel")?.classList.toggle("on", action==="browser");
+        document.getElementById("chat-panel")?.classList.toggle("on", action==="chat");
+        document.getElementById("settings-panel")?.classList.toggle("on", action==="settings");
+        document.querySelectorAll("[data-nova-action]").forEach(button=>button.classList.toggle("active",button.dataset.novaAction===action));
         
         const theater = document.getElementById("theater");
         const isGame = action === "game" && tabObj;
@@ -2603,8 +2622,6 @@ const nova = {
                 return;
             }
         }
-        if(item.newTab){ this.confirm(item.title,"⚡",()=>this.openRealTab(item.url,item.title)); return; }
-
         const existing = this._tabs.find(t => t.action === "game" && t.title === item.title);
         if (existing) {
             this.tabActivate(existing.id);
@@ -2719,7 +2736,7 @@ const nova = {
         const run=()=>{
             if(action==="reload")         { this.closePanel(); location.reload(); }
             else if(action==="cloak")     { this.closePanel(); this.cloakSite(); }
-            else if(action==="home")      { this.tabUpdateActive("Home","home"); }
+            else if(action==="home")      { this.tabUpdateActive("Games","home"); }
             else if(action==="search")    { document.getElementById("sbar")?.focus(); }
             else if(action==="anime")     { this.tabUpdateActive("Anime","anime"); }
             else if(action==="youtube")   { this.tabUpdateActive("YouTube","youtube"); }
@@ -3235,6 +3252,7 @@ const nova = {
         return data;
     },
     async ytHome(){
+        document.getElementById("yt-panel")?.classList.remove("playing");
         this._ytLoaded=true; const body=document.getElementById("yp-body"); body.innerHTML=`<div class="fp-spin"></div>`;
         try {
             const data=await this._ytFetch("videos",{part:"snippet,statistics,status",chart:"mostPopular",regionCode:"US",maxResults:24});
@@ -3243,6 +3261,7 @@ const nova = {
         } catch(e){ body.innerHTML=`<div class="fp-msg">YouTube API unavailable ${this.esc(e.message||"")}</div>`; }
     },
     async ytSearch(q){
+        document.getElementById("yt-panel")?.classList.remove("playing");
         q=q.trim(); if(!q){this.ytHome();return;}
         const body=document.getElementById("yp-body"); body.innerHTML=`<div class="fp-spin"></div>`;
         try {
@@ -3273,6 +3292,7 @@ const nova = {
         h+=`</div></div>`; body.innerHTML=h; body.querySelectorAll(".acd[data-vid]").forEach(el=>el.addEventListener("click",()=>this.ytPlay(el.dataset.vid,el.dataset.title)));
     },
     async ytChannel(channelId,title){
+        document.getElementById("yt-panel")?.classList.remove("playing");
         const body=document.getElementById("yp-body"); body.innerHTML=`<div class="fp-spin"></div>`;
         try{
             const ch=await this._ytFetch("channels",{part:"snippet,contentDetails,statistics",id:channelId});
@@ -3296,6 +3316,7 @@ const nova = {
         // directly in an iframe and its response is not CORS-fetchable.
         const body=document.getElementById("yp-body");
         if(!body)return;
+        document.getElementById("yt-panel")?.classList.add("playing");
 
         const origin=(location.protocol==="http:"||location.protocol==="https:")?location.origin:"";
         const params=new URLSearchParams({autoplay:"1",playsinline:"1",rel:"0",modestbranding:"1"});
@@ -3304,26 +3325,72 @@ const nova = {
         const safeTitle=this.esc(title||"YouTube Video");
 
         body.innerHTML=`
-            <div class="nova-yt-player" style="height:100%;min-height:0;display:flex;flex-direction:column;background:#05060b;">
-                <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.08);background:#0b0d14;flex:0 0 auto;">
+            <div class="nova-yt-player">
+                <div class="nova-yt-playerbar">
                     <button class="fp-back" id="yt-player-back">← Back</button>
-                    <div style="font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${safeTitle}</div>
+                    <div>${safeTitle}</div>
                 </div>
-                <iframe
-                    id="yt-player-frame"
-                    title="${safeTitle}"
-                    src="${this.esc(embedUrl)}"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
-                    allowfullscreen
-                    referrerpolicy="strict-origin-when-cross-origin"
-                    style="display:block;width:100%;height:100%;min-height:0;flex:1 1 auto;border:0;background:#000;"
-                ></iframe>
+                <div class="nova-yt-watch-layout">
+                    <section class="nova-yt-video-column">
+                        <div class="nova-yt-frame-wrap"><iframe
+                            id="yt-player-frame"
+                            title="${safeTitle}"
+                            src="${this.esc(embedUrl)}"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
+                            allowfullscreen
+                            referrerpolicy="strict-origin-when-cross-origin"
+                        ></iframe></div>
+                        <div class="nova-yt-video-title">${safeTitle}</div>
+                    </section>
+                    <aside class="nova-yt-comments" aria-label="Video comments"><div class="nova-yt-comments-head"><strong>Comments</strong><span>View only</span></div><div id="yt-comments-list"><div class="fp-spin"></div></div></aside>
+                </div>
             </div>`;
 
         body.querySelector("#yt-player-back")?.addEventListener("click",()=>{
             const q=document.getElementById("yp-srch")?.value?.trim()||"";
             if(q)this.ytSearch(q); else this.ytHome();
         });
+        this.ytLoadComments(videoId);
+    },
+    async ytLoadComments(videoId){
+        const host=document.getElementById("yt-comments-list"); if(!host)return;
+        try{
+            const data=await this._ytFetch("commentThreads",{part:"snippet,replies",videoId,maxResults:24,order:"relevance",textFormat:"plainText"});
+            const items=data.items||[];
+            if(!items.length){host.innerHTML=`<div class="nova-comment-empty">Comments are unavailable for this video.</div>`;return;}
+            host.innerHTML=items.map(thread=>{
+                const top=thread.snippet?.topLevelComment; const snippet=top?.snippet||{}; const id=top?.id||"";
+                const replies=(thread.replies?.comments||[]).map(reply=>this.ytCommentMarkup(reply.snippet,true)).join("");
+                const total=Number(thread.snippet?.totalReplyCount||0);
+                return `<article class="nova-comment">${this.ytCommentMarkup(snippet,false)}${total?`<button class="nova-replies-toggle" data-comment-id="${this.esc(id)}" data-count="${total}" aria-expanded="false">View ${total} ${total===1?"reply":"replies"}</button><div class="nova-comment-replies" hidden>${replies}</div>`:""}</article>`;
+            }).join("");
+            host.querySelectorAll(".nova-replies-toggle").forEach(button=>button.addEventListener("click",()=>this.ytToggleReplies(button)));
+        }catch(e){host.innerHTML=`<div class="nova-comment-empty">Comments could not be loaded. ${this.esc(e.message||"")}</div>`;}
+    },
+    ytCommentMarkup(snippet,reply){
+        const name=this.esc(snippet?.authorDisplayName||"YouTube user");
+        const text=this.esc(snippet?.textDisplay||snippet?.textOriginal||"");
+        const avatar=this.esc(snippet?.authorProfileImageUrl||"");
+        const likes=Number(snippet?.likeCount||0);
+        const date=snippet?.publishedAt?new Date(snippet.publishedAt).toLocaleDateString():"";
+        return `<div class="nova-comment-row${reply?" reply":""}">${avatar?`<img src="${avatar}" alt="">`:`<span class="nova-comment-avatar">${name.charAt(0)}</span>`}<div><div class="nova-comment-meta"><strong>${name}</strong><span>${this.esc(date)}</span></div><p>${text}</p>${likes?`<small>♡ ${likes.toLocaleString()}</small>`:""}</div></div>`;
+    },
+    async ytToggleReplies(button){
+        const replies=button.nextElementSibling; if(!replies)return;
+        const opening=replies.hidden;
+        if(opening&&!replies.dataset.loaded){
+            button.disabled=true; button.textContent="Loading replies…";
+            try{
+                const data=await this._ytFetch("comments",{part:"snippet",parentId:button.dataset.commentId,maxResults:100,textFormat:"plainText"});
+                replies.innerHTML=(data.items||[]).map(reply=>this.ytCommentMarkup(reply.snippet,true)).join("");
+            }catch(e){replies.innerHTML=`<div class="nova-comment-empty">Replies could not be loaded.</div>`;}
+            replies.dataset.loaded="true";
+            button.disabled=false;
+        }
+        replies.hidden=!opening;
+        button.setAttribute("aria-expanded",String(opening));
+        const count=button.dataset.count||"";
+        button.textContent=opening?"Hide replies":`View ${count} ${count==="1"?"reply":"replies"}`;
     },
 
     // ── ABOUT:BLANK CLOAKING ─────────────────────────────────────
@@ -3403,8 +3470,7 @@ const nova = {
 
         // Nova AI Events & Attachments
         $("ai-back")?.addEventListener("click",()=>{
-            this._setView("home");
-            document.querySelectorAll(".ntab").forEach(n=>n.classList.toggle("on",n.dataset.action==="home"));
+            this.tabUpdateActive("Games","home");
         });
         $("ai-new-chat")?.addEventListener("click", ()=>this.aiNewChat());
         $("ai-toggle-hist")?.addEventListener("click", ()=> {
@@ -3445,8 +3511,7 @@ const nova = {
                     this.animeHome();
                 }
             } else {
-                this._setView("home");
-                document.querySelectorAll(".ntab").forEach(n=>n.classList.toggle("on",n.dataset.action==="home"));
+                this.tabUpdateActive("Games","home");
             }
         });
 
@@ -3455,8 +3520,7 @@ const nova = {
 
         // YouTube Panel Events
         $("yp-back")?.addEventListener("click",()=>{
-            this._setView("home");
-            document.querySelectorAll(".ntab").forEach(n=>n.classList.toggle("on",n.dataset.action==="home"));
+            this.tabUpdateActive("Games","home");
         });
         let yst;
         $("yp-srch")?.addEventListener("input",e=>{ clearTimeout(yst); yst=setTimeout(()=>this.ytSearch(e.target.value),350); });
@@ -3470,8 +3534,7 @@ const nova = {
                 if($("ntov").classList.contains("on")) $("ntov").classList.remove("on");
                 else if($("panel").classList.contains("on")) this.closePanel();
                 else if($("ai-panel").classList.contains("on")){
-                    this._setView("home"); 
-                    document.querySelectorAll(".ntab").forEach(n=>n.classList.toggle("on",n.dataset.action==="home"));
+                    this.tabUpdateActive("Games","home");
                 }
                 else if($("anime-panel").classList.contains("on")){ 
                     if(this._animeState === "details"){
@@ -3479,11 +3542,10 @@ const nova = {
                         if(q) this.animeSearch(q);
                         else this.animeHome();
                     } else {
-                        this._setView("home"); 
-                        document.querySelectorAll(".ntab").forEach(n=>n.classList.toggle("on",n.dataset.action==="home"));
+                        this.tabUpdateActive("Games","home");
                     }
                 }
-                else if($("yt-panel").classList.contains("on")){ this._setView("home"); document.querySelectorAll(".ntab").forEach(n=>n.classList.toggle("on",n.dataset.action==="home")); }
+                else if($("yt-panel").classList.contains("on")){ this.tabUpdateActive("Games","home"); }
             }
         },{passive:true});
     },
@@ -4005,25 +4067,6 @@ s.textContent=`
 `;
 document.head.appendChild(s);
 })();
-
-(function(){
-"use strict";
-function first(){
- if(window.__novaEducationFirstPageOpened)return;
- const xs=[window.nova,window.Nova,window.novaOS,window.osManager];
- for(const x of xs){
-  if(x&&typeof x.osOpenEducationWindow==="function"){
-   window.__novaEducationFirstPageOpened=true;
-   x.osOpenEducationWindow();
-   return;
-  }
- }
- setTimeout(first,250);
-}
-if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>setTimeout(first,250),{once:true});
-else setTimeout(first,250);
-})();
-
 
 (function(){
 const st=document.createElement('style');st.id='nova-final-cleanup';st.textContent=`
@@ -4723,8 +4766,40 @@ body:not(.os-mode) .card{height:235px!important;padding:0!important;border-radiu
 body:not(.os-mode) .card::before{display:none}.game-art{height:104px;position:relative;display:grid;place-items:center;overflow:hidden;background:radial-gradient(circle at 20% 10%,rgba(142,185,249,.55),transparent 52%),linear-gradient(135deg,#253a5a,#17243a 70%)}.game-art::before,.game-art::after{content:"";position:absolute;border:1px solid rgba(255,255,255,.13);width:110px;height:110px;border-radius:26px;transform:rotate(27deg);right:-26px;top:-50px}.game-art::after{width:150px;height:150px;border-radius:50%;left:-75px;top:42px}.game-art span{font-size:38px;font-weight:850;color:#f0f6ff;text-shadow:0 8px 30px rgba(0,0,0,.3)}
 body:not(.os-mode) .card:nth-child(4n+2) .game-art{background:radial-gradient(circle at 20% 10%,rgba(136,221,207,.45),transparent 52%),linear-gradient(135deg,#1f4b52,#172b3b 70%)}body:not(.os-mode) .card:nth-child(4n+3) .game-art{background:radial-gradient(circle at 20% 10%,rgba(184,153,255,.48),transparent 52%),linear-gradient(135deg,#443864,#22253f 70%)}body:not(.os-mode) .card:nth-child(4n+4) .game-art{background:radial-gradient(circle at 20% 10%,rgba(255,180,115,.42),transparent 52%),linear-gradient(135deg,#58402e,#26293a 70%)}
 .game-copy{padding:14px 15px}.game-copy h3{padding:0!important;margin:0 0 6px!important;font:700 13px/1.35 'Plus Jakarta Sans',sans-serif!important;color:#cfe0fa!important}.game-copy p{height:34px;font-size:10px!important;color:#8296b3!important}.game-play{display:inline-flex;margin-top:11px;padding:7px 10px;border-radius:8px;background:#223149;color:#bdd4f5;font-size:10px;font-weight:750}.card:hover{transform:translateY(-4px)!important;border-color:#5278aa!important;box-shadow:0 18px 40px rgba(2,8,18,.3)!important}.card:hover .game-copy h3{color:#fff!important}.fvs{right:12px!important;bottom:12px!important}.ntb{top:10px!important;right:10px!important;color:#e8f2ff!important;background:#101a2acc!important;border-color:#49678f!important}
-body:not(.os-mode) #bnav{background:#0d1725!important;border-color:#293b56!important;border-radius:14px!important;box-shadow:0 14px 44px rgba(0,0,0,.38)!important}.ntab{border:0!important;background:transparent!important;box-shadow:none!important}.ntab.on{color:#b7d3fb!important;background:#20314a!important}
-@media(max-width:820px){.nova-topbar{padding:0 16px}.nova-primary-links button{padding:0 8px!important}.nova-primary-links button:nth-child(2),.nova-primary-links button:nth-child(3),.nova-primary-links button:nth-child(4){display:none}.nova-library-intro{width:calc(100% - 32px);padding-top:24px}.nova-library-count{display:none}.nova-section-title{width:calc(100% - 32px)}body:not(.os-mode) header{padding:12px 16px!important}.sw .hbtn{display:none}body:not(.os-mode) #grid{padding-left:16px!important;padding-right:16px!important;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))!important}.game-art{height:90px}body:not(.os-mode) .card{height:218px!important}}
+body:not(.os-mode),body:not(.os-mode) :is(button,input,select,textarea){font-family:'Plus Jakarta Sans',Inter,system-ui,-apple-system,'Segoe UI',sans-serif!important}
+body:not(.os-mode) :is(h1,h2,h3,.fp-ttl,.tt){font-family:'Plus Jakarta Sans',Inter,system-ui,-apple-system,'Segoe UI',sans-serif!important;letter-spacing:-.025em}
+.nova-topbar{height:54px;padding:0 22px;gap:16px}
+.nova-wordmark{font-size:20px}.nova-bolt{width:24px;height:24px}
+.nova-primary-links{min-width:0;overflow-x:auto;scrollbar-width:none}.nova-primary-links::-webkit-scrollbar{display:none}.nova-primary-links button{padding:0 10px!important;font-size:12px;white-space:nowrap}
+body:not(.os-mode) #tbr{height:42px!important;display:flex!important;align-items:flex-end!important;gap:3px!important;padding:6px 12px 0!important;background:#0b1320!important;border-bottom:1px solid #263852!important;overflow-x:auto!important;overflow-y:hidden!important;scrollbar-width:none;z-index:6900!important}
+body:not(.os-mode) #tbr::-webkit-scrollbar{display:none}
+body:not(.os-mode) .tbt{height:35px!important;min-width:120px!important;max-width:220px!important;flex:0 1 190px!important;display:flex!important;align-items:center!important;gap:8px!important;padding:0 9px 0 12px!important;border:1px solid transparent!important;border-bottom:0!important;border-radius:10px 10px 0 0!important;background:#101c2d!important;color:#8fa5c6!important;box-shadow:none!important;transform:none!important;text-align:left!important}
+body:not(.os-mode) .tbt:hover{background:#182740!important;color:#dbe8fb!important}
+body:not(.os-mode) .tbt.on{background:#1b2b44!important;color:#f4f8ff!important;border-color:#314767!important}
+body:not(.os-mode) .tb-icon{width:18px;height:18px;display:grid;place-items:center;flex:0 0 auto;border-radius:5px;background:#263b59;color:#aecdff;font-size:10px;font-weight:800}
+body:not(.os-mode) .tb-ttl{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;font-size:11px;font-weight:700}
+body:not(.os-mode) .tb-x{width:20px;height:20px;display:grid;place-items:center;border-radius:6px;color:#8295b2;font-size:15px;line-height:1}
+body:not(.os-mode) .tb-x:hover{background:#ffffff16;color:#fff}
+body:not(.os-mode) #tb-new{position:static!important;flex:0 0 29px!important;width:29px!important;height:29px!important;margin:0 0 3px 2px!important;border:0!important;border-radius:8px!important;background:#17253a!important;color:#a9bfdf!important;box-shadow:none!important;transform:none!important}
+body:not(.os-mode) #bnav{display:none!important}
+body:not(.os-mode) #theater{top:96px!important}
+body:not(.os-mode) .fpanel{top:96px!important;bottom:0!important;height:auto!important;border-radius:0!important}
+body:not(.os-mode) .th,body:not(.os-mode) .fpbar{min-height:50px!important;padding:8px 22px!important;background:#121f32!important;border-bottom:1px solid #2a3d5b!important;box-shadow:none!important}
+body:not(.os-mode) .tt,body:not(.os-mode) .fp-ttl{font-size:14px!important;font-weight:800!important;text-transform:none!important;color:#edf4ff!important}
+body:not(.os-mode) :is(.ab,.cb,.fp-back){padding:7px 11px!important;border-radius:9px!important;font-size:11px!important;background:#1b2b43!important;border:1px solid #334a6b!important;color:#e4efff!important;box-shadow:none!important}
+body:not(.os-mode) .fp-body{padding:18px 22px!important}
+.nova-embed-panel .fp-body,.nova-settings-panel .fp-body{padding:0!important;overflow:hidden!important}
+.nova-embed-panel>iframe,.nova-embed-frame{display:block;width:100%;height:100%;min-height:0;flex:1;border:0;background:#0e1726}
+#yt-panel.playing>.fpbar{display:none!important}
+#yt-panel.playing .fp-body{padding:0!important;overflow:hidden!important}
+.nova-yt-player{height:100%;min-height:0;display:flex;flex-direction:column;background:#0c1421;color:#eaf2ff}
+.nova-yt-playerbar{height:48px;display:flex;align-items:center;gap:14px;padding:7px 18px;border-bottom:1px solid #273a57;background:#111e30;font-size:12px;font-weight:750;flex:0 0 auto}.nova-yt-playerbar>div{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nova-yt-watch-layout{min-height:0;flex:1;display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:0}
+.nova-yt-video-column{min-width:0;min-height:0;padding:18px;overflow:auto;background:#080d15}.nova-yt-frame-wrap{width:100%;aspect-ratio:16/9;background:#000;border-radius:12px;overflow:hidden;box-shadow:0 16px 50px #0007}.nova-yt-frame-wrap iframe{display:block;width:100%;height:100%;border:0}.nova-yt-video-title{padding:14px 2px 4px;font-size:15px;font-weight:800;line-height:1.4}
+.nova-yt-comments{min-width:0;min-height:0;border-left:1px solid #263953;background:#111c2d;overflow:auto}.nova-yt-comments-head{position:sticky;top:0;z-index:2;display:flex;justify-content:space-between;align-items:center;padding:15px 16px;border-bottom:1px solid #263953;background:#111c2df2}.nova-yt-comments-head strong{font-size:13px}.nova-yt-comments-head span{padding:4px 7px;border-radius:7px;background:#20314a;color:#9db8dc;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.06em}
+#yt-comments-list{padding:5px 16px 18px}.nova-comment{padding:13px 0;border-bottom:1px solid #22334d}.nova-comment-row{display:grid;grid-template-columns:32px minmax(0,1fr);gap:10px}.nova-comment-row.reply{grid-template-columns:26px minmax(0,1fr);margin-top:12px}.nova-comment-row img,.nova-comment-avatar{width:32px;height:32px;border-radius:50%;object-fit:cover}.nova-comment-row.reply img,.nova-comment-row.reply .nova-comment-avatar{width:26px;height:26px}.nova-comment-avatar{display:grid;place-items:center;background:#29456b;color:#dceaff;font-size:11px;font-weight:800}.nova-comment-meta{display:flex;align-items:center;gap:7px}.nova-comment-meta strong{font-size:10px}.nova-comment-meta span,.nova-comment-row small{font-size:9px;color:#7f96b7}.nova-comment-row p{margin:5px 0;color:#c8d7ec;font-size:11px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}.nova-replies-toggle{margin:8px 0 0 42px!important;padding:5px 8px!important;border:0!important;border-radius:7px!important;background:#1d304b!important;color:#9fc5fb!important;font-size:9px!important;font-weight:750!important;box-shadow:none!important}.nova-comment-replies{margin-left:42px}.nova-comment-empty{padding:28px 6px;color:#8298b7;font-size:11px;line-height:1.6}
+@media(max-width:900px){.nova-yt-watch-layout{display:block;overflow:auto}.nova-yt-video-column{overflow:visible;padding:12px}.nova-yt-comments{border-left:0;border-top:1px solid #263953;overflow:visible}.nova-yt-player{overflow:hidden}.nova-yt-watch-layout{min-height:0}.nova-primary-links button{padding:0 8px!important}}
+@media(max-width:820px){.nova-topbar{padding:0 12px}.nova-wordmark>span:last-child{display:none}.nova-primary-links button{font-size:11px}.nova-library-intro{width:calc(100% - 32px);padding-top:24px}.nova-library-count{display:none}.nova-section-title{width:calc(100% - 32px)}body:not(.os-mode) header{padding:12px 16px!important}.sw .hbtn{display:none}body:not(.os-mode) #grid{padding-left:16px!important;padding-right:16px!important;padding-bottom:22px!important;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))!important}.game-art{height:90px}body:not(.os-mode) .card{height:218px!important}body:not(.os-mode) .tbt{min-width:105px!important;flex-basis:145px!important}body:not(.os-mode) .th,body:not(.os-mode) .fpbar{padding-left:12px!important;padding-right:12px!important}}
 @media(prefers-reduced-motion:reduce){body:not(.os-mode) .card{transition:none!important}}
 `;
 document.head.appendChild(style);
