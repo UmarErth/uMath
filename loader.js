@@ -102,7 +102,7 @@ const SAVE_URL      = "https://cdn.jsdelivr.net/gh/UmarErth/uMath@main/singlefil
 const SAVE_FILENAME = "NovaGaming.html";
 
 // ─── GOOGLE GEMINI AI CONFIG ────────────────────────────────────
-const GEMINI_API_KEY = typeof window.NOVA_API_KEYS?.gemini === "string" ? window.NOVA_API_KEYS.gemini : "AQ.Ab8RN6JhWU46D44KxMFcmoRQAghUEuF3kSry4XuhmVlXnO2PLA";
+const GEMINI_API_KEY = typeof window.NOVA_API_KEYS?.gemini === "string" ? window.NOVA_API_KEYS.gemini : "AQ.Ab8RN6JrEOlVtMlrhDqGNFDzVeXLOG84mt3Q_T9ZtTKtoFEbAA";
 const YOUTUBE_API_KEY = typeof window.NOVA_API_KEYS?.youtube === "string" ? window.NOVA_API_KEYS.youtube : "AIzaSyCZ4JD2OHOfUVqRES6TtzAYYXJLxKSJuBI";
 const DEFAULT_UI_MODE = "classic";
 
@@ -799,7 +799,7 @@ const nova = {
     _animeState:"overview",
     _htmlCache: new Map(),
     _aiChats:[], _currentChatId:null, _aiGenerating:false,
-    _aiModels:[], _selectedModel:"gemini-2.5-flash",
+    _aiModels:[], _selectedModel:"gemini-3.6-flash",
     _aiAttachments:[],
     isLowSpec: false,
 
