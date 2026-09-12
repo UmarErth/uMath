@@ -5,6 +5,8 @@
 <h2>- umarerth.github.io</h2>
 <h2>- nova.staticdomains.app</h2>
 
+<h1>Where to find if github is blocked?: novaisthegoat.weebly.com</h1>
+
 <h1>Nova Gaming > GN Math & Vapor V4 (RIP)</h1>
 
 <h1>FEATURES</h1>
