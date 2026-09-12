@@ -104,7 +104,7 @@ const SAVE_FILENAME = "NovaGaming.html";
 // ─── GOOGLE GEMINI AI CONFIG ────────────────────────────────────
 const GEMINI_API_KEY = typeof window.NOVA_API_KEYS?.gemini === "string" ? window.NOVA_API_KEYS.gemini : "AQ.Ab8RN6JhWU46D44KxMFcmoRQAghUEuF3kSry4XuhmVlXnO2PLA";
 const YOUTUBE_API_KEY = typeof window.NOVA_API_KEYS?.youtube === "string" ? window.NOVA_API_KEYS.youtube : "AIzaSyCZ4JD2OHOfUVqRES6TtzAYYXJLxKSJuBI";
-const DEFAULT_UI_MODE = "os";
+const DEFAULT_UI_MODE = "classic";
 
 // ─── PIPED & INVIDIOUS INSTANCE POOL ────────────────────────────
 const PIPED_EMBED_INSTANCES = [
@@ -1450,28 +1450,27 @@ const nova = {
 
     // ── UI MODE SYSTEM ──────────────────────────────────────────
     uiModeInit(){
-        // Nova Education is always the first page. There is no Classic mode anymore.
-        // Do not render the OS during refresh; the 1234 = gate opens it.
-        this.uiMode="education";
-        document.body.classList.remove("os-mode");
-        document.getElementById("os-desktop")?.remove();
-        try{ localStorage.removeItem("nova_ui_mode"); }catch(e){}
-        setTimeout(()=>window.dispatchEvent(new Event("nova:show-education-start")),0);
+        let saved=DEFAULT_UI_MODE;
+        try{ saved=localStorage.getItem("nova_ui_mode")||DEFAULT_UI_MODE; }catch(e){}
+        this.uiMode=saved==="os"?"os":"classic";
+        this.applyUIMode();
     },
     applyUIMode(){
         const os=this.uiMode==="os";
         document.body.classList.toggle("os-mode",os);
         if(os){
+            document.getElementById("app")?.classList.remove("on");
             document.getElementById("os-desktop")?.remove();
             this.renderOSDesktop();
         }else{
             document.getElementById("os-desktop")?.remove();
             document.body.classList.remove("os-window-open");
+            document.getElementById("app")?.classList.add("on");
         }
     },
     setUIMode(mode){
-        // Classic mode has been removed. Any legacy caller now simply opens Nova OS.
-        this.uiMode="os";
+        this.uiMode=mode==="os"?"os":"classic";
+        try{ localStorage.setItem("nova_ui_mode",this.uiMode); }catch(e){}
         document.getElementById("mode-chooser")?.remove();
         this.applyUIMode();
     },
@@ -1493,7 +1492,7 @@ const nova = {
         desk.innerHTML=`
             <div class="os-wallpaper"><div class="os-wallpaper-orb o1"></div><div class="os-wallpaper-orb o2"></div><div class="os-wallpaper-grid"></div></div>
             <div class="os-menubar">
-                <div class="os-menu-left"><button class="os-apple" id="os-apple">✦</button><button class="os-menu-item strong">Nova</button><button class="os-menu-item" id="nova-save-html">Save</button><button class="os-menu-item" id="nova-cloak-site">Cloak</button><button class="os-menu-item" id="nova-request-games">Request Games</button></div>
+                <div class="os-menu-left"><button class="os-apple" id="os-apple">✦</button><button class="os-menu-item strong">Nova</button><button class="os-menu-item" id="nova-gaming-ui">Gaming UI</button><button class="os-menu-item" id="nova-save-html">Save</button><button class="os-menu-item" id="nova-cloak-site">Cloak</button><button class="os-menu-item" id="nova-request-games">Request Games</button></div>
                 <div class="os-menu-right"><span class="os-status-dot"></span><span id="os-net">Online</span><span id="os-clock">--:--</span><button class="os-control" id="os-control">⌄</button></div>
             </div>
             <div class="os-desktop-icons" id="os-desktop-icons"></div>
@@ -1596,6 +1595,7 @@ const nova = {
         const root=document.getElementById("os-desktop");
         root.querySelector("#os-apple")?.addEventListener("click",e=>{e.stopPropagation();document.getElementById("os-app-menu")?.classList.toggle("on")});
         root.querySelector("#os-control")?.addEventListener("click",e=>{e.stopPropagation();document.getElementById("os-quick-panel")?.classList.toggle("on")});
+        root.querySelector("#nova-gaming-ui")?.addEventListener("click",()=>this.setUIMode("classic"));
         root.querySelectorAll("[data-os-action]").forEach(b=>b.addEventListener("click",()=>{
             const a=b.dataset.osAction;
             document.getElementById("os-app-menu")?.classList.remove("on");
@@ -2321,6 +2321,10 @@ const nova = {
         const app=document.createElement("div"); app.id="app";
         const hbHTML=HEADER_BUTTONS.map(b=>`<button class="hbtn" id="${b.id}" title="${this.esc(b.label)}"><span>${b.icon}</span><span class="bl"> ${this.esc(b.label)}</span></button>`).join("");
         app.innerHTML=`
+            <nav class="nova-topbar" aria-label="Primary navigation">
+                <button class="nova-wordmark" id="nova-home" type="button" aria-label="Nova Gaming home"><span class="nova-bolt">ϟ</span><strong>nova</strong><span>gaming</span></button>
+                <div class="nova-primary-links"><button data-nova-action="home" class="active">Games</button><button data-nova-action="ai">Nova AI</button><button data-nova-action="url:https://single-nova-worker.umarerthteam.workers.dev">Browser</button><button data-nova-action="url:https://global-chat.umarerthteam.workers.dev">Chat</button><button data-nova-action="os">OS style</button></div>
+            </nav>
             <div id="tbr"><button class="tb-new" id="tb-new" title="New tab">+</button></div>
             <header>
                 <div class="hl">
@@ -2329,6 +2333,8 @@ const nova = {
                 </div>
                 <div class="sw">${hbHTML}<input type="text" class="sbar" id="sbar" placeholder="     Search Games"><button class="fvbtn" id="fvbtn" title="Favorites">★</button></div>
             </header>
+            <section class="nova-library-intro"><div><span class="nova-kicker">PLAY WITHOUT THE CLUTTER</span><h1>Your games, ready when you are.</h1><p>Search the full Nova library, jump into a favorite, or open a recently played game.</p></div><div class="nova-library-count"><strong data-nova-game-count>${GAMES.length}</strong><span>games available</span></div></section>
+            <div class="nova-section-title"><div><span class="nova-section-dot"></span><strong>All games</strong></div><span>Pick one and start playing</span></div>
             <div id="grid"></div>`;
         document.body.appendChild(app);
 
@@ -2425,6 +2431,12 @@ const nova = {
             const b=e.target.closest("#os-games-search"); if(b) e.stopPropagation();
             if(e.target.id==="os-use-os") this.setUIMode("os");
         },true);
+        app.querySelector("#nova-home")?.addEventListener("click",()=>this.dispatch("home"));
+        app.querySelectorAll("[data-nova-action]").forEach(button=>button.addEventListener("click",()=>{
+            const action=button.dataset.novaAction;
+            if(action==="os") this.setUIMode("os");
+            else this.dispatch(action);
+        }));
 
     },
 
@@ -2440,7 +2452,7 @@ const nova = {
             const descText=item.desc||"";
             const card=document.createElement("div");
             card.className=`card${this.favorites.includes(item.title)?" fav":""}`;
-            card.innerHTML=`<div><h3>${this.esc(item.title)}</h3><p>${this.esc(descText)}</p></div><span class="fvs">★</span>${item.newTab?'<span class="ntb">New Tab</span>':''}`;
+            card.innerHTML=`<div class="game-art" aria-hidden="true"><span>${this.esc((item.title||"?").charAt(0).toUpperCase())}</span></div><div class="game-copy"><h3>${this.esc(item.title)}</h3><p>${this.esc(descText)}</p><span class="game-play">▶ Play now</span></div><span class="fvs">★</span>${item.newTab?'<span class="ntb">New Tab</span>':''}`;
             card.addEventListener("click",()=>this.launch(item));
             card.addEventListener("contextmenu",e=>{e.preventDefault();e.stopPropagation();this.showCtx(e.clientX,e.clientY,item,card);});
             frag.appendChild(card);
@@ -2461,7 +2473,7 @@ const nova = {
             const item=GAMES[i],descText=item.desc||"";
             const card=document.createElement("div");
             card.className=`card${this.favorites.includes(item.title)?" fav":""}`;
-            card.innerHTML=`<div><h3>${this.esc(item.title)}</h3><p>${this.esc(descText)}</p></div><span class="fvs">★</span>${item.newTab?'<span class="ntb">New Tab</span>':''}`;
+            card.innerHTML=`<div class="game-art" aria-hidden="true"><span>${this.esc((item.title||"?").charAt(0).toUpperCase())}</span></div><div class="game-copy"><h3>${this.esc(item.title)}</h3><p>${this.esc(descText)}</p><span class="game-play">▶ Play now</span></div><span class="fvs">★</span>${item.newTab?'<span class="ntb">New Tab</span>':''}`;
             card.addEventListener("click",()=>this.launch(item));
             card.addEventListener("contextmenu",e=>{e.preventDefault();e.stopPropagation();this.showCtx(e.clientX,e.clientY,item,card);});
             frag.appendChild(card); this.cards.push({el:card,title:item.title,str:`${(item.title||"").toLowerCase()} ${descText.toLowerCase()}`});
@@ -3944,8 +3956,8 @@ body.os-mode{overflow:hidden;background:#05060b}body.os-mode #grid,body.os-mode 
 
     // ── SYSTEM BOOT ─────────────────────────────────────────────
     boot(){
-        // First paint is the calculator only. Legacy UI is lazy-loaded later.
-        this._educationFirstBoot=true;
+        // Launch directly into the focused gaming library. The OS remains optional.
+        this._educationFirstBoot=false;
         this.detectHardware();
         this.setFavicon();
         this.css();
@@ -4091,9 +4103,7 @@ function showEducationStart(){
    if(e.source===iframe.contentWindow&&e.data&&e.data.type==="nova-launch-os")launch();
  });
 }
-window.addEventListener("nova:show-education-start",showEducationStart,{once:true});
-if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>setTimeout(showEducationStart,100),{once:true});
-else setTimeout(showEducationStart,100);
+// The calculator cover page is retired; Nova now opens directly to games.
 })();
 
 
@@ -4687,6 +4697,35 @@ body[data-nova-theme="arctic"] #os-desktop{color-scheme:light}
 #os-desktop[data-dock-position="left"] .os-dock-wrap,#os-desktop[data-dock-position="right"] .os-dock-wrap{opacity:1!important;pointer-events:auto!important;transform:translateY(-50%)!important}
 @media(max-width:600px){.nova-library-header{padding:18px 16px 14px}.nova-library-tools{padding:0 16px 12px}.nova-library-tabs{padding:0 16px 12px;flex-wrap:wrap}.nova-library-scroll{padding:14px 16px}.nova-library-grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}.nova-library-result{display:none}.nova-library-status{padding:10px 16px}.nova-library-status>span:last-child{display:none}.nova-library-total{display:none}.nova-library-tabs button{font-size:11px!important;padding:7px 8px!important}.nova-library-search kbd{display:none}.nova-game-art{height:90px}.nova-perf-card{flex-wrap:wrap}.nova-perf-card b{min-width:0}}
 @media(prefers-reduced-motion:reduce){#os-desktop *,#os-desktop *::before,#os-desktop *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}.nova-library-card:hover{translate:none}}
+`;
+document.head.appendChild(style);
+})();
+
+// Direct gaming workspace inspired by Nova's compact navy product language.
+(function(){
+const style=document.createElement("style");
+style.id="nova-gaming-workspace-design";
+style.textContent=`
+body:not(.os-mode){--bg:#101827;--surface:#142033;--surface-hover:#192841;--border:#273854;--mint:#9fc3ff;--mint-glow:rgba(126,171,239,.2);background:#101827!important}
+body:not(.os-mode)::before{opacity:.7!important;transform:none!important;animation:none!important;background-image:radial-gradient(circle,#26334a 2.5px,transparent 2.5px)!important;background-size:24px 24px!important}
+body:not(.os-mode) #app{background:transparent;overflow:hidden}
+.nova-topbar{height:68px;display:flex;align-items:center;justify-content:space-between;gap:22px;padding:0 28px;background:#0b1320;border-bottom:1px solid #1b2a40;flex-shrink:0;z-index:7000}
+.nova-wordmark{display:flex!important;align-items:center;gap:5px!important;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important;color:#f4f8ff!important;font-size:22px;letter-spacing:-.04em;text-transform:lowercase;transform:none!important}
+.nova-wordmark strong{font-weight:800}.nova-wordmark>span:last-child{font-weight:450;color:#9db9e6}.nova-bolt{display:grid;place-items:center;width:27px;height:27px;color:#0d1725;background:#eef5ff;border-radius:8px;font-size:18px;font-weight:900;clip-path:polygon(40% 0,100% 0,67% 39%,91% 39%,28% 100%,39% 57%,8% 57%)}
+.nova-primary-links{display:flex;align-items:stretch;height:100%;gap:4px}.nova-primary-links button{position:relative;padding:0 14px!important;border:0!important;background:transparent!important;box-shadow:none!important;color:#91a7c8!important;font-size:13px;font-weight:700;transform:none!important}.nova-primary-links button:hover,.nova-primary-links button.active{color:#d7e6ff!important}.nova-primary-links button.active::after{content:"";position:absolute;left:12px;right:12px;bottom:0;height:2px;background:#8fb9ff;border-radius:3px 3px 0 0}
+body:not(.os-mode) #tbr{display:none!important}
+body:not(.os-mode) header{padding:18px max(28px,calc((100vw - 1220px)/2));background:rgba(13,22,36,.92)!important;border-bottom:1px solid #213149!important;box-shadow:none!important;backdrop-filter:blur(16px)!important}
+body:not(.os-mode) header .brand{display:none}.hl{gap:10px}.mbtn{border-radius:10px!important;background:#17243a!important;box-shadow:none!important}.sw{max-width:760px;margin-left:auto}.sbar{height:44px;border-radius:11px!important;background:#101a2a!important;border-color:#2d4262!important;padding:0 16px!important}.sbar:focus{border-color:#88b4f5!important;box-shadow:0 0 0 3px rgba(136,180,245,.12)!important}.hbtn,.fvbtn{height:42px;border-radius:10px!important;background:#17243a!important;box-shadow:none!important;border-color:#293b57!important}
+.nova-library-intro{width:min(1220px,calc(100% - 56px));margin:0 auto;padding:34px 0 24px;display:flex;align-items:end;justify-content:space-between;gap:28px;flex-shrink:0}.nova-kicker{display:block;margin-bottom:8px;color:#8fb9ff;font-size:10px;font-weight:800;letter-spacing:.19em}.nova-library-intro h1{margin:0!important;font:700 clamp(28px,3.6vw,44px)/1.08 'Plus Jakarta Sans',sans-serif!important;letter-spacing:-.045em!important;color:#eef5ff}.nova-library-intro p{margin:10px 0 0;color:#8fa3c1;font-size:13px}.nova-library-count{display:flex;align-items:baseline;gap:8px;padding:13px 16px;border:1px solid #273a56;border-radius:13px;background:#142035;color:#8298ba;white-space:nowrap}.nova-library-count strong{font-size:24px;color:#d8e8ff}.nova-library-count span{font-size:11px}
+.nova-section-title{width:min(1220px,calc(100% - 56px));margin:0 auto 12px;display:flex;align-items:center;justify-content:space-between;color:#8499b8;font-size:11px;flex-shrink:0}.nova-section-title>div{display:flex;align-items:center;gap:9px}.nova-section-title strong{font-size:18px;color:#bed4f5}.nova-section-dot{width:8px;height:8px;border-radius:2px;background:#8eb9f9}
+body:not(.os-mode) #grid{width:min(1276px,100%);margin:0 auto;padding:0 28px calc(var(--dock-h) + 28px)!important;grid-template-columns:repeat(auto-fill,minmax(200px,1fr))!important;gap:16px!important}
+body:not(.os-mode) .card{height:235px!important;padding:0!important;border-radius:16px!important;background:#121e30!important;border-color:#263a56!important;box-shadow:0 10px 30px rgba(2,8,18,.16)!important;display:block!important;overflow:hidden}
+body:not(.os-mode) .card::before{display:none}.game-art{height:104px;position:relative;display:grid;place-items:center;overflow:hidden;background:radial-gradient(circle at 20% 10%,rgba(142,185,249,.55),transparent 52%),linear-gradient(135deg,#253a5a,#17243a 70%)}.game-art::before,.game-art::after{content:"";position:absolute;border:1px solid rgba(255,255,255,.13);width:110px;height:110px;border-radius:26px;transform:rotate(27deg);right:-26px;top:-50px}.game-art::after{width:150px;height:150px;border-radius:50%;left:-75px;top:42px}.game-art span{font-size:38px;font-weight:850;color:#f0f6ff;text-shadow:0 8px 30px rgba(0,0,0,.3)}
+body:not(.os-mode) .card:nth-child(4n+2) .game-art{background:radial-gradient(circle at 20% 10%,rgba(136,221,207,.45),transparent 52%),linear-gradient(135deg,#1f4b52,#172b3b 70%)}body:not(.os-mode) .card:nth-child(4n+3) .game-art{background:radial-gradient(circle at 20% 10%,rgba(184,153,255,.48),transparent 52%),linear-gradient(135deg,#443864,#22253f 70%)}body:not(.os-mode) .card:nth-child(4n+4) .game-art{background:radial-gradient(circle at 20% 10%,rgba(255,180,115,.42),transparent 52%),linear-gradient(135deg,#58402e,#26293a 70%)}
+.game-copy{padding:14px 15px}.game-copy h3{padding:0!important;margin:0 0 6px!important;font:700 13px/1.35 'Plus Jakarta Sans',sans-serif!important;color:#cfe0fa!important}.game-copy p{height:34px;font-size:10px!important;color:#8296b3!important}.game-play{display:inline-flex;margin-top:11px;padding:7px 10px;border-radius:8px;background:#223149;color:#bdd4f5;font-size:10px;font-weight:750}.card:hover{transform:translateY(-4px)!important;border-color:#5278aa!important;box-shadow:0 18px 40px rgba(2,8,18,.3)!important}.card:hover .game-copy h3{color:#fff!important}.fvs{right:12px!important;bottom:12px!important}.ntb{top:10px!important;right:10px!important;color:#e8f2ff!important;background:#101a2acc!important;border-color:#49678f!important}
+body:not(.os-mode) #bnav{background:#0d1725!important;border-color:#293b56!important;border-radius:14px!important;box-shadow:0 14px 44px rgba(0,0,0,.38)!important}.ntab{border:0!important;background:transparent!important;box-shadow:none!important}.ntab.on{color:#b7d3fb!important;background:#20314a!important}
+@media(max-width:820px){.nova-topbar{padding:0 16px}.nova-primary-links button{padding:0 8px!important}.nova-primary-links button:nth-child(2),.nova-primary-links button:nth-child(3),.nova-primary-links button:nth-child(4){display:none}.nova-library-intro{width:calc(100% - 32px);padding-top:24px}.nova-library-count{display:none}.nova-section-title{width:calc(100% - 32px)}body:not(.os-mode) header{padding:12px 16px!important}.sw .hbtn{display:none}body:not(.os-mode) #grid{padding-left:16px!important;padding-right:16px!important;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))!important}.game-art{height:90px}body:not(.os-mode) .card{height:218px!important}}
+@media(prefers-reduced-motion:reduce){body:not(.os-mode) .card{transition:none!important}}
 `;
 document.head.appendChild(style);
 })();
