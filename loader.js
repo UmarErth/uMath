@@ -2578,6 +2578,7 @@ const nova = {
         
         const theater = document.getElementById("theater");
         const isGame = action === "game" && tabObj;
+        document.body.classList.toggle("nova-immersive",isGame||action==="browser");
         
         theater.classList.toggle("on", isGame);
         document.body.classList.toggle("in-game", isGame);
@@ -4784,6 +4785,8 @@ body:not(.os-mode) #tb-new{position:static!important;flex:0 0 29px!important;wid
 body:not(.os-mode) #bnav{display:none!important}
 body:not(.os-mode) #theater{top:96px!important}
 body:not(.os-mode) .fpanel{top:96px!important;bottom:0!important;height:auto!important;border-radius:0!important}
+body:not(.os-mode).nova-immersive .nova-topbar{display:none!important}
+body:not(.os-mode).nova-immersive #theater,body:not(.os-mode).nova-immersive .fpanel{top:42px!important}
 body:not(.os-mode) .th,body:not(.os-mode) .fpbar{min-height:50px!important;padding:8px 22px!important;background:#121f32!important;border-bottom:1px solid #2a3d5b!important;box-shadow:none!important}
 body:not(.os-mode) .tt,body:not(.os-mode) .fp-ttl{font-size:14px!important;font-weight:800!important;text-transform:none!important;color:#edf4ff!important}
 body:not(.os-mode) :is(.ab,.cb,.fp-back){padding:7px 11px!important;border-radius:9px!important;font-size:11px!important;background:#1b2b43!important;border:1px solid #334a6b!important;color:#e4efff!important;box-shadow:none!important}
