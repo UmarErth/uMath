@@ -102,7 +102,7 @@ const SAVE_URL      = "https://cdn.jsdelivr.net/gh/UmarErth/uMath@main/singlefil
 const SAVE_FILENAME = "NovaGaming.html";
 
 // ─── GOOGLE GEMINI AI CONFIG ────────────────────────────────────
-const GEMINI_API_KEY = typeof window.NOVA_API_KEYS?.gemini === "string" ? window.NOVA_API_KEYS.gemini : "AQ.Ab8RN6JrEOlVtMlrhDqGNFDzVeXLOG84mt3Q_T9ZtTKtoFEbAA";
+const GEMINI_API_KEY = typeof window.NOVA_API_KEYS?.gemini === "string" ? window.NOVA_API_KEYS.gemini : "AQ.Ab8RN6Ib4cwqUsTDoR_tnt5KVVKF7GUiRwP4OCq6bEuvskhtJg";
 const YOUTUBE_API_KEY = typeof window.NOVA_API_KEYS?.youtube === "string" ? window.NOVA_API_KEYS.youtube : "AIzaSyCZ4JD2OHOfUVqRES6TtzAYYXJLxKSJuBI";
 const DEFAULT_UI_MODE = "classic";
 
@@ -2417,6 +2417,11 @@ const nova = {
             this.tabNew("Games","home");
         }
         this.uiModeInit();
+        const startup=this.preference("startup","games");
+        if(this.uiMode==="classic"&&["ai","youtube","browser","chat","settings"].includes(startup)){
+            const titles={ai:"Nova AI",youtube:"YouTube",browser:"Browser",chat:"Chat",settings:"Settings"};
+            setTimeout(()=>this.openWorkspaceTab(titles[startup],startup),0);
+        }
 
         const refreshOpenGameViews=()=>{
             document.querySelectorAll("[data-nova-game-count]").forEach(el=>{el.textContent=String(GAMES.length);});
@@ -2507,9 +2512,15 @@ const nova = {
         return id;
     },
     openWorkspaceTab(title,action){
-        const existing=this._tabs.find(t=>t.action===action);
+        const existing=this.preference("reuseAppTabs",true)?this._tabs.find(t=>t.action===action):null;
         if(existing){this.tabActivate(existing.id);return existing.id;}
         return this.tabNew(title,action);
+    },
+    preference(key,fallback){
+        try{
+            const settings=JSON.parse(localStorage.getItem("nova_appearance_v2")||"{}");
+            return settings[key]===undefined?fallback:settings[key];
+        }catch{return fallback;}
     },
     tabUpdateActive(title,action,url="",gameItem=null){
         const activeTab = this._tabs.find(t=>t.active);
@@ -2575,10 +2586,15 @@ const nova = {
         document.getElementById("chat-panel")?.classList.toggle("on", action==="chat");
         document.getElementById("settings-panel")?.classList.toggle("on", action==="settings");
         document.querySelectorAll("[data-nova-action]").forEach(button=>button.classList.toggle("active",button.dataset.novaAction===action));
+        if(action==="settings"){
+            const settingsBody=document.querySelector("#settings-panel .fp-body");
+            if(settingsBody&&!settingsBody.querySelector(".nova-mega-settings"))settingsBody.innerHTML=this.osSettingsBody();
+        }
         
         const theater = document.getElementById("theater");
         const isGame = action === "game" && tabObj;
-        document.body.classList.toggle("nova-immersive",isGame||action==="browser");
+        const immersive=(isGame&&this.preference("immersiveGames",true))||(action==="browser"&&this.preference("immersiveBrowser",true));
+        document.body.classList.toggle("nova-immersive",immersive);
         
         theater.classList.toggle("on", isGame);
         document.body.classList.toggle("in-game", isGame);
@@ -2828,6 +2844,7 @@ const nova = {
         });
         select.onchange = (e) => {
             this._selectedModel = e.target.value;
+            try{const settings=JSON.parse(localStorage.getItem("nova_appearance_v2")||"{}");settings.aiModel=this._selectedModel;localStorage.setItem("nova_appearance_v2",JSON.stringify(settings));}catch{}
         };
     },
 
@@ -3256,7 +3273,7 @@ const nova = {
         document.getElementById("yt-panel")?.classList.remove("playing");
         this._ytLoaded=true; const body=document.getElementById("yp-body"); body.innerHTML=`<div class="fp-spin"></div>`;
         try {
-            const data=await this._ytFetch("videos",{part:"snippet,statistics,status",chart:"mostPopular",regionCode:"US",maxResults:24});
+            const data=await this._ytFetch("videos",{part:"snippet,statistics,status",chart:"mostPopular",regionCode:this.preference("youtubeRegion","US"),maxResults:24});
             const videos=(data.items||[]).filter(v=>v.status?.embeddable!==false).map(v=>({videoId:v.id,title:v.snippet?.title||"Untitled",author:v.snippet?.channelTitle||"",channelId:v.snippet?.channelId||"",viewCount:v.statistics?.viewCount||"",videoThumbnails:[{quality:"high",url:v.snippet?.thumbnails?.high?.url||v.snippet?.thumbnails?.medium?.url||v.snippet?.thumbnails?.default?.url}]}));
             this._renderYtGrid(videos,body,"YouTube Trending");
         } catch(e){ body.innerHTML=`<div class="fp-msg">YouTube API unavailable ${this.esc(e.message||"")}</div>`; }
@@ -3320,7 +3337,8 @@ const nova = {
         document.getElementById("yt-panel")?.classList.add("playing");
 
         const origin=(location.protocol==="http:"||location.protocol==="https:")?location.origin:"";
-        const params=new URLSearchParams({autoplay:"1",playsinline:"1",rel:"0",modestbranding:"1"});
+        const showComments=this.preference("youtubeComments",true);
+        const params=new URLSearchParams({autoplay:this.preference("youtubeAutoplay",true)?"1":"0",playsinline:"1",rel:"0",modestbranding:"1"});
         if(origin)params.set("origin",origin);
         const embedUrl=`https://www.youtube-nocookie.com/embed/${encodeURIComponent(videoId)}?${params.toString()}`;
         const safeTitle=this.esc(title||"YouTube Video");
@@ -3331,7 +3349,7 @@ const nova = {
                     <button class="fp-back" id="yt-player-back">← Back</button>
                     <div>${safeTitle}</div>
                 </div>
-                <div class="nova-yt-watch-layout">
+                <div class="nova-yt-watch-layout${showComments?"":" without-comments"}">
                     <section class="nova-yt-video-column">
                         <div class="nova-yt-frame-wrap"><iframe
                             id="yt-player-frame"
@@ -3343,7 +3361,7 @@ const nova = {
                         ></iframe></div>
                         <div class="nova-yt-video-title">${safeTitle}</div>
                     </section>
-                    <aside class="nova-yt-comments" aria-label="Video comments"><div class="nova-yt-comments-head"><strong>Comments</strong><span>View only</span></div><div id="yt-comments-list"><div class="fp-spin"></div></div></aside>
+                    ${showComments?`<aside class="nova-yt-comments" aria-label="Video comments"><div class="nova-yt-comments-head"><strong>Comments</strong><span>View only</span></div><div id="yt-comments-list"><div class="fp-spin"></div></div></aside>`:""}
                 </div>
             </div>`;
 
@@ -3351,7 +3369,7 @@ const nova = {
             const q=document.getElementById("yp-srch")?.value?.trim()||"";
             if(q)this.ytSearch(q); else this.ytHome();
         });
-        this.ytLoadComments(videoId);
+        if(showComments)this.ytLoadComments(videoId);
     },
     async ytLoadComments(videoId){
         const host=document.getElementById("yt-comments-list"); if(!host)return;
@@ -4376,7 +4394,7 @@ try{document.title='Home - Classroom'}catch(_){}
 /* NOVA MEGA APPEARANCE SYSTEM — wallpapers, themes, cursor, scale, dock, fonts, motion and more. */
 (function(){
   const STORAGE='nova_appearance_v2';
-  const defaults={theme:'midnight',accent:'#7c5cff',wallpaper:'nova',wallpaperUrl:'',cursor:'default',font:'system',scale:100,radius:18,dockSize:64,dockPosition:'bottom',animations:true,desktopGrid:true,showLabels:true,highContrast:false};
+  const defaults={theme:'midnight',accent:'#7c5cff',wallpaper:'nova',wallpaperUrl:'',cursor:'default',font:'system',scale:100,fontSize:100,radius:18,density:'comfortable',cardSize:200,tabWidth:190,dockSize:64,dockPosition:'bottom',animations:true,desktopGrid:true,showLabels:true,highContrast:false,showGameDescriptions:true,immersiveGames:true,immersiveBrowser:true,reuseAppTabs:true,youtubeComments:true,youtubeAutoplay:true,youtubeRegion:'US',aiModel:'gemini-3.6-flash',startup:'games',chatAlerts:false};
   const themes={
     midnight:{name:'Midnight',bg:'#080b12',surface:'#151821',bar:'#0b0d14',text:'#f7f8ff'},
     ocean:{name:'Ocean',bg:'#061018',surface:'#0e1c27',bar:'#07131b',text:'#f1fbff'},
@@ -4397,14 +4415,15 @@ try{document.title='Home - Classroom'}catch(_){}
     let raw={};try{raw=JSON.parse(localStorage.getItem(STORAGE)||'{}')||{}}catch{}
     const a={...defaults};
     if(typeof raw!=='object'||Array.isArray(raw))return a;
-    for(const [key,allowed] of Object.entries({theme:Object.keys(themes),wallpaper:[...Object.keys(wallpapers),'custom'],font:['system','serif','mono','rounded','condensed'],dockPosition:['bottom','left','right']})){
+    for(const [key,allowed] of Object.entries({theme:Object.keys(themes),wallpaper:[...Object.keys(wallpapers),'custom'],font:['system','serif','mono','rounded','condensed'],dockPosition:['bottom','left','right'],density:['compact','comfortable','spacious'],youtubeRegion:['US','GB','CA','AU','IN','JP','DE','BR'],aiModel:['gemini-3.6-flash','gemini-3.5-flash','gemini-3.5-flash-lite','gemini-3.1-flash-lite'],startup:['games','ai','youtube','browser','chat','settings']})){
       if(allowed.includes(raw[key]))a[key]=raw[key];
     }
-    for(const key of ['animations','desktopGrid','showLabels','highContrast'])if(typeof raw[key]==='boolean')a[key]=raw[key];
-    for(const [key,min,max] of [['scale',85,120],['radius',4,32],['dockSize',48,92]])if(Number.isFinite(raw[key]))a[key]=Math.max(min,Math.min(max,raw[key]));
+    for(const key of ['animations','desktopGrid','showLabels','highContrast','showGameDescriptions','immersiveGames','immersiveBrowser','reuseAppTabs','youtubeComments','youtubeAutoplay','chatAlerts'])if(typeof raw[key]==='boolean')a[key]=raw[key];
+    for(const [key,min,max] of [['scale',85,120],['fontSize',85,125],['radius',4,32],['cardSize',150,280],['tabWidth',120,260],['dockSize',48,92]])if(Number.isFinite(raw[key]))a[key]=Math.max(min,Math.min(max,raw[key]));
     if(/^#[0-9a-f]{6}$/i.test(raw.accent))a.accent=raw.accent;
     if(typeof raw.wallpaperUrl==='string'&&/^(https?:|data:image\/)/i.test(raw.wallpaperUrl))a.wallpaperUrl=raw.wallpaperUrl;
     if(['default','pointer','crosshair','cell','grab','zoom-in'].includes(raw.cursor)||typeof raw.cursor==='string'&&/^url\("https?:[^"\r\n]+"\) 16 16, auto$/.test(raw.cursor))a.cursor=raw.cursor;
+    if(typeof raw.chatAlerts!=='boolean')try{a.chatAlerts=localStorage.getItem('nova_chat_alerts')==='on'}catch{}
     return a;
   }
   function save(a){try{localStorage.setItem(STORAGE,JSON.stringify(a))}catch{}}
@@ -4412,18 +4431,24 @@ try{document.title='Home - Classroom'}catch(_){}
     const a=load(), t=themes[a.theme]||themes.midnight, root=document.documentElement;
     root.style.setProperty('--nova-accent',a.accent);
     root.style.setProperty('--nova-ui-scale',(Math.max(85,Math.min(120,+a.scale||100))/100).toFixed(2));
+    root.style.setProperty('--nova-font-scale',(Math.max(85,Math.min(125,+a.fontSize||100))/100).toFixed(2));
+    root.style.setProperty('--nova-card-size',Math.max(150,Math.min(280,+a.cardSize||200))+'px');
+    root.style.setProperty('--nova-tab-width',Math.max(120,Math.min(260,+a.tabWidth||190))+'px');
     root.style.setProperty('--nova-radius',Math.max(4,Math.min(32,+a.radius||18))+'px');
     root.style.setProperty('--nova-surface',t.surface);
     root.style.setProperty('--nova-bar',t.bar);
     root.style.setProperty('--nova-text',t.text);
     root.style.setProperty('--nova-theme-bg',t.bg);
     root.style.setProperty('--nova-theme-border',a.accent);
-    document.body.dataset.novaTheme=a.theme; document.body.dataset.novaFont=a.font; document.body.dataset.novaCursor=a.cursor;
+    document.body.dataset.novaTheme=a.theme; document.body.dataset.novaFont=a.font; document.body.dataset.novaCursor=a.cursor; document.body.dataset.novaDensity=a.density;
     document.body.classList.toggle('nova-no-animations',!a.animations);
     root.classList.toggle('nova-perf-mode',nova.isLowSpec || !a.animations);
     document.body.classList.toggle('nova-high-contrast',!!a.highContrast);
     document.body.classList.toggle('nova-hide-desktop-grid',!a.desktopGrid);
     document.body.classList.toggle('nova-hide-dock-labels',!a.showLabels);
+    document.body.classList.toggle('nova-hide-game-descriptions',!a.showGameDescriptions);
+    nova._selectedModel=a.aiModel||'gemini-3.6-flash';
+    try{localStorage.setItem('nova_chat_alerts',a.chatAlerts?'on':'off')}catch{}
     const cursor=(a.cursor||'default').startsWith('url(')?a.cursor:a.cursor||'default';
     root.style.setProperty('--nova-cursor',cursor);
     root.style.cursor=cursor;
@@ -4446,26 +4471,53 @@ try{document.title='Home - Classroom'}catch(_){}
       <aside class="nova-settings-side"><div class="nova-settings-brand">Nova Settings</div>
         <button class="nova-set-tab active" data-set-tab="appearance">🎨 Appearance</button>
         <button class="nova-set-tab" data-set-tab="wallpaper">🖼️ Wallpaper</button>
-        <button class="nova-set-tab" data-set-tab="interface">🧩 Interface</button>
+        <button class="nova-set-tab" data-set-tab="interface">🧩 Layout</button>
+        <button class="nova-set-tab" data-set-tab="gaming">🎮 Gaming</button>
+        <button class="nova-set-tab" data-set-tab="tabs">▱ Tabs</button>
+        <button class="nova-set-tab" data-set-tab="ai">✦ Nova AI</button>
+        <button class="nova-set-tab" data-set-tab="media">▶ YouTube</button>
         <button class="nova-set-tab" data-set-tab="dock">🚀 Dock</button>
         <button class="nova-set-tab" data-set-tab="cursor">🖱️ Cursor</button>
         <button class="nova-set-tab" data-set-tab="typography">🔤 Typography</button>
         <button class="nova-set-tab" data-set-tab="performance">⚡ Performance</button>
+        <button class="nova-set-tab" data-set-tab="privacy">🔒 Privacy & Data</button>
       </aside>
       <main class="nova-settings-main">
         <section class="nova-set-page active" data-set-page="appearance"><h2>Appearance</h2><p class="nova-settings-sub">Make Nova look exactly how you want.</p>
           <div class="nova-theme-grid">${Object.entries(themes).map(([k,t])=>`<button class="nova-theme-card${a.theme===k?' selected':''}" data-theme="${k}"><span style="background:${t.bg}"><i style="background:${a.accent}"></i></span><strong>${t.name}</strong><small>${k==='arctic'?'Light mode':'Dark mode'}</small></button>`).join('')}</div>
-          <div class="nova-control-grid"><label>Accent color <input id="nova-accent" type="color" value="${esc(a.accent)}"></label><label>Corner radius <output id="nova-radius-out">${a.radius}px</output><input id="nova-radius" type="range" min="4" max="32" value="${a.radius}"></label><label>UI scale <output id="nova-scale-out">${a.scale}%</output><input id="nova-scale" type="range" min="85" max="120" value="${a.scale}"></label></div>
+          <div class="nova-control-grid"><label>Accent color <input id="nova-accent" type="color" value="${esc(a.accent)}"></label><label>Corner radius <output>${a.radius}px</output><input id="nova-radius" type="range" min="4" max="32" value="${a.radius}"></label><label>UI scale <output>${a.scale}%</output><input id="nova-scale" type="range" min="85" max="120" value="${a.scale}"></label><label>Text size <output>${a.fontSize}%</output><input id="nova-font-size" type="range" min="85" max="125" value="${a.fontSize}"></label></div>
         </section>
         <section class="nova-set-page" data-set-page="wallpaper"><h2>Wallpaper</h2><p class="nova-settings-sub">Pick a built-in background or use your own image.</p>
           <div class="nova-wall-grid">${Object.keys(wallpapers).map(k=>`<button class="nova-wall-card${a.wallpaper===k?' selected':''}" data-wallpaper="${k}"><span style="background:${wallpapers[k]}"></span><strong>${k[0].toUpperCase()+k.slice(1)}</strong></button>`).join('')}<button class="nova-wall-card${a.wallpaper==='custom'?' selected':''}" data-wallpaper="custom"><span class="nova-custom-wall"></span><strong>Custom</strong></button></div>
           <div class="nova-upload-row"><input id="nova-wall-file" type="file" accept="image/*"><input id="nova-wall-url" type="url" placeholder="Paste image URL…" value="${esc(a.wallpaperUrl)}"><button id="nova-wall-apply">Apply</button></div>
         </section>
-        <section class="nova-set-page" data-set-page="interface"><h2>Interface</h2><p class="nova-settings-sub">Control the desktop itself.</p>
+        <section class="nova-set-page" data-set-page="interface"><h2>Layout</h2><p class="nova-settings-sub">Control spacing, scale, and desktop details.</p>
+          <div class="nova-perf-card"><b>Interface style</b><span>Switch between the focused gaming workspace and the full Nova desktop.</span><div class="os-setting-actions"><button id="os-use-classic">Gaming</button><button id="os-use-os">OS Style</button></div></div>
+          <label>Interface density <select id="nova-density"><option value="compact" ${a.density==='compact'?'selected':''}>Compact</option><option value="comfortable" ${a.density==='comfortable'?'selected':''}>Comfortable</option><option value="spacious" ${a.density==='spacious'?'selected':''}>Spacious</option></select></label>
           <label class="nova-switch-row"><span><b>Desktop grid</b><small>Show the decorative desktop grid</small></span><input type="checkbox" data-pref="desktopGrid" ${a.desktopGrid?'checked':''}></label>
           <label class="nova-switch-row"><span><b>App labels</b><small>Show labels beneath desktop and dock icons</small></span><input type="checkbox" data-pref="showLabels" ${a.showLabels?'checked':''}></label>
           <label class="nova-switch-row"><span><b>Animations</b><small>Use Nova's window and dock motion</small></span><input type="checkbox" data-pref="animations" ${a.animations?'checked':''}></label>
           <label class="nova-switch-row"><span><b>High contrast</b><small>Increase text and border contrast</small></span><input type="checkbox" data-pref="highContrast" ${a.highContrast?'checked':''}></label>
+        </section>
+        <section class="nova-set-page" data-set-page="gaming"><h2>Gaming</h2><p class="nova-settings-sub">Tune the game library and play workspace.</p>
+          <label>Game card size <output>${a.cardSize}px</output><input id="nova-card-size" type="range" min="150" max="280" step="10" value="${a.cardSize}"></label>
+          <label class="nova-switch-row"><span><b>Game descriptions</b><small>Show descriptions beneath each game title</small></span><input type="checkbox" data-pref="showGameDescriptions" ${a.showGameDescriptions?'checked':''}></label>
+          <label class="nova-switch-row"><span><b>Immersive game view</b><small>Hide the large Nova banner while playing</small></span><input type="checkbox" data-pref="immersiveGames" ${a.immersiveGames?'checked':''}></label>
+          <label class="nova-switch-row"><span><b>Immersive browser view</b><small>Hide the large Nova banner while browsing</small></span><input type="checkbox" data-pref="immersiveBrowser" ${a.immersiveBrowser?'checked':''}></label>
+        </section>
+        <section class="nova-set-page" data-set-page="tabs"><h2>Tabs</h2><p class="nova-settings-sub">Choose how the Nova workspace handles apps.</p>
+          <label>Tab width <output>${a.tabWidth}px</output><input id="nova-tab-width" type="range" min="120" max="260" step="10" value="${a.tabWidth}"></label>
+          <label class="nova-switch-row"><span><b>Reuse app tabs</b><small>Return to an existing AI, Browser, Chat, or Settings tab instead of opening another</small></span><input type="checkbox" data-pref="reuseAppTabs" ${a.reuseAppTabs?'checked':''}></label>
+          <label>Open Nova with <select id="nova-startup"><option value="games" ${a.startup==='games'?'selected':''}>Games</option><option value="ai" ${a.startup==='ai'?'selected':''}>Nova AI</option><option value="youtube" ${a.startup==='youtube'?'selected':''}>YouTube</option><option value="browser" ${a.startup==='browser'?'selected':''}>Browser</option><option value="chat" ${a.startup==='chat'?'selected':''}>Chat</option><option value="settings" ${a.startup==='settings'?'selected':''}>Settings</option></select></label>
+        </section>
+        <section class="nova-set-page" data-set-page="ai"><h2>Nova AI</h2><p class="nova-settings-sub">Pick the model Nova uses for new conversations.</p>
+          <label>Default model <select id="nova-ai-model"><option value="gemini-3.6-flash" ${a.aiModel==='gemini-3.6-flash'?'selected':''}>Gemini 3.6 Flash</option><option value="gemini-3.5-flash" ${a.aiModel==='gemini-3.5-flash'?'selected':''}>Gemini 3.5 Flash</option><option value="gemini-3.5-flash-lite" ${a.aiModel==='gemini-3.5-flash-lite'?'selected':''}>Gemini 3.5 Flash Lite</option><option value="gemini-3.1-flash-lite" ${a.aiModel==='gemini-3.1-flash-lite'?'selected':''}>Gemini 3.1 Flash Lite</option></select></label>
+          <div class="nova-perf-card"><b>Saved conversations</b><span>Nova AI keeps chat history on this browser.</span><button id="nova-clear-ai">Clear chats</button></div>
+        </section>
+        <section class="nova-set-page" data-set-page="media"><h2>YouTube</h2><p class="nova-settings-sub">Control video playback and the read-only comment view.</p>
+          <label class="nova-switch-row"><span><b>Autoplay videos</b><small>Start playback when a video opens</small></span><input type="checkbox" data-pref="youtubeAutoplay" ${a.youtubeAutoplay?'checked':''}></label>
+          <label class="nova-switch-row"><span><b>Show comments</b><small>Load read-only comments and expandable replies</small></span><input type="checkbox" data-pref="youtubeComments" ${a.youtubeComments?'checked':''}></label>
+          <label>Trending region <select id="nova-youtube-region">${[['US','United States'],['GB','United Kingdom'],['CA','Canada'],['AU','Australia'],['IN','India'],['JP','Japan'],['DE','Germany'],['BR','Brazil']].map(([v,n])=>`<option value="${v}" ${a.youtubeRegion===v?'selected':''}>${n}</option>`).join('')}</select></label>
         </section>
         <section class="nova-set-page" data-set-page="dock"><h2>Dock</h2><p class="nova-settings-sub">Tune the Nova dock.</p>
           <label>Dock size <output id="nova-dock-out">${a.dockSize}px</output><input id="nova-dock" type="range" min="48" max="92" value="${a.dockSize}"></label>
@@ -4483,9 +4535,20 @@ try{document.title='Home - Classroom'}catch(_){}
           <div class="nova-perf-card"><b>Performance mode</b><span>Disables non-essential animation and visual effects.</span><button id="nova-performance">${a.animations?'Enable':'Enabled'}</button></div>
           <div class="nova-perf-card"><b>Reset appearance</b><span>Restore every Nova appearance setting to default.</span><button id="nova-appearance-reset">Reset</button></div>
         </section>
+        <section class="nova-set-page" data-set-page="privacy"><h2>Privacy & Data</h2><p class="nova-settings-sub">Manage locally saved Nova data.</p>
+          <label class="nova-switch-row"><span><b>Chat notifications</b><small>Allow Nova Chat alerts on this browser</small></span><input type="checkbox" data-pref="chatAlerts" ${a.chatAlerts?'checked':''}></label>
+          <div class="nova-perf-card"><b>Favorites</b><span>Remove all saved game favorites.</span><button id="nova-clear-favorites">Clear favorites</button></div>
+          <div class="nova-perf-card"><b>Export settings</b><span>Download a backup of your Nova customization.</span><button id="nova-export-settings">Export</button></div>
+          <label>Import settings <input id="nova-import-settings" type="file" accept="application/json"></label>
+          <div class="nova-perf-card nova-danger-card"><b>Reset everything</b><span>Clear appearance, chats, favorites, and recent games.</span><button id="nova-reset-all">Reset all</button></div>
+        </section>
       </main></div>`;
   };
   function update(key,val){const a=load();a[key]=val;save(a);apply();}
+  function refreshSettings(source){
+    const host=source?.closest('.nova-settings-panel')?.querySelector('.fp-body')||source?.closest('.os-win-content');
+    if(host)host.innerHTML=nova.osSettingsBody();
+  }
   document.addEventListener('click',e=>{
     if(!e.target.closest('.nova-mega-settings'))return;
     const tab=e.target.closest('[data-set-tab]'); if(tab){const root=tab.closest('.nova-mega-settings');root?.querySelectorAll('.nova-set-tab').forEach(x=>x.classList.toggle('active',x===tab));root?.querySelectorAll('.nova-set-page').forEach(x=>x.classList.toggle('active',x.dataset.setPage===tab.dataset.setTab));return;}
@@ -4496,7 +4559,11 @@ try{document.title='Home - Classroom'}catch(_){}
     if(e.target.id==='nova-wall-apply'){const u=e.target.closest('.nova-mega-settings')?.querySelector('#nova-wall-url')?.value.trim();if(u)update('wallpaperUrl',u),update('wallpaper','custom');return;}
     if(e.target.id==='nova-cursor-url-apply'){const u=e.target.closest('.nova-mega-settings')?.querySelector('#nova-cursor-url')?.value.trim();if(u){const a=load();a.cursor='url("'+u.replace(/"/g,'')+'") 16 16, auto';save(a);apply();}return;}
     if(e.target.id==='nova-performance'){const enabled=!load().animations;update('animations',enabled);e.target.textContent=enabled?'Enable':'Enabled';return;}
-    if(e.target.id==='nova-appearance-reset'){save({...defaults});apply();const w=e.target.closest('.os-window');if(w) w.querySelector('.os-win-content').innerHTML=nova.osSettingsBody();return;}
+    if(e.target.id==='nova-clear-ai'){try{localStorage.removeItem('ng_ai_chats')}catch{}nova._aiChats=[];if(nova._aiLoaded)nova.aiNewChat?.();e.target.textContent='Cleared';return;}
+    if(e.target.id==='nova-clear-favorites'){try{localStorage.setItem('ng_f','[]')}catch{}nova.favorites=[];nova.renderCards?.();e.target.textContent='Cleared';return;}
+    if(e.target.id==='nova-export-settings'){const blob=new Blob([JSON.stringify(load(),null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='nova-settings.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),500);return;}
+    if(e.target.id==='nova-appearance-reset'){const a=load();Object.assign(a,{theme:defaults.theme,accent:defaults.accent,wallpaper:defaults.wallpaper,wallpaperUrl:defaults.wallpaperUrl,cursor:defaults.cursor,font:defaults.font,scale:defaults.scale,fontSize:defaults.fontSize,radius:defaults.radius,density:defaults.density});save(a);apply();refreshSettings(e.target);return;}
+    if(e.target.id==='nova-reset-all'){if(!confirm('Reset all Nova settings and locally saved data?'))return;for(const key of [STORAGE,'ng_ai_chats','ng_f','nova_recent_games','nova_chat_alerts'])try{localStorage.removeItem(key)}catch{}nova.favorites=[];nova._aiChats=[];save({...defaults});apply();nova.renderCards?.();refreshSettings(e.target);return;}
   },true);
   document.addEventListener('change',e=>{
     if(!e.target.closest('.nova-mega-settings'))return;
@@ -4505,18 +4572,28 @@ try{document.title='Home - Classroom'}catch(_){}
     if(t.id==='nova-accent') update('accent',t.value);
     if(t.id==='nova-radius') update('radius',+t.value);
     if(t.id==='nova-scale') update('scale',+t.value);
+    if(t.id==='nova-font-size') update('fontSize',+t.value);
+    if(t.id==='nova-card-size') update('cardSize',+t.value);
+    if(t.id==='nova-tab-width') update('tabWidth',+t.value);
+    if(t.id==='nova-density') update('density',t.value);
+    if(t.id==='nova-startup') update('startup',t.value);
+    if(t.id==='nova-ai-model'){update('aiModel',t.value);nova._selectedModel=t.value;nova.aiRenderModelSelect?.();}
+    if(t.id==='nova-youtube-region'){update('youtubeRegion',t.value);nova._ytLoaded=false;}
     if(t.id==='nova-dock') update('dockSize',+t.value);
     if(t.id==='nova-dock-position') update('dockPosition',t.value);
+    if(t.id==='nova-import-settings'&&t.files?.[0]){const r=new FileReader();r.onload=()=>{try{const data=JSON.parse(String(r.result||'{}'));localStorage.setItem(STORAGE,JSON.stringify(data));const clean=load();save(clean);apply();refreshSettings(t);}catch{alert('That settings file is not valid.')}};r.readAsText(t.files[0]);}
     if(t.id==='nova-wall-file'&&t.files?.[0]){const r=new FileReader();r.onload=()=>{const a=load();a.wallpaper='custom';a.wallpaperUrl=r.result;save(a);apply();};r.readAsDataURL(t.files[0]);}
   },true);
   document.addEventListener('input',e=>{
     const t=e.target;
     if(t.id==='nova-radius') {const o=t.parentElement.querySelector('output');if(o)o.textContent=t.value+'px';}
     if(t.id==='nova-scale') {const o=t.parentElement.querySelector('output');if(o)o.textContent=t.value+'%';}
+    if(t.id==='nova-font-size') {const o=t.parentElement.querySelector('output');if(o)o.textContent=t.value+'%';}
+    if(t.id==='nova-card-size'||t.id==='nova-tab-width') {const o=t.parentElement.querySelector('output');if(o)o.textContent=t.value+'px';}
     if(t.id==='nova-dock') {const o=t.parentElement.querySelector('output');if(o)o.textContent=t.value+'px';}
   },true);
   const style=document.createElement('style');style.id='nova-mega-appearance-style';style.textContent=`
-    :root{--nova-accent:#7c5cff;--nova-ui-scale:1;--nova-radius:18px;--nova-surface:#151821;--nova-bar:#0b0d14;--nova-text:#f7f8ff;--nova-theme-bg:#080b12;--nova-cursor:default}
+    :root{--nova-accent:#7c5cff;--nova-ui-scale:1;--nova-font-scale:1;--nova-card-size:200px;--nova-tab-width:190px;--nova-radius:18px;--nova-surface:#151821;--nova-bar:#0b0d14;--nova-text:#f7f8ff;--nova-theme-bg:#080b12;--nova-cursor:default}
     /* Make appearance controls affect the actual OS, not just settings previews. */
     #os-desktop{background:var(--nova-theme-bg)!important;color:var(--nova-text)!important;zoom:var(--nova-ui-scale)}
     #os-desktop .os-window{background:var(--nova-surface)!important;color:var(--nova-text)!important;border-radius:var(--nova-radius)!important}
@@ -4529,14 +4606,14 @@ try{document.title='Home - Classroom'}catch(_){}
     #os-desktop .os-status-dot{background:var(--nova-accent)!important;box-shadow:0 0 12px color-mix(in srgb,var(--nova-accent) 70%,transparent)!important}
     #os-desktop .os-window-opening{transform:translateY(18px) scale(calc(.97 * var(--nova-ui-scale)))!important}
     .nova-high-contrast #os-desktop{color:var(--nova-text)!important}
-    body{--nova-font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif}
+    html{font-size:calc(16px * var(--nova-font-scale))}body{--nova-font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif}
     body[data-nova-font="serif"]{--nova-font-family:Georgia,"Times New Roman",serif}body[data-nova-font="mono"]{--nova-font-family:ui-monospace,SFMono-Regular,Consolas,monospace}body[data-nova-font="rounded"]{--nova-font-family:ui-rounded,"SF Pro Rounded",system-ui,sans-serif}body[data-nova-font="condensed"]{--nova-font-family:"Arial Narrow","Roboto Condensed",sans-serif}
     #os-desktop{font-family:var(--nova-font-family)!important}#os-desktop .os-wallpaper{background-size:cover!important;background-position:center!important}#os-desktop .os-wallpaper-grid{opacity:.22}.nova-hide-desktop-grid #os-desktop .os-wallpaper-grid{display:none!important}
     .nova-no-animations *{animation-duration:0s!important;transition-duration:0s!important}.nova-high-contrast #os-desktop{filter:contrast(1.08)}
     #os-desktop .os-dock-wrap{font-size:calc(var(--nova-dock-size) * .18)}
     #os-desktop[data-dock-position="left"] .os-dock-wrap{left:14px;right:auto;top:50%;bottom:auto;transform:translateY(-50%)}#os-desktop[data-dock-position="left"] .os-dock-pro{flex-direction:column}#os-desktop[data-dock-position="right"] .os-dock-wrap{right:14px;left:auto;top:50%;bottom:auto;transform:translateY(-50%)}#os-desktop[data-dock-position="right"] .os-dock-pro{flex-direction:column}
     .nova-hide-dock-labels .os-dock-tooltip{display:none!important}
-    .nova-mega-settings{height:100%;display:grid;grid-template-columns:210px minmax(0,1fr);background:#11141c;color:#fff;font-family:var(--nova-font-family)}.nova-settings-side{padding:16px;border-right:1px solid rgba(255,255,255,.08);background:#0d1017}.nova-settings-brand{font-size:17px;font-weight:800;padding:10px 10px 18px}.nova-set-tab{display:block;width:100%;padding:10px 12px;margin:3px 0;border:0!important;border-radius:10px;background:transparent!important;color:rgba(255,255,255,.62)!important;text-align:left;cursor:pointer;box-shadow:none!important}.nova-set-tab.active,.nova-set-tab:hover{background:#202532!important;color:#fff!important}.nova-settings-main{padding:28px;overflow:auto}.nova-set-page{display:none}.nova-set-page.active{display:block}.nova-set-page h2{font-size:27px;margin:0 0 5px}.nova-settings-sub{opacity:.55;margin:0 0 22px}.nova-theme-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(125px,1fr));gap:10px}.nova-theme-card,.nova-wall-card,.nova-cursor-card,.nova-font-card{border:1px solid rgba(255,255,255,.09)!important;background:#181c26!important;color:#fff!important;border-radius:14px!important;padding:8px!important;text-align:left;cursor:pointer;box-shadow:none!important}.nova-theme-card.selected,.nova-wall-card.selected,.nova-cursor-card.selected,.nova-font-card.selected{outline:2px solid var(--nova-accent)!important}.nova-theme-card>span{height:65px;display:block;border-radius:9px;position:relative}.nova-theme-card i{position:absolute;width:22px;height:22px;border-radius:50%;left:10px;bottom:10px}.nova-theme-card strong,.nova-theme-card small,.nova-wall-card strong,.nova-cursor-card strong,.nova-font-card strong{display:block;margin-top:7px}.nova-theme-card small{opacity:.5}.nova-control-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:18px}.nova-control-grid label,.nova-set-page>label{display:flex;flex-direction:column;gap:8px;font-size:12px;color:rgba(255,255,255,.7)}.nova-control-grid output,.nova-set-page output{font-size:11px;opacity:.6}.nova-control-grid input[type=range],.nova-set-page input[type=range]{width:100%}.nova-wall-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}.nova-wall-card span{display:block;height:82px;border-radius:10px}.nova-custom-wall{background:repeating-linear-gradient(45deg,#222 0 10px,#333 10px 20px)!important}.nova-upload-row{display:grid;grid-template-columns:1fr 1.5fr auto;gap:8px;margin-top:18px}.nova-upload-row input,.nova-set-page input[type=url],.nova-set-page select{box-sizing:border-box;background:#090b10;border:1px solid rgba(255,255,255,.1);color:#fff;border-radius:9px;padding:10px}.nova-upload-row button,.nova-set-page button{background:#202532;color:#fff;border:1px solid rgba(255,255,255,.1);border-radius:9px;padding:9px 13px;cursor:pointer}.nova-switch-row{display:flex!important;flex-direction:row!important;justify-content:space-between;align-items:center;padding:15px;border-radius:12px;background:#181c26;margin:9px 0}.nova-switch-row span{display:flex;flex-direction:column;gap:4px}.nova-switch-row small{opacity:.5}.nova-cursor-grid,.nova-font-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px}.nova-cursor-card{text-align:center!important}.nova-cursor-card span{display:block;font-size:34px;height:45px}.nova-font-card{text-align:center!important}.nova-font-card span{display:block;font-size:32px}.font-serif{font-family:Georgia}.font-mono{font-family:monospace}.font-rounded{font-family:ui-rounded}.font-condensed{font-family:"Arial Narrow"}.nova-mini-note{margin-top:15px;opacity:.45;font-size:11px}.nova-perf-card{display:flex;align-items:center;gap:14px;padding:16px;margin:10px 0;background:#181c26;border-radius:13px}.nova-perf-card b{min-width:140px}.nova-perf-card span{flex:1;opacity:.55;font-size:12px}.nova-perf-card button{background:#202532;color:#fff;border:1px solid rgba(255,255,255,.1);border-radius:9px;padding:9px 13px}
+    .nova-mega-settings{height:100%;display:grid;grid-template-columns:220px minmax(0,1fr);background:#11141c;color:#fff;font-family:var(--nova-font-family)}.nova-settings-side{padding:16px;border-right:1px solid rgba(255,255,255,.08);background:#0d1017;overflow-y:auto}.nova-settings-brand{font-size:17px;font-weight:800;padding:10px 10px 18px}.nova-set-tab{display:block;width:100%;padding:10px 12px;margin:3px 0;border:0!important;border-radius:10px;background:transparent!important;color:rgba(255,255,255,.62)!important;text-align:left;cursor:pointer;box-shadow:none!important}.nova-set-tab.active,.nova-set-tab:hover{background:#202532!important;color:#fff!important}.nova-settings-main{padding:28px;overflow:auto}.nova-set-page{display:none;max-width:920px}.nova-set-page.active{display:block}.nova-set-page h2{font-size:27px;margin:0 0 5px}.nova-settings-sub{opacity:.55;margin:0 0 22px}.nova-theme-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(125px,1fr));gap:10px}.nova-theme-card,.nova-wall-card,.nova-cursor-card,.nova-font-card{border:1px solid rgba(255,255,255,.09)!important;background:#181c26!important;color:#fff!important;border-radius:14px!important;padding:8px!important;text-align:left;cursor:pointer;box-shadow:none!important}.nova-theme-card.selected,.nova-wall-card.selected,.nova-cursor-card.selected,.nova-font-card.selected{outline:2px solid var(--nova-accent)!important}.nova-theme-card>span{height:65px;display:block;border-radius:9px;position:relative}.nova-theme-card i{position:absolute;width:22px;height:22px;border-radius:50%;left:10px;bottom:10px}.nova-theme-card strong,.nova-theme-card small,.nova-wall-card strong,.nova-cursor-card strong,.nova-font-card strong{display:block;margin-top:7px}.nova-theme-card small{opacity:.5}.nova-control-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:18px}.nova-control-grid label,.nova-set-page>label{display:flex;flex-direction:column;gap:8px;margin:12px 0;font-size:12px;color:rgba(255,255,255,.7)}.nova-control-grid output,.nova-set-page output{font-size:11px;opacity:.6}.nova-control-grid input[type=range],.nova-set-page input[type=range]{width:100%;accent-color:var(--nova-accent)}.nova-wall-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}.nova-wall-card span{display:block;height:82px;border-radius:10px}.nova-custom-wall{background:repeating-linear-gradient(45deg,#222 0 10px,#333 10px 20px)!important}.nova-upload-row{display:grid;grid-template-columns:1fr 1.5fr auto;gap:8px;margin-top:18px}.nova-upload-row input,.nova-set-page input[type=url],.nova-set-page input[type=file],.nova-set-page select{box-sizing:border-box;background:#090b10;border:1px solid rgba(255,255,255,.1);color:#fff;border-radius:9px;padding:10px}.nova-upload-row button,.nova-set-page button{background:#202532;color:#fff;border:1px solid rgba(255,255,255,.1);border-radius:9px;padding:9px 13px;cursor:pointer}.nova-switch-row{display:flex!important;flex-direction:row!important;justify-content:space-between;align-items:center;padding:15px;border-radius:12px;background:#181c26;margin:9px 0}.nova-switch-row span{display:flex;flex-direction:column;gap:4px}.nova-switch-row small{opacity:.5}.nova-switch-row input{width:18px;height:18px;accent-color:var(--nova-accent)}.nova-cursor-grid,.nova-font-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px}.nova-cursor-card{text-align:center!important}.nova-cursor-card span{display:block;font-size:34px;height:45px}.nova-font-card{text-align:center!important}.nova-font-card span{display:block;font-size:32px}.font-serif{font-family:Georgia}.font-mono{font-family:monospace}.font-rounded{font-family:ui-rounded}.font-condensed{font-family:"Arial Narrow"}.nova-mini-note{margin-top:15px;opacity:.45;font-size:11px}.nova-perf-card{display:flex;align-items:center;gap:14px;padding:16px;margin:10px 0;background:#181c26;border-radius:13px}.nova-perf-card b{min-width:140px}.nova-perf-card span{flex:1;opacity:.55;font-size:12px}.nova-perf-card button{background:#202532;color:#fff;border:1px solid rgba(255,255,255,.1);border-radius:9px;padding:9px 13px}.nova-danger-card{border:1px solid #ef444455}.nova-danger-card button{color:#ffb4b4!important;border-color:#ef444466!important}
     @media(max-width:700px){.nova-mega-settings{grid-template-columns:1fr}.nova-settings-side{display:flex;overflow:auto;border-right:0;border-bottom:1px solid rgba(255,255,255,.08)}.nova-settings-brand{display:none}.nova-set-tab{white-space:nowrap;width:auto}.nova-control-grid{grid-template-columns:1fr}.nova-upload-row{grid-template-columns:1fr}}
   `;document.head.appendChild(style);
   window.addEventListener('nova:os-rendered',apply);
@@ -4760,21 +4837,22 @@ body:not(.os-mode) #app{background:transparent;overflow:hidden}
 body:not(.os-mode) #tbr{display:none!important}
 body:not(.os-mode) header{padding:18px max(28px,calc((100vw - 1220px)/2));background:rgba(13,22,36,.92)!important;border-bottom:1px solid #213149!important;box-shadow:none!important;backdrop-filter:blur(16px)!important}
 body:not(.os-mode) header .brand{display:none}.hl{gap:10px}.mbtn{border-radius:10px!important;background:#17243a!important;box-shadow:none!important}.sw{max-width:760px;margin-left:auto}.sbar{height:44px;border-radius:11px!important;background:#101a2a!important;border-color:#2d4262!important;padding:0 16px!important}.sbar:focus{border-color:#88b4f5!important;box-shadow:0 0 0 3px rgba(136,180,245,.12)!important}.hbtn,.fvbtn{height:42px;border-radius:10px!important;background:#17243a!important;box-shadow:none!important;border-color:#293b57!important}
-.nova-library-intro{width:min(1220px,calc(100% - 56px));margin:0 auto;padding:34px 0 24px;display:flex;align-items:end;justify-content:space-between;gap:28px;flex-shrink:0}.nova-kicker{display:block;margin-bottom:8px;color:#8fb9ff;font-size:10px;font-weight:800;letter-spacing:.19em}.nova-library-intro h1{margin:0!important;font:700 clamp(28px,3.6vw,44px)/1.08 'Plus Jakarta Sans',sans-serif!important;letter-spacing:-.045em!important;color:#eef5ff}.nova-library-intro p{margin:10px 0 0;color:#8fa3c1;font-size:13px}.nova-library-count{display:flex;align-items:baseline;gap:8px;padding:13px 16px;border:1px solid #273a56;border-radius:13px;background:#142035;color:#8298ba;white-space:nowrap}.nova-library-count strong{font-size:24px;color:#d8e8ff}.nova-library-count span{font-size:11px}
+.nova-library-intro{width:min(1220px,calc(100% - 56px));margin:0 auto;padding:34px 0 24px;display:flex;align-items:end;justify-content:space-between;gap:28px;flex-shrink:0}.nova-kicker{display:block;margin-bottom:8px;color:#8fb9ff;font-size:10px;font-weight:800;letter-spacing:.19em}.nova-library-intro h1{margin:0!important;font:700 clamp(28px,3.6vw,44px)/1.08 var(--nova-font-family)!important;letter-spacing:-.045em!important;color:#eef5ff}.nova-library-intro p{margin:10px 0 0;color:#8fa3c1;font-size:13px}.nova-library-count{display:flex;align-items:baseline;gap:8px;padding:13px 16px;border:1px solid #273a56;border-radius:13px;background:#142035;color:#8298ba;white-space:nowrap}.nova-library-count strong{font-size:24px;color:#d8e8ff}.nova-library-count span{font-size:11px}
 .nova-section-title{width:min(1220px,calc(100% - 56px));margin:0 auto 12px;display:flex;align-items:center;justify-content:space-between;color:#8499b8;font-size:11px;flex-shrink:0}.nova-section-title>div{display:flex;align-items:center;gap:9px}.nova-section-title strong{font-size:18px;color:#bed4f5}.nova-section-dot{width:8px;height:8px;border-radius:2px;background:#8eb9f9}
-body:not(.os-mode) #grid{width:min(1276px,100%);margin:0 auto;padding:0 28px calc(var(--dock-h) + 28px)!important;grid-template-columns:repeat(auto-fill,minmax(200px,1fr))!important;gap:16px!important}
+body:not(.os-mode) #grid{width:min(1276px,100%);margin:0 auto;padding:0 28px 28px!important;grid-template-columns:repeat(auto-fill,minmax(var(--nova-card-size,200px),1fr))!important;gap:16px!important}
 body:not(.os-mode) .card{height:235px!important;padding:0!important;border-radius:16px!important;background:#121e30!important;border-color:#263a56!important;box-shadow:0 10px 30px rgba(2,8,18,.16)!important;display:block!important;overflow:hidden}
 body:not(.os-mode) .card::before{display:none}.game-art{height:104px;position:relative;display:grid;place-items:center;overflow:hidden;background:radial-gradient(circle at 20% 10%,rgba(142,185,249,.55),transparent 52%),linear-gradient(135deg,#253a5a,#17243a 70%)}.game-art::before,.game-art::after{content:"";position:absolute;border:1px solid rgba(255,255,255,.13);width:110px;height:110px;border-radius:26px;transform:rotate(27deg);right:-26px;top:-50px}.game-art::after{width:150px;height:150px;border-radius:50%;left:-75px;top:42px}.game-art span{font-size:38px;font-weight:850;color:#f0f6ff;text-shadow:0 8px 30px rgba(0,0,0,.3)}
 body:not(.os-mode) .card:nth-child(4n+2) .game-art{background:radial-gradient(circle at 20% 10%,rgba(136,221,207,.45),transparent 52%),linear-gradient(135deg,#1f4b52,#172b3b 70%)}body:not(.os-mode) .card:nth-child(4n+3) .game-art{background:radial-gradient(circle at 20% 10%,rgba(184,153,255,.48),transparent 52%),linear-gradient(135deg,#443864,#22253f 70%)}body:not(.os-mode) .card:nth-child(4n+4) .game-art{background:radial-gradient(circle at 20% 10%,rgba(255,180,115,.42),transparent 52%),linear-gradient(135deg,#58402e,#26293a 70%)}
-.game-copy{padding:14px 15px}.game-copy h3{padding:0!important;margin:0 0 6px!important;font:700 13px/1.35 'Plus Jakarta Sans',sans-serif!important;color:#cfe0fa!important}.game-copy p{height:34px;font-size:10px!important;color:#8296b3!important}.game-play{display:inline-flex;margin-top:11px;padding:7px 10px;border-radius:8px;background:#223149;color:#bdd4f5;font-size:10px;font-weight:750}.card:hover{transform:translateY(-4px)!important;border-color:#5278aa!important;box-shadow:0 18px 40px rgba(2,8,18,.3)!important}.card:hover .game-copy h3{color:#fff!important}.fvs{right:12px!important;bottom:12px!important}.ntb{top:10px!important;right:10px!important;color:#e8f2ff!important;background:#101a2acc!important;border-color:#49678f!important}
-body:not(.os-mode),body:not(.os-mode) :is(button,input,select,textarea){font-family:'Plus Jakarta Sans',Inter,system-ui,-apple-system,'Segoe UI',sans-serif!important}
-body:not(.os-mode) :is(h1,h2,h3,.fp-ttl,.tt){font-family:'Plus Jakarta Sans',Inter,system-ui,-apple-system,'Segoe UI',sans-serif!important;letter-spacing:-.025em}
+.game-copy{padding:14px 15px}.game-copy h3{padding:0!important;margin:0 0 6px!important;font:700 13px/1.35 var(--nova-font-family)!important;color:#cfe0fa!important}.game-copy p{height:34px;font-size:10px!important;color:#8296b3!important}.game-play{display:inline-flex;margin-top:11px;padding:7px 10px;border-radius:8px;background:#223149;color:#bdd4f5;font-size:10px;font-weight:750}.card:hover{transform:translateY(-4px)!important;border-color:#5278aa!important;box-shadow:0 18px 40px rgba(2,8,18,.3)!important}.card:hover .game-copy h3{color:#fff!important}.fvs{right:12px!important;bottom:12px!important}.ntb{top:10px!important;right:10px!important;color:#e8f2ff!important;background:#101a2acc!important;border-color:#49678f!important}
+body:not(.os-mode),body:not(.os-mode) :is(button,input,select,textarea){font-family:var(--nova-font-family)!important}
+body:not(.os-mode) :is(h1,h2,h3,.fp-ttl,.tt){font-family:var(--nova-font-family)!important;letter-spacing:-.025em}
+body:not(.os-mode){background:var(--nova-theme-bg)!important;color:var(--nova-text)!important}body:not(.os-mode) #app{background:var(--nova-theme-bg)!important}.nova-topbar,body:not(.os-mode) #tbr{background:var(--nova-bar)!important}.nova-topbar{border-bottom-color:color-mix(in srgb,var(--nova-text) 12%,transparent)!important}body:not(.os-mode) header,body:not(.os-mode) .th,body:not(.os-mode) .fpbar{background:var(--nova-surface)!important}.nova-primary-links button.active::after,.nova-section-dot{background:var(--nova-accent)!important}body:not(.os-mode) .tbt.on{border-color:color-mix(in srgb,var(--nova-accent) 45%,transparent)!important}body:not(.os-mode) .tb-icon{color:var(--nova-accent)!important}body:not(.os-mode) .card{background:color-mix(in srgb,var(--nova-surface) 94%,var(--nova-text))!important;border-radius:var(--nova-radius)!important}
 .nova-topbar{height:54px;padding:0 22px;gap:16px}
 .nova-wordmark{font-size:20px}.nova-bolt{width:24px;height:24px}
 .nova-primary-links{min-width:0;overflow-x:auto;scrollbar-width:none}.nova-primary-links::-webkit-scrollbar{display:none}.nova-primary-links button{padding:0 10px!important;font-size:12px;white-space:nowrap}
 body:not(.os-mode) #tbr{height:42px!important;display:flex!important;align-items:flex-end!important;gap:3px!important;padding:6px 12px 0!important;background:#0b1320!important;border-bottom:1px solid #263852!important;overflow-x:auto!important;overflow-y:hidden!important;scrollbar-width:none;z-index:6900!important}
 body:not(.os-mode) #tbr::-webkit-scrollbar{display:none}
-body:not(.os-mode) .tbt{height:35px!important;min-width:120px!important;max-width:220px!important;flex:0 1 190px!important;display:flex!important;align-items:center!important;gap:8px!important;padding:0 9px 0 12px!important;border:1px solid transparent!important;border-bottom:0!important;border-radius:10px 10px 0 0!important;background:#101c2d!important;color:#8fa5c6!important;box-shadow:none!important;transform:none!important;text-align:left!important}
+body:not(.os-mode) .tbt{height:35px!important;min-width:120px!important;max-width:260px!important;flex:0 1 var(--nova-tab-width,190px)!important;display:flex!important;align-items:center!important;gap:8px!important;padding:0 9px 0 12px!important;border:1px solid transparent!important;border-bottom:0!important;border-radius:10px 10px 0 0!important;background:#101c2d!important;color:#8fa5c6!important;box-shadow:none!important;transform:none!important;text-align:left!important}
 body:not(.os-mode) .tbt:hover{background:#182740!important;color:#dbe8fb!important}
 body:not(.os-mode) .tbt.on{background:#1b2b44!important;color:#f4f8ff!important;border-color:#314767!important}
 body:not(.os-mode) .tb-icon{width:18px;height:18px;display:grid;place-items:center;flex:0 0 auto;border-radius:5px;background:#263b59;color:#aecdff;font-size:10px;font-weight:800}
@@ -4798,9 +4876,13 @@ body:not(.os-mode) .fp-body{padding:18px 22px!important}
 .nova-yt-player{height:100%;min-height:0;display:flex;flex-direction:column;background:#0c1421;color:#eaf2ff}
 .nova-yt-playerbar{height:48px;display:flex;align-items:center;gap:14px;padding:7px 18px;border-bottom:1px solid #273a57;background:#111e30;font-size:12px;font-weight:750;flex:0 0 auto}.nova-yt-playerbar>div{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .nova-yt-watch-layout{min-height:0;flex:1;display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:0}
+.nova-yt-watch-layout.without-comments{grid-template-columns:minmax(0,1fr)}
 .nova-yt-video-column{min-width:0;min-height:0;padding:18px;overflow:auto;background:#080d15}.nova-yt-frame-wrap{width:100%;aspect-ratio:16/9;background:#000;border-radius:12px;overflow:hidden;box-shadow:0 16px 50px #0007}.nova-yt-frame-wrap iframe{display:block;width:100%;height:100%;border:0}.nova-yt-video-title{padding:14px 2px 4px;font-size:15px;font-weight:800;line-height:1.4}
 .nova-yt-comments{min-width:0;min-height:0;border-left:1px solid #263953;background:#111c2d;overflow:auto}.nova-yt-comments-head{position:sticky;top:0;z-index:2;display:flex;justify-content:space-between;align-items:center;padding:15px 16px;border-bottom:1px solid #263953;background:#111c2df2}.nova-yt-comments-head strong{font-size:13px}.nova-yt-comments-head span{padding:4px 7px;border-radius:7px;background:#20314a;color:#9db8dc;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.06em}
 #yt-comments-list{padding:5px 16px 18px}.nova-comment{padding:13px 0;border-bottom:1px solid #22334d}.nova-comment-row{display:grid;grid-template-columns:32px minmax(0,1fr);gap:10px}.nova-comment-row.reply{grid-template-columns:26px minmax(0,1fr);margin-top:12px}.nova-comment-row img,.nova-comment-avatar{width:32px;height:32px;border-radius:50%;object-fit:cover}.nova-comment-row.reply img,.nova-comment-row.reply .nova-comment-avatar{width:26px;height:26px}.nova-comment-avatar{display:grid;place-items:center;background:#29456b;color:#dceaff;font-size:11px;font-weight:800}.nova-comment-meta{display:flex;align-items:center;gap:7px}.nova-comment-meta strong{font-size:10px}.nova-comment-meta span,.nova-comment-row small{font-size:9px;color:#7f96b7}.nova-comment-row p{margin:5px 0;color:#c8d7ec;font-size:11px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}.nova-replies-toggle{margin:8px 0 0 42px!important;padding:5px 8px!important;border:0!important;border-radius:7px!important;background:#1d304b!important;color:#9fc5fb!important;font-size:9px!important;font-weight:750!important;box-shadow:none!important}.nova-comment-replies{margin-left:42px}.nova-comment-empty{padding:28px 6px;color:#8298b7;font-size:11px;line-height:1.6}
+body.nova-hide-game-descriptions:not(.os-mode) .game-copy p{display:none}body.nova-hide-game-descriptions:not(.os-mode) .card{height:198px!important}
+body[data-nova-density="compact"]:not(.os-mode) .nova-library-intro{padding:20px 0 14px}body[data-nova-density="compact"]:not(.os-mode) #grid{gap:10px!important}body[data-nova-density="compact"]:not(.os-mode) .card{height:215px!important}body[data-nova-density="compact"]:not(.os-mode) .game-art{height:88px}body[data-nova-density="compact"]:not(.os-mode) header{padding-top:10px!important;padding-bottom:10px!important}
+body[data-nova-density="spacious"]:not(.os-mode) .nova-library-intro{padding:48px 0 32px}body[data-nova-density="spacious"]:not(.os-mode) #grid{gap:24px!important}body[data-nova-density="spacious"]:not(.os-mode) .card{height:250px!important}body[data-nova-density="spacious"]:not(.os-mode) .game-art{height:118px}
 @media(max-width:900px){.nova-yt-watch-layout{display:block;overflow:auto}.nova-yt-video-column{overflow:visible;padding:12px}.nova-yt-comments{border-left:0;border-top:1px solid #263953;overflow:visible}.nova-yt-player{overflow:hidden}.nova-yt-watch-layout{min-height:0}.nova-primary-links button{padding:0 8px!important}}
 @media(max-width:820px){.nova-topbar{padding:0 12px}.nova-wordmark>span:last-child{display:none}.nova-primary-links button{font-size:11px}.nova-library-intro{width:calc(100% - 32px);padding-top:24px}.nova-library-count{display:none}.nova-section-title{width:calc(100% - 32px)}body:not(.os-mode) header{padding:12px 16px!important}.sw .hbtn{display:none}body:not(.os-mode) #grid{padding-left:16px!important;padding-right:16px!important;padding-bottom:22px!important;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))!important}.game-art{height:90px}body:not(.os-mode) .card{height:218px!important}body:not(.os-mode) .tbt{min-width:105px!important;flex-basis:145px!important}body:not(.os-mode) .th,body:not(.os-mode) .fpbar{padding-left:12px!important;padding-right:12px!important}}
 @media(prefers-reduced-motion:reduce){body:not(.os-mode) .card{transition:none!important}}
