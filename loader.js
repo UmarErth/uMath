@@ -941,10 +941,23 @@ const nova = {
 
     // ── CSS & HYPERGLASS SYSTEM STYLING ────────────────────────────
     css() {
-        const fontLink = document.createElement("link");
-        fontLink.rel = "stylesheet";
-        fontLink.href = "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap";
-        document.head.appendChild(fontLink);
+        const fontStyles = document.createElement("style");
+        fontStyles.textContent = `
+        @font-face {
+            font-family: 'Plus Jakarta Sans';
+            font-style: normal;
+            font-weight: 200 800;
+            font-display: swap;
+            src: url('https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/plusjakartasans/PlusJakartaSans%5Bwght%5D.ttf') format('truetype');
+        }
+        @font-face {
+            font-family: 'JetBrains Mono';
+            font-style: normal;
+            font-weight: 100 800;
+            font-display: swap;
+            src: url('https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/jetbrainsmono/JetBrainsMono%5Bwght%5D.ttf') format('truetype');
+        }`;
+        document.head.appendChild(fontStyles);
 
         const blurLevel = this.isLowSpec ? "14px" : "36px";
         const blurHigh  = this.isLowSpec ? "22px" : "60px";
