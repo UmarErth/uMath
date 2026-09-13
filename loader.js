@@ -2506,6 +2506,11 @@ const nova = {
             const c = this.cards[i];
             const ok=(!this.onlyFavs||this.favorites.includes(c.title))&&(!this.searchQuery||c.str.includes(this.searchQuery));
             c.el.classList.toggle("hidden",!ok);
+            // Some appearance themes set card display with !important. Mirror
+            // the filter in an inline important declaration so search and the
+            // favorites filter always win the cascade.
+            if(ok)c.el.style.removeProperty("display");
+            else c.el.style.setProperty("display","none","important");
         }
     },
 
@@ -4847,6 +4852,7 @@ body:not(.os-mode) header .brand{display:none}.hl{gap:10px}.mbtn{border-radius:1
 .nova-section-title{width:min(1220px,calc(100% - 56px));margin:0 auto 12px;display:flex;align-items:center;justify-content:space-between;color:#8499b8;font-size:11px;flex-shrink:0}.nova-section-title>div{display:flex;align-items:center;gap:9px}.nova-section-title strong{font-size:18px;color:#bed4f5}.nova-section-dot{width:8px;height:8px;border-radius:2px;background:#8eb9f9}
 body:not(.os-mode) #grid{width:min(1276px,100%);margin:0 auto;padding:0 28px 28px!important;grid-template-columns:repeat(auto-fill,minmax(var(--nova-card-size,200px),1fr))!important;gap:16px!important}
 body:not(.os-mode) .card{height:235px!important;padding:0!important;border-radius:16px!important;background:#121e30!important;border-color:#263a56!important;box-shadow:0 10px 30px rgba(2,8,18,.16)!important;display:block!important;overflow:hidden}
+body:not(.os-mode) #grid .card.hidden{display:none!important}
 body:not(.os-mode) .card::before{display:none}.game-art{height:104px;position:relative;display:grid;place-items:center;overflow:hidden;background:radial-gradient(circle at 20% 10%,rgba(142,185,249,.55),transparent 52%),linear-gradient(135deg,#253a5a,#17243a 70%)}.game-art::before,.game-art::after{content:"";position:absolute;border:1px solid rgba(255,255,255,.13);width:110px;height:110px;border-radius:26px;transform:rotate(27deg);right:-26px;top:-50px}.game-art::after{width:150px;height:150px;border-radius:50%;left:-75px;top:42px}.game-art span{font-size:38px;font-weight:850;color:#f0f6ff;text-shadow:0 8px 30px rgba(0,0,0,.3)}
 body:not(.os-mode) .card:nth-child(4n+2) .game-art{background:radial-gradient(circle at 20% 10%,rgba(136,221,207,.45),transparent 52%),linear-gradient(135deg,#1f4b52,#172b3b 70%)}body:not(.os-mode) .card:nth-child(4n+3) .game-art{background:radial-gradient(circle at 20% 10%,rgba(184,153,255,.48),transparent 52%),linear-gradient(135deg,#443864,#22253f 70%)}body:not(.os-mode) .card:nth-child(4n+4) .game-art{background:radial-gradient(circle at 20% 10%,rgba(255,180,115,.42),transparent 52%),linear-gradient(135deg,#58402e,#26293a 70%)}
 .game-copy{padding:14px 15px}.game-copy h3{padding:0!important;margin:0 0 6px!important;font:700 13px/1.35 var(--nova-font-family)!important;color:#cfe0fa!important}.game-copy p{height:34px;font-size:10px!important;color:#8296b3!important}.game-play{display:inline-flex;margin-top:11px;padding:7px 10px;border-radius:8px;background:#223149;color:#bdd4f5;font-size:10px;font-weight:750}.card:hover{transform:translateY(-4px)!important;border-color:#5278aa!important;box-shadow:0 18px 40px rgba(2,8,18,.3)!important}.card:hover .game-copy h3{color:#fff!important}.fvs{right:12px!important;bottom:12px!important}.ntb{top:10px!important;right:10px!important;color:#e8f2ff!important;background:#101a2acc!important;border-color:#49678f!important}
