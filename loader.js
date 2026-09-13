@@ -2426,6 +2426,10 @@ const nova = {
         const refreshOpenGameViews=()=>{
             document.querySelectorAll("[data-nova-game-count]").forEach(el=>{el.textContent=String(GAMES.length);});
 
+            // The live repository scan finishes after the Classic grid is first
+            // painted. Rebuild it so newly discovered games appear as cards too,
+            // rather than updating only the count and OS-style library.
+            if(document.getElementById("grid")) this.renderCards();
             this.osRefreshLibrary();
 
             document.querySelectorAll(".os-finder .os-file-grid").forEach(grid=>{
@@ -2461,7 +2465,9 @@ const nova = {
         this.cards=[];
 
         const frag=document.createDocumentFragment();
-        const initial=Math.min(GAMES.length,60);
+        // Show the complete catalog. The previous 60-card batch had no active
+        // scroll/load-more trigger, which made every later game unreachable.
+        const initial=GAMES.length;
         const add=(item)=>{
             const descText=item.desc||"";
             const card=document.createElement("div");
