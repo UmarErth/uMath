@@ -4,6 +4,7 @@
 <h2>- nova-gaming-umarerth.hpolo914.chatgpt.site</h2>
 <h2>- umarerth.github.io</h2>
 <h2>- nova.staticdomains.app</h2>
+<h2>- novagamingsite.netlify.app</h2>
 
 
 <h1>Where to find if github is blocked?: novaisthegoat.weebly.com</h1>
