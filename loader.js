@@ -2859,7 +2859,7 @@ const nova = {
         this.closeCommandPalette();
         if(Number.isInteger(item.game)){this.launch(GAMES[item.game]);return}
         if(item.action==="os"){this.setUIMode("os");return}
-        if(item.action){const titles={home:"Games",ai:"Nova AI",youtube:"Video",anime:"Anime",browser:"Browser",chat:"Chat",settings:"Settings",favorites:"Favorites"};this.openWorkspaceTab(titles[item.action]||"Nova",item.action);return}
+        if(item.action){if(this.uiMode==="os")this.setUIMode("classic");const titles={home:"Games",ai:"Nova AI",youtube:"Video",anime:"Anime",browser:"Browser",chat:"Chat",settings:"Settings",favorites:"Favorites"};this.openWorkspaceTab(titles[item.action]||"Nova",item.action);return}
         if(item.command==="new"){this.tabNew("Games","home");return}
         if(item.command==="cloak"){openNovaCloak();return}
         if(item.command==="fullscreen"){if(document.fullscreenElement)document.exitFullscreen?.();else document.documentElement.requestFullscreen?.();return}
