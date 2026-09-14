@@ -2598,6 +2598,10 @@ const nova = {
             show(url);
         };
         root._novaBrowserNavigate=navigate;
+        root._novaBrowserReset=()=>{
+            state.history=[];state.index=-1;state.pending=null;
+            sync();show("");
+        };
         frame.addEventListener("load",()=>{
             if(!state.ready){
                 setTimeout(()=>{state.ready=true;const pending=state.pending;state.pending=null;if(pending)show(pending);},700);
@@ -2840,7 +2844,7 @@ const nova = {
                 <button id="nova-command-button" class="nova-side-search" type="button" title="Quick switch"><span>⌕ Search anything</span><kbd>⌘ K</kbd></button>
                 <div class="nova-sidebar-pins"><button data-nova-action="browser" title="Browser">◎</button><button data-nova-action="chat" title="Chat">#</button><button id="nova-sidebar-add" title="Open command center">＋</button></div>
                 <div class="nova-side-caption">Workspace</div>
-                <div class="nova-primary-links"><button data-nova-action="home" class="active"><i>⌂</i><span>Games</span></button><button data-nova-action="ai"><i>✦</i><span>Nova AI</span></button><button data-nova-action="youtube"><i>▷</i><span>Video</span></button><button data-nova-action="anime"><i>◆</i><span>Anime</span></button><button data-nova-action="browser"><i>◎</i><span>Browser</span></button><button data-nova-action="chat"><i>#</i><span>Chat</span></button><button data-nova-action="settings"><i>⚙</i><span>Settings</span></button><button data-nova-action="os"><i>▦</i><span>Desktop</span></button></div>
+                <div class="nova-primary-links"><button data-nova-action="browser" class="active"><i>◎</i><span>Browser</span></button><button data-nova-action="home"><i>⌂</i><span>Games</span></button><button data-nova-action="ai"><i>✦</i><span>Nova AI</span></button><button data-nova-action="youtube"><i>▷</i><span>Video</span></button><button data-nova-action="anime"><i>◆</i><span>Anime</span></button><button data-nova-action="chat"><i>#</i><span>Chat</span></button><button data-nova-action="settings"><i>⚙</i><span>Settings</span></button><button data-nova-action="os"><i>▦</i><span>Desktop</span></button></div>
             </nav>
             <div id="tbr"><button class="tb-new" id="tb-new" title="New tab">+</button></div>
             <header class="nova-library-toolbar">
@@ -2935,17 +2939,12 @@ const nova = {
         sp.innerHTML=`<div class="fpbar"><div class="fp-ttl">Nova Settings</div></div><div class="fp-body">${this.osSettingsBody()}</div>`;
         document.body.appendChild(sp);
 
-        // Open directly into the focused game library; OS style remains optional.
+        // Nova is browser first. Games remain available as a native workspace.
         if(!this._educationFirstBoot){
             this.renderCards();
-            this.tabNew("Games","home");
+            this.tabNew("New Tab","browser");
         }
         this.uiModeInit();
-        const startup=this.preference("startup","games");
-        if(this.uiMode==="classic"&&["ai","youtube","browser","chat","settings"].includes(startup)){
-            const titles={ai:"Nova AI",youtube:"YouTube",browser:"Browser",chat:"Chat",settings:"Settings"};
-            setTimeout(()=>this.openWorkspaceTab(titles[startup],startup),0);
-        }
 
         const refreshOpenGameViews=()=>{
             document.querySelectorAll("[data-nova-game-count]").forEach(el=>{el.textContent=String(GAMES.length);});
@@ -2985,11 +2984,11 @@ const nova = {
 
     commandItems(query=""){
         const apps=[
+            {icon:"◎",title:"Browser",sub:"Nova proxy browser",action:"browser"},
             {icon:"⌂",title:"Games",sub:"Game library",action:"home"},
             {icon:"✦",title:"Nova AI",sub:"AI assistant",action:"ai"},
             {icon:"▷",title:"Video",sub:"Piped powered video",action:"youtube"},
             {icon:"◆",title:"Anime",sub:"Discover and watch anime",action:"anime"},
-            {icon:"◎",title:"Browser",sub:"Nova proxy browser",action:"browser"},
             {icon:"#",title:"Chat",sub:"Global chat and direct messages",action:"chat"},
             {icon:"⚙",title:"Settings",sub:"Customize Nova",action:"settings"},
             {icon:"▦",title:"Desktop mode",sub:"Open the Nova desktop",action:"os"}
@@ -4066,7 +4065,10 @@ const nova = {
         HEADER_BUTTONS.forEach(b=>{ $(b.id)?.addEventListener("click",()=>this.dispatch(b.action,b.newTab,b.label,b.icon)); });
 
         // Multi-Tab bar
-        $("tb-new")?.addEventListener("click",()=>this.tabNew("Home","home"));
+        $("tb-new")?.addEventListener("click",()=>{
+            this.tabNew("New Tab","browser");
+            document.querySelector("#browser-panel .nova-browser-native")?._novaBrowserReset?.();
+        });
 
         // Bottom Navigation Tabs
         document.querySelectorAll(".ntab").forEach(t=>t.addEventListener("click",()=>{
@@ -4997,7 +4999,7 @@ try{document.title='Home - Classroom'}catch(_){}
 /* NOVA MEGA APPEARANCE SYSTEM — wallpapers, themes, cursor, scale, dock, fonts, motion and more. */
 (function(){
   const STORAGE='nova_appearance_v2';
-  const defaults={theme:'midnight',accent:'#7c5cff',wallpaper:'nova',wallpaperUrl:'',cursor:'default',font:'system',scale:100,fontSize:100,radius:18,density:'comfortable',cardSize:200,tabWidth:190,dockSize:64,dockPosition:'bottom',animations:true,desktopGrid:true,showLabels:true,highContrast:false,showGameDescriptions:true,immersiveGames:true,immersiveBrowser:true,reuseAppTabs:true,youtubeComments:true,youtubeAutoplay:true,youtubeRegion:'US',aiModel:'gemini-3.6-flash',startup:'games',chatAlerts:false,autoCloak:true};
+  const defaults={theme:'midnight',accent:'#7c5cff',wallpaper:'nova',wallpaperUrl:'',cursor:'default',font:'system',scale:100,fontSize:100,radius:18,density:'comfortable',cardSize:200,tabWidth:190,dockSize:64,dockPosition:'bottom',animations:true,desktopGrid:true,showLabels:true,highContrast:false,showGameDescriptions:true,immersiveGames:true,immersiveBrowser:true,reuseAppTabs:true,youtubeComments:true,youtubeAutoplay:true,youtubeRegion:'US',aiModel:'gemini-3.6-flash',startup:'browser',chatAlerts:false,autoCloak:true};
   const themes={
     midnight:{name:'Midnight',bg:'#080b12',surface:'#151821',bar:'#0b0d14',text:'#f7f8ff'},
     ocean:{name:'Ocean',bg:'#061018',surface:'#0e1c27',bar:'#07131b',text:'#f1fbff'},
@@ -5491,6 +5493,57 @@ body[data-nova-density="spacious"]:not(.os-mode) .nova-library-intro{padding:48p
 @media(max-width:900px){.nova-yt-watch-layout{display:block;overflow:auto}.nova-yt-video-column{overflow:visible;padding:12px}.nova-yt-comments{border-left:0;border-top:1px solid #263953;overflow:visible}.nova-yt-player{overflow:hidden}.nova-yt-watch-layout{min-height:0}.nova-primary-links button{padding:0 8px!important}}
 @media(max-width:820px){.nova-topbar{padding:0 12px}.nova-wordmark>span:last-child{display:none}.nova-primary-links button{font-size:11px}.nova-library-intro{width:calc(100% - 32px);padding-top:24px}.nova-library-count{display:none}.nova-section-title{width:calc(100% - 32px)}body:not(.os-mode) header{padding:12px 16px!important}.sw .hbtn{display:none}body:not(.os-mode) #grid{padding-left:16px!important;padding-right:16px!important;padding-bottom:22px!important;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))!important}.game-art{height:90px}body:not(.os-mode) .card{height:218px!important}body:not(.os-mode) .tbt{min-width:105px!important;flex-basis:145px!important}body:not(.os-mode) .th,body:not(.os-mode) .fpbar{padding-left:12px!important;padding-right:12px!important}}
 @media(prefers-reduced-motion:reduce){body:not(.os-mode) .card{transition:none!important}}
+`;
+document.head.appendChild(style);
+})();
+
+/* Final shell authority intentionally loads after legacy theme CSS. */
+(function(){
+const style=document.createElement("style");
+style.id="nova-final-shell-fixes";
+style.textContent=`
+html,body,#app,.fpanel,#theater,#panel,#nova-command{font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif!important}
+body:not(.os-mode),body:not(.os-mode) #app{background:#050507!important;color:#f4f3f8!important}
+body:not(.os-mode) .nova-topbar,body:not(.os-mode) #tbr{background:#07070a!important;border-color:rgba(255,255,255,.1)!important}
+body:not(.os-mode) .nova-topbar{top:0!important}
+body:not(.os-mode) .fpanel,body:not(.os-mode) #theater{top:0!important;bottom:0!important;height:auto!important;margin:0!important;padding-top:0!important;border-radius:0!important;background:radial-gradient(60vw 44vw at 24% 0,rgba(76,16,184,.38),transparent 62%),#050507!important}
+body:not(.os-mode).nova-immersive .fpanel,body:not(.os-mode).nova-immersive #theater{top:0!important}
+body:not(.os-mode).in-game .nova-topbar,body:not(.os-mode).in-game #tbr{display:none!important}
+body:not(.os-mode).in-game #theater{left:0!important;top:0!important;bottom:0!important;z-index:9000!important}
+body:not(.os-mode).in-game #theater .th{min-height:46px!important;height:46px!important;padding:5px 10px!important;background:rgba(7,7,10,.9)!important}
+body:not(.os-mode).in-game #theater .ifw{height:calc(100% - 46px)!important}
+body:not(.os-mode) .th,body:not(.os-mode) .fpbar{background:rgba(7,7,10,.9)!important;border-color:rgba(255,255,255,.09)!important;color:#f4f3f8!important}
+body:not(.os-mode) .nova-library-toolbar{min-height:0!important;height:68px!important;display:flex!important;flex-direction:row!important;justify-content:center!important;align-items:center!important;padding:10px 22px!important;background:transparent!important}
+body:not(.os-mode) .nova-home-logo,body:not(.os-mode) .nova-library-toolbar>p{display:none!important}
+body:not(.os-mode) .nova-game-search{width:min(720px,75%)!important;height:42px!important;margin:0!important;background:#0d0d11!important}
+body:not(.os-mode) .nova-home-actions{margin:0 0 0 8px!important}
+body:not(.os-mode) .nova-library-intro{display:none!important}
+body:not(.os-mode) .nova-section-title{padding-top:12px!important}
+body:not(.os-mode) #grid{padding-top:0!important}
+body:not(.os-mode) .card{font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important;background:#0c0c10!important;border-color:rgba(255,255,255,.08)!important;border-radius:8px!important}
+body:not(.os-mode) .card h3{font-family:inherit!important;font-weight:650!important;letter-spacing:-.01em!important}
+body.nova-app-open:not(.os-mode) #tbr{display:flex!important;position:fixed!important;left:5px!important;top:112px!important;width:42px!important;max-height:calc(100vh - 440px)!important;height:auto!important;padding:0!important;gap:4px!important;flex-direction:column!important;background:transparent!important;border:0!important;z-index:7001!important}
+body.nova-app-open:not(.os-mode) #tbr:before{display:none!important}
+body.nova-app-open:not(.os-mode) #tbr .tbt,body.nova-app-open:not(.os-mode) #tb-new{width:42px!important;min-width:42px!important;max-width:42px!important;height:38px!important;min-height:38px!important;flex:0 0 38px!important;margin:0!important;padding:0!important;display:grid!important;place-items:center!important;border-radius:5px!important;background:transparent!important}
+body.nova-app-open:not(.os-mode) #tbr .tbt.on{background:rgba(124,60,255,.18)!important}
+body.nova-app-open:not(.os-mode) #tbr .tb-ttl,body.nova-app-open:not(.os-mode) #tbr .tb-x{display:none!important}
+body.nova-app-open:not(.os-mode) #tbr .tb-icon{width:auto!important;height:auto!important;background:transparent!important}
+body.nova-app-open:not(.os-mode) #tb-new{order:-1!important;font-size:18px!important;color:#ddd!important}
+body.nova-app-open:not(.os-mode) #tb-new:after{display:none!important}
+body:not(.os-mode) .fp-body{padding:16px!important}
+body:not(.os-mode) .nova-native-panel .fp-body,body:not(.os-mode) .nova-settings-panel .fp-body{padding:0!important}
+body:not(.os-mode) #ai-panel .ai-main,body:not(.os-mode) .nova-chat-main,body:not(.os-mode) .nova-browser-home,body:not(.os-mode) #settings-panel .nova-mega-settings{background:radial-gradient(60vw 44vw at 22% 0,rgba(76,16,184,.34),transparent 63%),#050507!important}
+body:not(.os-mode) #ai-panel .ai-drawer,body:not(.os-mode) .nova-chat-side{background:#07070a!important}
+@media(max-width:760px){
+ body:not(.os-mode) .fpanel,body:not(.os-mode) #theater{top:39px!important;bottom:62px!important;padding-top:0!important}
+ body:not(.os-mode).in-game #theater{top:0!important;bottom:0!important}
+ body.nova-app-open:not(.os-mode) #tbr{left:0!important;right:0!important;top:0!important;width:100%!important;height:39px!important;max-height:39px!important;display:flex!important;flex-direction:row!important;padding:3px 5px!important;background:#07070af2!important}
+ body.nova-app-open:not(.os-mode) #tbr .tbt{width:auto!important;min-width:84px!important;max-width:120px!important;display:flex!important}
+ body.nova-app-open:not(.os-mode) #tbr .tb-ttl{display:block!important}
+ body:not(.os-mode) .nova-library-toolbar{height:62px!important;padding:9px!important}
+ body:not(.os-mode) .nova-game-search{width:100%!important}
+ body:not(.os-mode) .nova-home-actions{display:none!important}
+}
 `;
 document.head.appendChild(style);
 })();
