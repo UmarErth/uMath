@@ -1645,6 +1645,80 @@ const nova = {
             #nova-command{padding-top:7vh}
         }
 
+        /* SIDEBAR WORKSPACE REDESIGN */
+        :root{--nova-sidebar:240px}
+        body{background:#050507!important}
+        #app{box-sizing:border-box!important;padding-left:var(--nova-sidebar)!important;min-height:100vh!important;background:radial-gradient(65vw 52vw at 34% 5%,rgba(89,20,218,.42),transparent 64%),radial-gradient(45vw 42vw at 72% 15%,rgba(56,19,120,.22),transparent 70%),#050507!important}
+        #app:before{content:"";position:fixed;left:var(--nova-sidebar);right:0;top:0;height:1px;background:linear-gradient(90deg,#7c3cff,#3b176a,transparent);z-index:7000}
+        .nova-topbar{position:fixed!important;inset:0 auto 0 0!important;width:var(--nova-sidebar)!important;height:100vh!important;box-sizing:border-box!important;display:flex!important;flex-direction:column!important;align-items:stretch!important;justify-content:flex-start!important;padding:14px 10px!important;gap:10px!important;background:rgba(5,5,8,.94)!important;border:0!important;border-right:1px solid rgba(255,255,255,.11)!important;backdrop-filter:blur(26px)!important;z-index:6000!important}
+        .nova-wordmark{height:42px!important;justify-content:flex-start!important;padding:0 9px!important}
+        .nova-wordmark strong{font-size:20px!important;font-weight:650!important}
+        .nova-bolt{font-size:20px!important;color:#a87bff!important}
+        .nova-side-search{width:100%;height:38px;display:flex;align-items:center;justify-content:space-between;border:1px solid rgba(255,255,255,.065);border-radius:5px;background:rgba(255,255,255,.04);color:rgba(255,255,255,.42);padding:0 10px;font:500 11px inherit;cursor:pointer}
+        .nova-side-search:hover{background:rgba(255,255,255,.07);color:#fff}
+        .nova-side-search kbd{font:700 9px inherit;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.06);border-radius:4px;padding:3px 5px;color:rgba(255,255,255,.35)}
+        .nova-sidebar-pins{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+        .nova-sidebar-pins button{height:66px;border:1px solid rgba(255,255,255,.055);border-radius:6px;background:rgba(255,255,255,.035);color:#b8a0ff;font:500 22px inherit;cursor:pointer;transition:.18s}
+        .nova-sidebar-pins button:hover{background:rgba(124,60,255,.16);transform:translateY(-2px)}
+        .nova-side-caption{padding:9px 9px 2px;color:rgba(255,255,255,.3);font-size:10px;text-transform:uppercase;letter-spacing:.12em}
+        .nova-primary-links{width:100%!important;display:flex!important;flex:1!important;flex-direction:column!important;align-items:stretch!important;justify-content:flex-end!important;gap:2px!important;overflow:visible!important}
+        .nova-primary-links button{width:100%!important;height:38px!important;justify-content:flex-start!important;border-radius:5px!important;padding:0 10px!important;font-size:11px!important}
+        .nova-primary-links button i{width:21px;text-align:center!important;font-size:14px!important}
+        .nova-primary-links button.active{background:rgba(124,60,255,.15)!important;color:#fff!important}
+        #tbr{position:fixed!important;left:7px!important;top:177px!important;bottom:auto!important;width:226px!important;height:auto!important;max-height:calc(100vh - 515px)!important;min-height:0!important;box-sizing:border-box!important;display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:3px!important;padding:28px 0 0!important;background:transparent!important;border:0!important;overflow:auto!important;z-index:6002!important}
+        #tbr:before{content:"Tabs";position:absolute;top:5px;left:10px;text-transform:uppercase;letter-spacing:.12em;font-size:9px;font-weight:800;color:rgba(255,255,255,.27)}
+        .tbt{width:100%!important;max-width:none!important;min-width:0!important;height:36px!important;flex:0 0 36px!important;justify-content:flex-start!important;border-radius:5px!important;padding:0 9px!important}
+        .tbt.on{background:rgba(124,60,255,.14)!important}
+        .tbt .tb-ttl{flex:1!important;text-align:left!important}
+        .tb-new{width:100%!important;height:34px!important;flex:0 0 34px!important;order:-1!important;border:0!important;background:transparent!important;border-radius:5px!important;text-align:left!important;padding-left:10px!important;color:rgba(255,255,255,.45)!important}
+        .tb-new:after{content:"  New tab";font:500 11px inherit}
+        .nova-library-toolbar{min-height:58vh!important;box-sizing:border-box!important;display:flex!important;flex-direction:column!important;justify-content:center!important;align-items:center!important;padding:80px 24px 44px!important;background:transparent!important}
+        .nova-home-logo strong{display:block;font-size:clamp(48px,6vw,74px);font-weight:400;letter-spacing:-.065em;color:#fff}
+        .nova-home-logo span{display:block;width:64%;height:4px;margin:8px auto 0;border-radius:5px;background:#fff;box-shadow:0 0 18px rgba(255,255,255,.2)}
+        .nova-library-toolbar>p{margin:18px 0;color:rgba(255,255,255,.34);font-size:12px}
+        .nova-game-search{width:min(680px,84%)!important;max-width:680px!important;flex:0 0 auto!important;margin:0!important;height:50px!important;box-sizing:border-box!important;border-radius:7px!important;background:rgba(14,14,18,.85)!important;border:1px solid rgba(255,255,255,.17)!important;padding:0 16px!important;box-shadow:0 18px 60px rgba(0,0,0,.26)}
+        .nova-game-search .sbar{height:48px!important;font-size:13px!important}
+        .nova-home-actions{display:flex;gap:7px;margin-top:12px}
+        .nova-home-actions button{position:static!important;width:auto!important;height:32px!important;display:flex!important;align-items:center!important;gap:6px!important;padding:0 10px!important;border:0!important;border-radius:6px!important;background:rgba(255,255,255,.045)!important;color:rgba(255,255,255,.52)!important;font:500 10px inherit!important;cursor:pointer}
+        .nova-home-actions .mbtn span{display:none!important}
+        .nova-home-actions .mbtn:before{content:"☰";font-size:12px}
+        .nova-library-intro{display:none!important}
+        .nova-section-title{max-width:1400px;margin:auto!important;padding:0 clamp(20px,3vw,46px) 12px!important}
+        #grid{max-width:1400px;margin:auto!important;padding:0 clamp(20px,3vw,46px) 60px!important;grid-template-columns:repeat(auto-fill,minmax(170px,1fr))!important}
+        .card{background:rgba(12,12,16,.72)!important;border-color:rgba(255,255,255,.07)!important;backdrop-filter:blur(8px)}
+        .fpanel{left:var(--nova-sidebar)!important;width:auto!important;background:#07070a!important}
+        #theater{left:var(--nova-sidebar)!important;width:auto!important}
+        .fpanel:before,#theater:before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(55vw 38vw at 25% 0,rgba(83,25,190,.18),transparent 70%);z-index:-1}
+        .fpbar{height:52px!important;min-height:52px!important;border-bottom-color:rgba(255,255,255,.07)!important;background:rgba(7,7,10,.8)!important}
+        .nova-native-app{background:transparent!important}
+        @media(max-width:760px){
+            :root{--nova-sidebar:0px}
+            #app{padding-left:0!important;padding-bottom:62px!important}
+            #app:before{left:0}
+            .nova-topbar{inset:auto 0 0 0!important;width:100%!important;height:62px!important;display:block!important;padding:5px 7px!important;border-right:0!important;border-top:1px solid rgba(255,255,255,.1)!important}
+            .nova-wordmark,.nova-side-search,.nova-sidebar-pins,.nova-side-caption{display:none!important}
+            .nova-primary-links{height:100%!important;display:flex!important;flex-direction:row!important;justify-content:space-around!important;align-items:center!important;gap:0!important}
+            .nova-primary-links button{width:auto!important;min-width:44px!important;height:48px!important;display:flex!important;flex-direction:column!important;justify-content:center!important;gap:3px!important;padding:0 6px!important;border-radius:7px!important}
+            .nova-primary-links button i{width:auto!important;font-size:16px!important}
+            .nova-primary-links button span{display:block!important;font-size:8px!important}
+            .nova-primary-links button:nth-last-child(-n+2){display:none!important}
+            #tbr{left:0!important;right:0!important;top:0!important;width:100%!important;max-height:none!important;height:39px!important;display:flex!important;flex-direction:row!important;padding:3px 5px!important;background:rgba(5,5,8,.92)!important;border-bottom:1px solid rgba(255,255,255,.08)!important;backdrop-filter:blur(15px)!important;overflow-x:auto!important}
+            #tbr:before{display:none}
+            .tbt{width:auto!important;min-width:92px!important;max-width:132px!important;height:32px!important;flex:0 0 auto!important}
+            .tb-new{width:34px!important;height:32px!important;flex:0 0 34px!important;padding:0!important;text-align:center!important;order:99!important}
+            .tb-new:after{display:none}
+            .nova-library-toolbar{min-height:50vh!important;padding:82px 14px 34px!important}
+            .nova-home-logo strong{font-size:48px}
+            .nova-library-toolbar>p{margin:14px 0}
+            .nova-game-search{width:94%!important;height:46px!important}
+            .nova-game-search .sbar{height:44px!important}
+            .nova-section-title{padding:0 12px 10px!important}
+            #grid{padding:0 10px 82px!important;grid-template-columns:repeat(2,minmax(0,1fr))!important}
+            .fpanel{left:0!important;bottom:62px!important;padding-top:39px!important}
+            #theater{left:0!important;bottom:62px!important;padding-top:39px!important}
+            .nova-chat-side{width:64px!important}
+        }
+
         `;
         document.head.appendChild(s);
         if(!document.querySelector('meta[name="viewport"]')){
@@ -2669,15 +2743,17 @@ const nova = {
         app.innerHTML=`
             <nav class="nova-topbar" aria-label="Primary navigation">
                 <button class="nova-wordmark" id="nova-home" type="button" aria-label="Nova Gaming home"><span class="nova-bolt">ϟ</span><strong>nova</strong></button>
-                <div class="nova-primary-links"><button data-nova-action="home" class="active"><i>⌂</i><span>Games</span></button><button data-nova-action="ai"><i>✦</i><span>AI</span></button><button data-nova-action="youtube"><i>▷</i><span>Video</span></button><button data-nova-action="anime"><i>◆</i><span>Anime</span></button><button data-nova-action="browser"><i>◎</i><span>Browser</span></button><button data-nova-action="chat"><i>#</i><span>Chat</span></button></div>
-                <div class="nova-top-actions"><button id="nova-command-button" type="button" title="Quick switch"><span>Search anything</span><kbd>⌘ K</kbd></button><button data-nova-action="settings" aria-label="Settings">⚙</button><button data-nova-action="os" aria-label="Desktop mode">▦</button></div>
+                <button id="nova-command-button" class="nova-side-search" type="button" title="Quick switch"><span>⌕ Search anything</span><kbd>⌘ K</kbd></button>
+                <div class="nova-sidebar-pins"><button data-nova-action="browser" title="Browser">◎</button><button data-nova-action="chat" title="Chat">#</button><button id="nova-sidebar-add" title="Open command center">＋</button></div>
+                <div class="nova-side-caption">Workspace</div>
+                <div class="nova-primary-links"><button data-nova-action="home" class="active"><i>⌂</i><span>Games</span></button><button data-nova-action="ai"><i>✦</i><span>Nova AI</span></button><button data-nova-action="youtube"><i>▷</i><span>Video</span></button><button data-nova-action="anime"><i>◆</i><span>Anime</span></button><button data-nova-action="browser"><i>◎</i><span>Browser</span></button><button data-nova-action="chat"><i>#</i><span>Chat</span></button><button data-nova-action="settings"><i>⚙</i><span>Settings</span></button><button data-nova-action="os"><i>▦</i><span>Desktop</span></button></div>
             </nav>
             <div id="tbr"><button class="tb-new" id="tb-new" title="New tab">+</button></div>
             <header class="nova-library-toolbar">
-                <button class="mbtn" id="mbtn" aria-label="Menu"><span></span><span></span><span></span></button>
+                <div class="nova-home-logo"><strong>nova</strong><span></span></div>
+                <p>Pick a game or search the library</p>
                 <label class="nova-game-search"><span>⌕</span><input type="text" class="sbar" id="sbar" placeholder="Search games"></label>
-                <button class="fvbtn" id="fvbtn" title="Favorites"><span>★</span><b>Favorites</b></button>
-                <button class="nova-quick-more" id="nova-command-more" title="More actions">•••</button>
+                <div class="nova-home-actions"><button class="mbtn" id="mbtn" aria-label="Menu"><span></span><span></span><span></span><b>Menu</b></button><button class="fvbtn" id="fvbtn" title="Favorites"><span>★</span><b>Favorites</b></button><button class="nova-quick-more" id="nova-command-more" title="More actions">More</button></div>
             </header>
             <section class="nova-library-intro"><div><span class="nova-kicker">PLAY WITHOUT THE CLUTTER</span><h1>Your games, ready when you are.</h1><p>Search the full Nova library, jump into a favorite, or open a recently played game.</p></div><div class="nova-library-count"><strong data-nova-game-count>${GAMES.length}</strong><span>games available</span></div></section>
             <div class="nova-section-title"><div><span class="nova-section-dot"></span><strong>All games</strong></div><span>Pick one and start playing</span></div>
@@ -2880,6 +2956,7 @@ const nova = {
         const modal=document.getElementById("nova-command"),input=document.getElementById("nova-command-input"),host=document.getElementById("nova-command-results");
         document.getElementById("nova-command-button")?.addEventListener("click",()=>this.openCommandPalette());
         document.getElementById("nova-command-more")?.addEventListener("click",()=>this.openCommandPalette());
+        document.getElementById("nova-sidebar-add")?.addEventListener("click",()=>this.openCommandPalette());
         modal?.addEventListener("mousedown",event=>{if(event.target===modal)this.closeCommandPalette()});
         input?.addEventListener("input",()=>this.renderCommandPalette(input.value));
         input?.addEventListener("keydown",event=>{
