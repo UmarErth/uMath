@@ -1768,7 +1768,7 @@ const nova = {
         .nova-browser-logo{background:transparent!important;color:#fff!important;box-shadow:none!important;font-weight:400!important;font-size:50px!important}
         .nova-browser-hero h2{font-weight:400!important;letter-spacing:-.04em!important}
         .nova-home-search{border-radius:6px!important;background:#0d0d11!important;border-color:rgba(255,255,255,.17)!important}
-        .nova-browser-retry{margin:0 auto 14px;padding:8px 13px;border:1px solid rgba(255,255,255,.16);border-radius:6px;background:#15151b;color:#f4f3f8;font:650 12px inherit;cursor:pointer}.nova-browser-retry:hover{background:#202029}.nova-browser-retry[hidden]{display:none!important}
+        .nova-browser-retry{margin:0 auto 14px;padding:8px 13px;border:1px solid rgba(255,255,255,.16);border-radius:6px;background:#15151b;color:#f4f3f8;font-family:inherit;font-size:12px;font-weight:650;cursor:pointer}.nova-browser-retry:hover{background:#202029}.nova-browser-retry[hidden]{display:none!important}
         .nova-browser-shortcuts button{border-radius:6px!important;background:rgba(255,255,255,.035)!important}
         .nova-chat-side{width:248px!important;background:rgba(5,5,8,.9)!important;border-color:rgba(255,255,255,.1)!important}
         .nova-chat-main{background:radial-gradient(58vw 42vw at 28% 0,rgba(84,17,201,.33),transparent 65%),#050507!important}
