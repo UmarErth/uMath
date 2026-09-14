@@ -1425,6 +1425,110 @@ const nova = {
         .ai-send-btn:hover { background: #fff; box-shadow: 0 0 28px var(--mint); transform: scale(1.05); }
         .ai-send-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
 
+        /* NATIVE NOVA APPS */
+        .nova-native-panel { padding-top: var(--topbar-offset, 0px); }
+        .nova-native-app { width:100%;height:100%;min-height:0;background:#07090f;color:#f7f8fb;font-family:inherit;display:flex;overflow:hidden; }
+        .nova-native-top { height:68px;display:flex;align-items:center;gap:9px;padding:0 16px;background:rgba(15,18,28,.94);border-bottom:1px solid rgba(255,255,255,.09);flex:0 0 auto; }
+        .nova-app-mark,.nova-browser-logo,.nova-chat-setup-logo { display:grid;place-items:center;background:linear-gradient(135deg,var(--mint),#7095ff);color:#07100d;font-weight:900;box-shadow:0 10px 30px rgba(77,255,187,.22); }
+        .nova-app-mark { width:38px;height:38px;border-radius:12px;margin-right:4px; }
+        .nova-round-btn { width:36px;height:36px;border:0;border-radius:11px;background:rgba(255,255,255,.07);color:#fff;font-size:23px;cursor:pointer; }
+        .nova-round-btn:hover,.nova-go-btn:hover { background:rgba(255,255,255,.13); }
+        .nova-round-btn:disabled { opacity:.28;cursor:default; }
+        .nova-address-form { display:flex;align-items:center;gap:8px;flex:1;max-width:920px;margin:auto;background:rgba(255,255,255,.075);border:1px solid rgba(255,255,255,.1);padding:5px 6px 5px 13px;border-radius:14px; }
+        .nova-lock { color:var(--mint);font-size:15px; }
+        .nova-browser-address { flex:1;background:transparent;border:0;outline:0;color:#fff;font:inherit;min-width:0; }
+        .nova-go-btn,.nova-home-search button,.nova-chat-compose button,.nova-chat-setup button { border:0;border-radius:10px;background:var(--mint);color:#06110d;font:700 13px inherit;padding:9px 15px;cursor:pointer; }
+        .nova-browser-native { flex-direction:column; }
+        .nova-browser-stage { position:relative;flex:1;min-height:0;background:radial-gradient(circle at 50% 0,rgba(74,255,184,.1),transparent 42%),#080a10; }
+        .nova-browser-home { position:absolute;inset:0;z-index:2;display:grid;place-items:center;padding:30px; }
+        .nova-browser-home[hidden] { display:none; }
+        .nova-browser-hero { width:min(620px,100%);text-align:center; }
+        .nova-browser-logo { width:78px;height:78px;border-radius:25px;margin:0 auto 21px;font-size:36px; }
+        .nova-browser-hero h2 { margin:0;font-size:clamp(32px,5vw,58px);letter-spacing:-.05em; }
+        .nova-browser-hero p { color:rgba(255,255,255,.5);margin:10px 0 25px; }
+        .nova-home-search { display:flex;padding:7px;background:rgba(255,255,255,.075);border:1px solid rgba(255,255,255,.12);border-radius:17px;box-shadow:0 25px 80px rgba(0,0,0,.35); }
+        .nova-home-search input { flex:1;min-width:0;border:0;background:transparent;color:#fff;padding:5px 12px;outline:0;font:inherit; }
+        .nova-browser-shortcuts { display:flex;justify-content:center;gap:13px;margin-top:24px;flex-wrap:wrap; }
+        .nova-browser-shortcuts button { width:82px;height:78px;border:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.045);color:#fff;border-radius:18px;font:800 21px inherit;cursor:pointer;transition:.2s; }
+        .nova-browser-shortcuts button:hover { transform:translateY(-4px);border-color:rgba(74,255,184,.35);background:rgba(74,255,184,.08); }
+        .nova-browser-shortcuts span { display:block;font-size:11px;font-weight:600;color:rgba(255,255,255,.6);margin-top:6px; }
+        .nova-browser-frame { position:absolute;inset:0;width:100%;height:100%;border:0;opacity:0;pointer-events:none;background:#fff; }
+        .nova-browser-frame.on { opacity:1;pointer-events:auto; }
+        .nova-browser-loading { position:absolute;left:0;right:0;top:0;height:3px;display:none;overflow:hidden;z-index:5; }
+        .nova-browser-loading.on { display:block; }
+        .nova-browser-loading i { display:block;height:100%;width:35%;background:var(--mint);box-shadow:0 0 13px var(--mint);animation:novaLoad 1s ease-in-out infinite; }
+        @keyframes novaLoad { from{transform:translateX(-110%)}to{transform:translateX(310%)} }
+        .nova-chat-native { background:#090b12; }
+        .nova-chat-side { width:250px;display:flex;flex-direction:column;padding:14px;background:rgba(18,21,31,.96);border-right:1px solid rgba(255,255,255,.08); }
+        .nova-chat-brand { display:flex;align-items:center;gap:11px;padding:7px 6px 18px; }
+        .nova-chat-brand>span { width:37px;height:37px;border-radius:12px;display:grid;place-items:center;background:var(--mint);color:#06110d;font-weight:900; }
+        .nova-chat-brand strong,.nova-chat-brand small { display:block; }
+        .nova-chat-brand small { font-size:11px;color:#66efb9;margin-top:2px; }
+        .nova-chat-label { margin:19px 8px 7px;text-transform:uppercase;letter-spacing:.13em;font-size:10px;color:rgba(255,255,255,.38);font-weight:800; }
+        .nova-chat-label em { font-style:normal;float:right; }
+        .nova-chat-room { display:flex;align-items:center;gap:10px;width:100%;border:0;background:transparent;color:rgba(255,255,255,.68);padding:9px;border-radius:11px;text-align:left;font:600 13px inherit;cursor:pointer; }
+        .nova-chat-room:hover,.nova-chat-room.active { background:rgba(255,255,255,.075);color:#fff; }
+        .nova-chat-room b { width:29px;height:29px;border-radius:9px;background:rgba(255,255,255,.08);display:grid;place-items:center;color:var(--mint); }
+        .nova-chat-room i { width:7px;height:7px;border-radius:50%;background:#4dffb8;margin-left:auto; }
+        .nova-chat-users { flex:1;overflow:auto;min-height:40px; }
+        .nova-chat-empty-users { font-size:11px;color:rgba(255,255,255,.33);padding:0 9px;line-height:1.5; }
+        .nova-chat-profile { display:flex;gap:10px;align-items:center;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04);color:#fff;border-radius:14px;padding:9px;text-align:left;cursor:pointer; }
+        .nova-chat-profile>span { width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#795cff,var(--mint));display:grid;place-items:center;font-weight:900; }
+        .nova-chat-profile strong,.nova-chat-profile small { display:block;max-width:150px;overflow:hidden;text-overflow:ellipsis; }
+        .nova-chat-profile small { color:rgba(255,255,255,.36);font-size:10px;margin-top:2px; }
+        .nova-chat-main { position:relative;min-width:0;flex:1;display:flex;flex-direction:column; }
+        .nova-chat-main>header { height:65px;display:flex;align-items:center;padding:0 22px;border-bottom:1px solid rgba(255,255,255,.08);background:rgba(12,14,22,.88); }
+        .nova-chat-main>header strong,.nova-chat-main>header small { display:block; }
+        .nova-chat-main>header small { color:rgba(255,255,255,.4);font-size:11px;margin-top:3px; }
+        .nova-live-dot { margin-left:auto;width:9px;height:9px;border-radius:50%;background:var(--mint);box-shadow:0 0 13px var(--mint); }
+        .nova-chat-messages { flex:1;overflow:auto;padding:22px clamp(15px,4vw,48px); }
+        .nova-chat-message { display:flex;gap:11px;margin:15px 0;max-width:760px; }
+        .nova-chat-message.own { margin-left:auto;flex-direction:row-reverse;text-align:right; }
+        .nova-message-avatar { width:34px;height:34px;flex:0 0 auto;border-radius:11px;background:rgba(255,255,255,.08);display:grid;place-items:center;color:var(--mint);font-weight:900; }
+        .nova-chat-message span { display:flex;align-items:center;gap:8px;font-size:11px;color:rgba(255,255,255,.38); }
+        .nova-chat-message.own span { justify-content:flex-end; }
+        .nova-chat-message strong { color:rgba(255,255,255,.8);font-size:12px; }
+        .nova-chat-message p { display:inline-block;text-align:left;margin:5px 0 0;padding:10px 13px;border-radius:5px 15px 15px;background:rgba(255,255,255,.075);line-height:1.45;word-break:break-word; }
+        .nova-chat-message.own p { background:linear-gradient(135deg,var(--mint),#54cfa0);color:#07110d;border-radius:15px 5px 15px 15px; }
+        .nova-chat-compose { display:flex;gap:9px;padding:14px 20px 20px; }
+        .nova-chat-compose input { flex:1;min-width:0;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.055);color:#fff;border-radius:14px;padding:13px 15px;outline:0;font:inherit; }
+        .nova-chat-welcome { text-align:center;color:rgba(255,255,255,.42);margin:15vh auto 0; }
+        .nova-chat-welcome span { font-size:35px;color:var(--mint); }
+        .nova-chat-welcome h2 { color:#fff;margin:10px 0 5px; }
+        .nova-chat-welcome p { margin:0;font-size:13px; }
+        .nova-chat-setup { position:absolute;inset:0;z-index:8;background:rgba(5,6,10,.78);backdrop-filter:blur(16px);display:none;place-items:center;padding:20px; }
+        .nova-chat-setup.on { display:grid; }
+        .nova-chat-setup form { width:min(390px,100%);padding:31px;background:#151824;border:1px solid rgba(255,255,255,.1);border-radius:24px;text-align:center;box-shadow:0 28px 90px rgba(0,0,0,.5); }
+        .nova-chat-setup-logo { width:62px;height:62px;border-radius:20px;margin:0 auto 18px;font-size:26px; }
+        .nova-chat-setup h2 { margin:0;font-size:25px; }
+        .nova-chat-setup p { color:rgba(255,255,255,.45);font-size:13px; }
+        .nova-chat-setup input { box-sizing:border-box;width:100%;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:#fff;border-radius:12px;padding:13px;outline:0;margin:8px 0 10px;font:inherit; }
+        .nova-chat-setup button { width:100%;padding:12px; }
+        .fpanel.nova-enter-right { animation:novaPanelInRight .36s cubic-bezier(.22,.8,.25,1) both; }
+        .fpanel.nova-enter-left { animation:novaPanelInLeft .36s cubic-bezier(.22,.8,.25,1) both; }
+        .fpanel.nova-exit-left { animation:novaPanelOutLeft .36s cubic-bezier(.55,0,.8,.35) both; }
+        .fpanel.nova-exit-right { animation:novaPanelOutRight .36s cubic-bezier(.55,0,.8,.35) both; }
+        @keyframes novaPanelInRight { from{transform:translateX(100%);opacity:.5}to{transform:translateX(0);opacity:1} }
+        @keyframes novaPanelInLeft { from{transform:translateX(-26%);opacity:.5}to{transform:translateX(0);opacity:1} }
+        @keyframes novaPanelOutLeft { from{transform:translateX(0);opacity:1}to{transform:translateX(-26%);opacity:.25} }
+        @keyframes novaPanelOutRight { from{transform:translateX(0);opacity:1}to{transform:translateX(100%);opacity:.25} }
+        @media (max-width:650px) {
+            .nova-native-top { padding:0 8px;gap:5px;height:58px; }
+            .nova-app-mark { display:none; }
+            .nova-round-btn { width:32px;height:32px; }
+            .nova-lock,.nova-go-btn { display:none; }
+            .nova-chat-side { width:74px;padding:8px; }
+            .nova-chat-brand div,.nova-chat-room span,.nova-chat-label,.nova-chat-profile div,.nova-chat-empty-users { display:none; }
+            .nova-chat-brand { justify-content:center; }
+            .nova-chat-room { justify-content:center;padding:8px; }
+            .nova-chat-room i { position:absolute;margin:-27px 0 0 27px; }
+            .nova-chat-profile { justify-content:center;margin-top:auto; }
+            .nova-chat-compose { padding:9px; }
+        }
+        @media (prefers-reduced-motion:reduce) {
+            .fpanel.nova-enter-right,.fpanel.nova-enter-left,.fpanel.nova-exit-left,.fpanel.nova-exit-right { animation-duration:.01ms; }
+        }
+
         /* SHARED UTILITIES */
         .fp-msg { text-align: center; padding: 40px 16px; color: rgba(255, 255, 255, 0.4); font-size: var(--fb); }
         .fp-spin {
@@ -2185,32 +2289,163 @@ const nova = {
         }else w.remove();
     },
 
+    novaBrowserMarkup(){
+        return '<div class="nova-native-app nova-browser-native"><div class="nova-native-top"><div class="nova-app-mark">N</div><button class="nova-round-btn" data-browser="back" aria-label="Back">‹</button><button class="nova-round-btn" data-browser="forward" aria-label="Forward">›</button><button class="nova-round-btn" data-browser="reload" aria-label="Reload">↻</button><form class="nova-address-form"><span class="nova-lock">◇</span><input class="nova-browser-address" value="" placeholder="Search or enter a URL" autocomplete="off" aria-label="Address"><button class="nova-go-btn" type="submit">Go</button></form></div><div class="nova-browser-stage"><section class="nova-browser-home"><div class="nova-browser-hero"><span class="nova-browser-logo">N</span><h2>Where to?</h2><p>Private browsing, powered by the existing Nova Browser backend.</p><form class="nova-home-search"><input placeholder="Search the web" autocomplete="off"><button type="submit">Search</button></form><div class="nova-browser-shortcuts"><button data-url="https://www.google.com">G<span>Google</span></button><button data-url="https://piped.video">▶<span>Piped</span></button><button data-url="https://en.wikipedia.org">W<span>Wikipedia</span></button><button data-url="https://discord.com">D<span>Discord</span></button></div></div></section><iframe class="nova-browser-frame" title="Nova Browser page" allow="clipboard-read; clipboard-write; downloads; fullscreen; storage-access-by-user-activation"></iframe><div class="nova-browser-loading"><i></i></div></div></div>';
+    },
+    novaBrowserEncode(url){
+        const bytes=new TextEncoder().encode(url);
+        let binary="";
+        bytes.forEach(byte=>binary+=String.fromCharCode(byte));
+        return btoa(binary).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+    },
+    bindNativeBrowser(root){
+        if(!root||root._novaBrowserBound)return;
+        root._novaBrowserBound=true;
+        const base="https://single-nova-worker.umarerthteam.workers.dev";
+        const frame=root.querySelector(".nova-browser-frame");
+        const address=root.querySelector(".nova-browser-address");
+        const home=root.querySelector(".nova-browser-home");
+        const loading=root.querySelector(".nova-browser-loading");
+        const state={history:[],index:-1,ready:false,pending:null};
+        root._novaBrowserState=state;
+        const normalize=value=>{
+            value=String(value||"").trim();
+            if(!value)return "";
+            if(!/^https?:\/\//i.test(value)){
+                if(value.includes(".")&&!/\s/.test(value))value="https://"+value;
+                else value="https://www.google.com/search?q="+encodeURIComponent(value);
+            }
+            return value;
+        };
+        const sync=()=>{
+            root.querySelector('[data-browser="back"]').disabled=state.index<=0;
+            root.querySelector('[data-browser="forward"]').disabled=state.index>=state.history.length-1;
+        };
+        const show=url=>{
+            if(!url){home.hidden=false;frame.classList.remove("on");address.value="";loading.classList.remove("on");return;}
+            home.hidden=true;frame.classList.add("on");address.value=url;loading.classList.add("on");
+            frame.src=base+"/browse/"+this.novaBrowserEncode(url);
+        };
+        const navigate=(value,push=true)=>{
+            const url=normalize(value); if(!url)return;
+            if(push){state.history=state.history.slice(0,state.index+1);state.history.push(url);state.index=state.history.length-1;}
+            sync();
+            if(!state.ready){state.pending=url;loading.classList.add("on");return;}
+            show(url);
+        };
+        root._novaBrowserNavigate=navigate;
+        frame.addEventListener("load",()=>{
+            if(!state.ready){
+                setTimeout(()=>{state.ready=true;const pending=state.pending;state.pending=null;if(pending)show(pending);},700);
+            }else loading.classList.remove("on");
+        });
+        frame.src=base+"/";
+        root.querySelector(".nova-address-form").addEventListener("submit",e=>{e.preventDefault();navigate(address.value)});
+        root.querySelector(".nova-home-search").addEventListener("submit",e=>{e.preventDefault();navigate(e.currentTarget.querySelector("input").value)});
+        root.querySelectorAll("[data-url]").forEach(button=>button.addEventListener("click",()=>navigate(button.dataset.url)));
+        root.querySelector('[data-browser="back"]').addEventListener("click",()=>{if(state.index>0){state.index--;sync();show(state.history[state.index])}});
+        root.querySelector('[data-browser="forward"]').addEventListener("click",()=>{if(state.index<state.history.length-1){state.index++;sync();show(state.history[state.index])}});
+        root.querySelector('[data-browser="reload"]').addEventListener("click",()=>{if(state.index>=0)show(state.history[state.index]);else{state.ready=false;frame.src=base+"/"}});
+        sync();
+    },
+    novaChatMarkup(){
+        return '<div class="nova-native-app nova-chat-native"><aside class="nova-chat-side"><div class="nova-chat-brand"><span>N</span><div><strong>Nova Chat</strong><small data-chat-status>Connecting…</small></div></div><button class="nova-chat-room active" data-chat-peer="global"><b>#</b><span>Global chat</span></button><div class="nova-chat-label">Online <em data-chat-count>0</em></div><div class="nova-chat-users"></div><button class="nova-chat-profile" type="button"><span data-chat-avatar>?</span><div><strong data-chat-name>Choose a name</strong><small>Change profile</small></div></button></aside><main class="nova-chat-main"><header><div><strong data-chat-title>Global chat</strong><small data-chat-subtitle>Everyone online</small></div><span class="nova-live-dot"></span></header><div class="nova-chat-messages"></div><form class="nova-chat-compose"><input maxlength="2000" placeholder="Message global chat" autocomplete="off"><button type="submit">Send</button></form><div class="nova-chat-setup"><form><span class="nova-chat-setup-logo">N</span><h2>Join Nova Chat</h2><p>Pick a display name to start chatting.</p><input maxlength="20" placeholder="Your name" autocomplete="nickname" required><button type="submit">Join chat</button></form></div></main></div>';
+    },
+    _novaChatState:null,
+    bindNativeChat(root){
+        if(!root||root._novaChatBound)return;
+        root._novaChatBound=true;
+        if(!this._novaChatState)this._novaChatState={ws:null,name:localStorage.getItem("nova_chat_name")||"",peerId:"",users:[],selected:"global",messages:{global:[]},roots:new Set(),retry:null};
+        const state=this._novaChatState;
+        state.roots.add(root);
+        const setup=root.querySelector(".nova-chat-setup");
+        const setupInput=setup.querySelector("input");
+        const choose=()=>{setup.classList.add("on");setupInput.value=state.name;setTimeout(()=>setupInput.focus(),40)};
+        root.querySelector(".nova-chat-profile").addEventListener("click",choose);
+        setup.addEventListener("click",e=>{if(e.target===setup&&state.name)setup.classList.remove("on")});
+        setup.querySelector("form").addEventListener("submit",e=>{
+            e.preventDefault(); const value=setupInput.value.trim().slice(0,20); if(!value)return;
+            state.name=value;localStorage.setItem("nova_chat_name",value);setup.classList.remove("on");
+            if(state.ws&&state.ws.readyState===1)state.ws.send(JSON.stringify({type:"profile",user:value}));
+            else this.novaChatConnect();
+            this.novaChatRender();
+        });
+        root.querySelector(".nova-chat-compose").addEventListener("submit",e=>{
+            e.preventDefault();const input=e.currentTarget.querySelector("input");const text=input.value.trim();if(!text)return;
+            if(!state.name){choose();return}
+            if(!state.ws||state.ws.readyState!==1){this.novaChatConnect();return}
+            const payload=state.selected==="global"?{type:"chat",text:text}:{type:"dm",to:state.selected,text:text};
+            state.ws.send(JSON.stringify(payload));input.value="";
+        });
+        root.querySelector('[data-chat-peer="global"]').addEventListener("click",()=>{state.selected="global";this.novaChatRender()});
+        if(!state.name)choose();else this.novaChatConnect();
+        this.novaChatRender();
+    },
+    novaChatConnect(){
+        const state=this._novaChatState;if(!state||!state.name)return;
+        if(state.ws&&(state.ws.readyState===0||state.ws.readyState===1))return;
+        clearTimeout(state.retry);
+        const ws=new WebSocket("wss://global-chat.umarerthteam.workers.dev/ws");state.ws=ws;
+        this.novaChatRender();
+        ws.addEventListener("open",()=>{ws.send(JSON.stringify({type:"init",user:state.name}));this.novaChatRender()});
+        ws.addEventListener("message",event=>{
+            let data;try{data=JSON.parse(event.data)}catch{return}
+            if(data.type==="session")state.peerId=data.peerId||"";
+            if(data.type==="presence")state.users=(data.users||[]).filter(user=>user.id!==state.peerId);
+            if(data.type==="chat"){
+                (state.messages.global||(state.messages.global=[])).push(data);
+                if(!data.own&&state.selected!=="global")this.osChatNotify(data.user||"Nova Chat",data.text||"");
+            }
+            if(data.type==="dm"){
+                const key=data.own?data.to:data.from;(state.messages[key]||(state.messages[key]=[])).push(data);
+                if(!data.own&&state.selected!==key)this.osChatNotify(data.user||"Nova Chat",data.text||"");
+            }
+            if(data.type==="error"||data.type==="timeout")this.toast(data.text||"Chat is cooling down");
+            Object.keys(state.messages).forEach(key=>{if(state.messages[key].length>150)state.messages[key]=state.messages[key].slice(-150)});
+            this.novaChatRender();
+        });
+        ws.addEventListener("close",()=>{if(state.ws===ws){state.ws=null;state.retry=setTimeout(()=>this.novaChatConnect(),2500);this.novaChatRender()}});
+        ws.addEventListener("error",()=>this.novaChatRender());
+    },
+    novaChatRender(){
+        const state=this._novaChatState;if(!state)return;
+        const escape=value=>this.esc(String(value==null?"":value));
+        state.roots.forEach(root=>{
+            if(!root.isConnected){state.roots.delete(root);return}
+            const connected=state.ws&&state.ws.readyState===1;
+            root.querySelector("[data-chat-status]").textContent=connected?"Live":"Connecting…";
+            root.querySelector("[data-chat-count]").textContent=state.users.length;
+            root.querySelector("[data-chat-name]").textContent=state.name||"Choose a name";
+            root.querySelector("[data-chat-avatar]").textContent=(state.name||"?").charAt(0).toUpperCase();
+            const users=root.querySelector(".nova-chat-users");
+            users.innerHTML=state.users.length?state.users.map(user=>'<button class="nova-chat-room '+(state.selected===user.id?"active":"")+'" data-peer="'+escape(user.id)+'"><b>'+escape(user.user.charAt(0).toUpperCase())+'</b><span>'+escape(user.user)+'</span><i></i></button>').join(""):'<p class="nova-chat-empty-users">Nobody else is online yet.</p>';
+            users.querySelectorAll("[data-peer]").forEach(button=>button.addEventListener("click",()=>{state.selected=button.dataset.peer;this.novaChatRender()}));
+            root.querySelector('[data-chat-peer="global"]').classList.toggle("active",state.selected==="global");
+            const peer=state.users.find(user=>user.id===state.selected);
+            root.querySelector("[data-chat-title]").textContent=state.selected==="global"?"Global chat":(peer?.user||"Direct message");
+            root.querySelector("[data-chat-subtitle]").textContent=state.selected==="global"?"Everyone online":(peer?"Online now":"Currently offline");
+            root.querySelector(".nova-chat-compose input").placeholder=state.selected==="global"?"Message global chat":"Message "+(peer?.user||"this person");
+            const messages=state.messages[state.selected]||[];
+            const box=root.querySelector(".nova-chat-messages");
+            box.innerHTML=messages.length?messages.map(message=>'<div class="nova-chat-message '+(message.own?"own":"")+'"><div class="nova-message-avatar">'+escape((message.user||state.name||"?").charAt(0).toUpperCase())+'</div><div><span><strong>'+escape(message.own?"You":message.user)+'</strong><time>'+new Date(message.timestamp||Date.now()).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})+'</time></span><p>'+escape(message.text)+'</p></div></div>').join(""):'<div class="nova-chat-welcome"><span>✦</span><h2>'+(state.selected==="global"?"Welcome to Nova Chat":"Start a conversation")+'</h2><p>'+(state.selected==="global"?"Messages from everyone online show up here.":"Direct messages stay between you and this person.")+'</p></div>';
+            box.scrollTop=box.scrollHeight;
+        });
+    },
     osOpenChatroomWindow(){
         const key="nova-chatroom";
-        const existing=document.querySelector(`.os-window[data-key="${CSS.escape(key)}"]`);
-        if(existing){ this.osFocusWindow(existing); existing.classList.remove("minimized"); return existing; }
-        const url="https://global-chat.umarerthteam.workers.dev/?novaEmbed=1";
-        const body=`<div class="nova-app-frame-wrap"><iframe class="nova-app-frame" src="${url}" title="Nova Chatroom" allow="clipboard-read; clipboard-write"></iframe></div>`;
-        const w=this.osOpenWindow("Nova Chatroom",key,body,{center:true,width:1000,height:700});
-        if(w)this.osChatConnect(w);return w;
+        const existing=document.querySelector('.os-window[data-key="'+CSS.escape(key)+'"]');
+        if(existing){this.osFocusWindow(existing);existing.classList.remove("minimized");return existing}
+        const body=this.novaChatMarkup();
+        const w=this.osOpenWindow("Nova Chat",key,body,{center:true,width:1000,height:700});
+        if(w)this.bindNativeChat(w.querySelector(".nova-chat-native"));
+        return w;
     },
-
     osOpenBrowserWindow(){
         const key="nova-browser";
-        const existing=document.querySelector(`.os-window[data-key="${CSS.escape(key)}"]`);
-        if(existing){ this.osFocusWindow(existing); if(existing.classList.contains("minimized")) existing.classList.remove("minimized"); return existing; }
-        const url="https://single-nova-worker.umarerthteam.workers.dev";
-        const body=`<div class="os-browser-app"><div class="os-browser-toolbar"><button class="os-browser-nav" data-browser="back">‹</button><button class="os-browser-nav" data-browser="forward">›</button><button class="os-browser-nav" data-browser="reload">↻</button><input class="os-browser-address" value="${this.esc(url)}" aria-label="Address"><button class="os-browser-go" data-browser="go">Go</button></div><div class="os-browser-view"><iframe class="os-browser-frame" src="${this.esc(url)}" allow="clipboard-read; clipboard-write; downloads; storage-access-by-user-activation"></iframe></div></div>`;
-        const w=this.osOpenWindow("Nova Browser",key,body,{center:true,width:1100,height:720});
-        if(!w)return null;
-        const frame=w.querySelector('.os-browser-frame'), address=w.querySelector('.os-browser-address');
-        const go=()=>{try{let v=address.value.trim(); if(!/^https?:\/\//i.test(v))v='https://'+v; frame.src=v; address.value=v;}catch{}};
-        w.querySelector('[data-browser="go"]')?.addEventListener('click',go);
-        w.querySelector('[data-browser="reload"]')?.addEventListener('click',()=>{try{frame.contentWindow.location.reload()}catch{frame.src=frame.src}});
-        w.querySelector('[data-browser="back"]')?.addEventListener('click',()=>{try{frame.contentWindow.history.back()}catch{}});
-        w.querySelector('[data-browser="forward"]')?.addEventListener('click',()=>{try{frame.contentWindow.history.forward()}catch{}});
-        address?.addEventListener('keydown',e=>{if(e.key==='Enter')go()});
-        frame?.addEventListener('load',()=>{try{address.value=frame.contentWindow.location.href}catch{}});
+        const existing=document.querySelector('.os-window[data-key="'+CSS.escape(key)+'"]');
+        if(existing){this.osFocusWindow(existing);existing.classList.remove("minimized");return existing}
+        const w=this.osOpenWindow("Nova Browser",key,this.novaBrowserMarkup(),{center:true,width:1100,height:720});
+        if(w)this.bindNativeBrowser(w.querySelector(".nova-browser-native"));
         return w;
     },
 
@@ -2416,12 +2651,14 @@ const nova = {
         document.body.appendChild(aip);
 
         // Browser, chat, and settings stay inside the Nova workspace and participate in tabs.
-        const bp=document.createElement("div"); bp.id="browser-panel"; bp.className="fpanel nova-embed-panel";
-        bp.innerHTML=`<iframe title="Nova Browser" src="https://single-nova-worker.umarerthteam.workers.dev" allow="clipboard-read; clipboard-write; fullscreen" referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
+        const bp=document.createElement("div"); bp.id="browser-panel"; bp.className="fpanel nova-native-panel";
+        bp.innerHTML=this.novaBrowserMarkup();
         document.body.appendChild(bp);
-        const cp=document.createElement("div"); cp.id="chat-panel"; cp.className="fpanel nova-embed-panel";
-        cp.innerHTML=`<iframe title="Nova Chat" src="https://global-chat.umarerthteam.workers.dev?novaEmbed=1" allow="notifications" referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
+        this.bindNativeBrowser(bp.querySelector(".nova-browser-native"));
+        const cp=document.createElement("div"); cp.id="chat-panel"; cp.className="fpanel nova-native-panel";
+        cp.innerHTML=this.novaChatMarkup();
         document.body.appendChild(cp);
+        this.bindNativeChat(cp.querySelector(".nova-chat-native"));
         const sp=document.createElement("div"); sp.id="settings-panel"; sp.className="fpanel nova-settings-panel";
         sp.innerHTML=`<div class="fpbar"><div class="fp-ttl">Nova Settings</div></div><div class="fp-body">${this.osSettingsBody()}</div>`;
         document.body.appendChild(sp);
@@ -2605,54 +2842,50 @@ const nova = {
 
     // ── VIEW SWITCHING ──────────────────────────────────────────
     _setView(action, url, tabObj){
-        document.getElementById("anime-panel")?.classList.toggle("on", action==="anime");
-        document.getElementById("yt-panel")?.classList.toggle("on", action==="youtube");
-        document.getElementById("ai-panel")?.classList.toggle("on", action==="ai");
-        document.getElementById("browser-panel")?.classList.toggle("on", action==="browser");
-        document.getElementById("chat-panel")?.classList.toggle("on", action==="chat");
-        document.getElementById("settings-panel")?.classList.toggle("on", action==="settings");
+        const panels=["anime","youtube","ai","browser","chat","settings"];
+        const next=document.getElementById(action+"-panel");
+        const previous=panels.map(name=>document.getElementById(name+"-panel")).find(panel=>panel?.classList.contains("on")&&panel!==next);
+        const order=["home","ai","youtube","anime","browser","chat","settings"];
+        const oldAction=this._activeNovaView||"home";
+        const direction=order.indexOf(action)>=order.indexOf(oldAction)?"right":"left";
+        if(previous){
+            previous.classList.remove("nova-enter-left","nova-enter-right");
+            previous.classList.add(direction==="right"?"nova-exit-left":"nova-exit-right");
+            setTimeout(()=>previous.classList.remove("on","nova-exit-left","nova-exit-right"),360);
+        }
+        panels.forEach(name=>{
+            const panel=document.getElementById(name+"-panel");
+            if(panel&&panel!==next&&!panel.classList.contains("nova-exit-left")&&!panel.classList.contains("nova-exit-right"))panel.classList.remove("on");
+        });
+        if(next){
+            next.classList.remove("nova-exit-left","nova-exit-right","nova-enter-left","nova-enter-right");
+            next.classList.add("on",direction==="right"?"nova-enter-right":"nova-enter-left");
+            setTimeout(()=>next.classList.remove("nova-enter-left","nova-enter-right"),360);
+        }
+        this._activeNovaView=action;
         document.querySelectorAll("[data-nova-action]").forEach(button=>button.classList.toggle("active",button.dataset.novaAction===action));
         if(action==="settings"){
             const settingsBody=document.querySelector("#settings-panel .fp-body");
             if(settingsBody&&!settingsBody.querySelector(".nova-mega-settings"))settingsBody.innerHTML=this.osSettingsBody();
         }
-        
-        const theater = document.getElementById("theater");
-        const isGame = action === "game" && tabObj;
+        const theater=document.getElementById("theater");
+        const isGame=action==="game"&&tabObj;
         const immersive=(isGame&&this.preference("immersiveGames",true))||(action==="browser"&&this.preference("immersiveBrowser",true));
         document.body.classList.toggle("nova-immersive",immersive);
-        
-        theater.classList.toggle("on", isGame);
-        document.body.classList.toggle("in-game", isGame);
-
-        if (isGame) {
-            document.getElementById("t-ttl").innerText = tabObj.title;
-            this._theaterItem = tabObj.gameItem;
-            const dl = document.getElementById("t-dl");
-            if (dl) dl.style.display = tabObj.gameItem && tabObj.gameItem.download !== false ? "" : "none";
-
-            document.querySelectorAll(".gframe-instance").forEach(f => {
-                f.classList.toggle("active", f.id === `gframe-${tabObj.id}`);
-            });
-        } else {
-            this._theaterItem = null;
-        }
-
-        if(action==="anime"&&!this._animeLoaded) this.animeHome();
-        if(action==="youtube"&&!this._ytLoaded) this.ytHome();
-        if(action==="ai"&&!this._aiLoaded) this.aiInit();
-        
-        if(action==="favorites"){ 
-            this.onlyFavs=true; 
-            document.getElementById("fvbtn")?.classList.add("on"); 
-            this.filter(); 
-        } else {
-            if(this.onlyFavs){
-                this.onlyFavs=false;
-                document.getElementById("fvbtn")?.classList.remove("on");
-                this.filter();
-            }
-        }
+        theater.classList.toggle("on",isGame);
+        document.body.classList.toggle("in-game",isGame);
+        if(isGame){
+            document.getElementById("t-ttl").innerText=tabObj.title;
+            this._theaterItem=tabObj.gameItem;
+            const dl=document.getElementById("t-dl");
+            if(dl)dl.style.display=tabObj.gameItem&&tabObj.gameItem.download!==false?"":"none";
+            document.querySelectorAll(".gframe-instance").forEach(frame=>frame.classList.toggle("active",frame.id==="gframe-"+tabObj.id));
+        }else this._theaterItem=null;
+        if(action==="anime"&&!this._animeLoaded)this.animeHome();
+        if(action==="youtube"&&!this._ytLoaded)this.ytHome();
+        if(action==="ai"&&!this._aiLoaded)this.aiInit();
+        if(action==="favorites"){this.onlyFavs=true;document.getElementById("fvbtn")?.classList.add("on");this.filter()}
+        else if(this.onlyFavs){this.onlyFavs=false;document.getElementById("fvbtn")?.classList.remove("on");this.filter()}
     },
 
     // ── GAME LAUNCHING & RELIABLE IFRAME ENGINE ─────────────────
