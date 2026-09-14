@@ -114,6 +114,12 @@ const DEFAULT_UI_MODE = "classic";
 
 // ─── PIPED VIDEO API POOL ───────────────────────────────────────
 const PIPED_API_INSTANCES = [
+    "https://pipedapi.kavin.rocks",
+    "https://pipedapi.leptons.xyz",
+    "https://pipedapi.nosebs.ru",
+    "https://pipedapi.adminforge.de",
+    "https://api.piped.yt",
+    "https://piped-api.privacy.com.de",
     "https://pipedapi.ducks.party",
     "https://piped-api.codespace.cz",
     "https://api.piped.private.coffee",
@@ -3530,20 +3536,35 @@ const nova = {
         const failures=[];
         const preferred=Math.max(0,PIPED_API_INSTANCES.indexOf(currentPipedApi));
         const pool=[...PIPED_API_INSTANCES.slice(preferred),...PIPED_API_INSTANCES.slice(0,preferred)];
-        for(const base of pool){
+        const attempt=async base=>{
             const controller=new AbortController();
-            const timer=setTimeout(()=>controller.abort(),8000);
+            const timer=setTimeout(()=>controller.abort(),10000);
             try{
                 const url=new URL(path.replace(/^\//,""),base+"/");
-                Object.entries(params).forEach(([k,v])=>v!==undefined&&v!==null&&url.searchParams.set(k,String(v)));
-                const res=await fetch(url.toString(),{signal:controller.signal,headers:{Accept:"application/json"}});
-                if(!res.ok)throw new Error(`HTTP ${res.status}`);
-                const data=await res.json();
+                Object.entries(params).forEach(([key,value])=>value!==undefined&&value!==null&&url.searchParams.set(key,String(value)));
+                const response=await fetch(url.toString(),{
+                    signal:controller.signal,
+                    mode:"cors",
+                    credentials:"omit",
+                    cache:"no-store",
+                    referrerPolicy:"no-referrer",
+                    headers:{Accept:"application/json"}
+                });
+                if(!response.ok)throw new Error("HTTP "+response.status);
+                const data=await response.json();
+                if(!data||typeof data!=="object"||data.error)throw new Error(data?.error||"Invalid API response");
                 currentPipedApi=base;
                 return data;
-            }catch(e){failures.push(`${new URL(base).hostname}: ${e.name==="AbortError"?"timeout":e.message}`);}
-            finally{clearTimeout(timer);}
+            }catch(error){
+                failures.push(new URL(base).hostname+": "+(error.name==="AbortError"?"timeout":error.message));
+                throw error;
+            }finally{clearTimeout(timer);}
+        };
+        for(let index=0;index<pool.length;index+=4){
+            try{return await Promise.any(pool.slice(index,index+4).map(attempt));}
+            catch{}
         }
+        console.warn("Nova Piped API failures",failures);
         throw new Error("All Piped servers failed");
     },
     _pipedVideo(v){
@@ -3621,7 +3642,13 @@ const nova = {
             body.innerHTML=`<div class="nova-yt-player"><div class="nova-yt-playerbar"><button class="fp-back" id="yt-player-back">← Back</button><div>${safeTitle}</div></div><div class="nova-yt-watch-layout${showComments?"":" without-comments"}"><section class="nova-yt-video-column"><div class="nova-yt-frame-wrap"><video id="yt-player-frame" title="${safeTitle}" src="${this.esc(src)}" controls playsinline ${this.preference("youtubeAutoplay",true)?"autoplay":""}></video></div><div class="nova-yt-video-title">${safeTitle}</div></section>${showComments?`<aside class="nova-yt-comments" aria-label="Video comments"><div class="nova-yt-comments-head"><strong>Comments</strong><span>View only</span></div><div id="yt-comments-list"><div class="fp-spin"></div></div></aside>`:""}</div></div>`;
             body.querySelector("#yt-player-back")?.addEventListener("click",()=>{const q=document.getElementById("yp-srch")?.value?.trim()||"";if(q)this.ytSearch(q);else this.ytHome();});
             if(showComments)this.ytLoadComments(videoId);
-        }catch(e){body.innerHTML=`<div class="fp-msg">Video unavailable ${this.esc(e.message||"")}</div>`;}
+        }catch(e){
+            console.warn("Direct Piped playback failed and is using the Piped web player",e);
+            const fallback="https://piped.video/watch?v="+encodeURIComponent(videoId)+(this.preference("youtubeAutoplay",true)?"&autoplay=1":"");
+            const safeTitle=this.esc(title||"Video");
+            body.innerHTML=`<div class="nova-yt-player"><div class="nova-yt-playerbar"><button class="fp-back" id="yt-player-back">← Back</button><div>${safeTitle}</div></div><div class="nova-yt-frame-wrap"><iframe id="yt-player-frame" title="${safeTitle}" src="${this.esc(fallback)}" allow="autoplay; fullscreen; picture-in-picture" referrerpolicy="no-referrer"></iframe></div></div>`;
+            body.querySelector("#yt-player-back")?.addEventListener("click",()=>{const q=document.getElementById("yp-srch")?.value?.trim()||"";if(q)this.ytSearch(q);else this.ytHome();});
+        }
     },
     async ytLoadComments(videoId){
         const host=document.getElementById("yt-comments-list");if(!host)return;
