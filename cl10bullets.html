@@ -47,7 +47,7 @@
     function resizeGame() {
       const windowWidth = window.innerWidth;
       const windowHeight = window.innerHeight;
-      const aspectRatio = 16 / 9;
+      const aspectRatio = 4 / 3;
 
       let width = Math.floor(windowWidth);
       let height = Math.floor(windowWidth / aspectRatio);
@@ -72,7 +72,7 @@
         player.style.height = "100%";
         player.style.background = "black";
         container.appendChild(player);
-        player.load("https://cdn.jsdelivr.net/gh/ap-math-class/exams@main/swf/10Bullets.swf");
+        player.load("https://cdn.jsdelivr.net/gh/bubbls/UGS-file-encryption@29c164fe340f983080050b5ce21c03dbcbe350c3/10Bullets.swf");
       } else {
         container.textContent = "Ruffle failed to load.";
       }
