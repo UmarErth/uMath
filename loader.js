@@ -39,8 +39,15 @@ function openNovaCloak(){
         return null;
     }
 }
+function autoCloakEnabled(){
+    try{
+        const saved=JSON.parse(localStorage.getItem('nova_appearance_v2')||'{}');
+        return saved.autoCloak!==false;
+    }catch{return true;}
+}
 function launchNova(){
     if(isCloakedOrEmbedded()){startNova();return;}
+    if(!autoCloakEnabled()){startNova();return;}
     const opened=openNovaCloak();
     const launcher=document.createElement('div');
     launcher.id='nova-cloak-launcher';
@@ -4616,7 +4623,7 @@ try{document.title='Home - Classroom'}catch(_){}
 /* NOVA MEGA APPEARANCE SYSTEM — wallpapers, themes, cursor, scale, dock, fonts, motion and more. */
 (function(){
   const STORAGE='nova_appearance_v2';
-  const defaults={theme:'midnight',accent:'#7c5cff',wallpaper:'nova',wallpaperUrl:'',cursor:'default',font:'system',scale:100,fontSize:100,radius:18,density:'comfortable',cardSize:200,tabWidth:190,dockSize:64,dockPosition:'bottom',animations:true,desktopGrid:true,showLabels:true,highContrast:false,showGameDescriptions:true,immersiveGames:true,immersiveBrowser:true,reuseAppTabs:true,youtubeComments:true,youtubeAutoplay:true,youtubeRegion:'US',aiModel:'gemini-3.6-flash',startup:'games',chatAlerts:false};
+  const defaults={theme:'midnight',accent:'#7c5cff',wallpaper:'nova',wallpaperUrl:'',cursor:'default',font:'system',scale:100,fontSize:100,radius:18,density:'comfortable',cardSize:200,tabWidth:190,dockSize:64,dockPosition:'bottom',animations:true,desktopGrid:true,showLabels:true,highContrast:false,showGameDescriptions:true,immersiveGames:true,immersiveBrowser:true,reuseAppTabs:true,youtubeComments:true,youtubeAutoplay:true,youtubeRegion:'US',aiModel:'gemini-3.6-flash',startup:'games',chatAlerts:false,autoCloak:true};
   const themes={
     midnight:{name:'Midnight',bg:'#080b12',surface:'#151821',bar:'#0b0d14',text:'#f7f8ff'},
     ocean:{name:'Ocean',bg:'#061018',surface:'#0e1c27',bar:'#07131b',text:'#f1fbff'},
@@ -4758,6 +4765,7 @@ try{document.title='Home - Classroom'}catch(_){}
           <div class="nova-perf-card"><b>Reset appearance</b><span>Restore every Nova appearance setting to default.</span><button id="nova-appearance-reset">Reset</button></div>
         </section>
         <section class="nova-set-page" data-set-page="privacy"><h2>Privacy & Data</h2><p class="nova-settings-sub">Manage locally saved Nova data.</p>
+          <label class="nova-switch-row"><span><b>Automatic about blank cloak</b><small>Open Nova in an about blank tab by default on your next visit</small></span><input type="checkbox" data-pref="autoCloak" ${a.autoCloak?'checked':''}></label>
           <label class="nova-switch-row"><span><b>Chat notifications</b><small>Allow Nova Chat alerts on this browser</small></span><input type="checkbox" data-pref="chatAlerts" ${a.chatAlerts?'checked':''}></label>
           <div class="nova-perf-card"><b>Favorites</b><span>Remove all saved game favorites.</span><button id="nova-clear-favorites">Clear favorites</button></div>
           <div class="nova-perf-card"><b>Export settings</b><span>Download a backup of your Nova customization.</span><button id="nova-export-settings">Export</button></div>
