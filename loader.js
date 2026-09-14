@@ -1768,6 +1768,7 @@ const nova = {
         .nova-browser-logo{background:transparent!important;color:#fff!important;box-shadow:none!important;font-weight:400!important;font-size:50px!important}
         .nova-browser-hero h2{font-weight:400!important;letter-spacing:-.04em!important}
         .nova-home-search{border-radius:6px!important;background:#0d0d11!important;border-color:rgba(255,255,255,.17)!important}
+        .nova-browser-retry{margin:0 auto 14px;padding:8px 13px;border:1px solid rgba(255,255,255,.16);border-radius:6px;background:#15151b;color:#f4f3f8;font:650 12px inherit;cursor:pointer}.nova-browser-retry:hover{background:#202029}.nova-browser-retry[hidden]{display:none!important}
         .nova-browser-shortcuts button{border-radius:6px!important;background:rgba(255,255,255,.035)!important}
         .nova-chat-side{width:248px!important;background:rgba(5,5,8,.9)!important;border-color:rgba(255,255,255,.1)!important}
         .nova-chat-main{background:radial-gradient(58vw 42vw at 28% 0,rgba(84,17,201,.33),transparent 65%),#050507!important}
@@ -2554,7 +2555,7 @@ const nova = {
     },
 
     novaBrowserMarkup(){
-        return '<div class="nova-native-app nova-browser-native"><div class="nova-native-top"><div class="nova-app-mark">N</div><button class="nova-round-btn" data-browser="back" aria-label="Back">‹</button><button class="nova-round-btn" data-browser="forward" aria-label="Forward">›</button><button class="nova-round-btn" data-browser="reload" aria-label="Reload">↻</button><form class="nova-address-form"><span class="nova-lock">◇</span><input class="nova-browser-address" value="" placeholder="Search or enter a URL" autocomplete="off" aria-label="Address"><button class="nova-go-btn" type="submit">Go</button></form></div><div class="nova-browser-stage"><section class="nova-browser-home"><div class="nova-browser-hero"><span class="nova-browser-logo">N</span><h2>Where to?</h2><p>Private browsing, powered by the existing Nova Browser backend.</p><form class="nova-home-search"><input placeholder="Search the web" autocomplete="off"><button type="submit">Search</button></form><div class="nova-browser-shortcuts"><button data-url="https://www.google.com">G<span>Google</span></button><button data-url="https://piped.video">▶<span>Piped</span></button><button data-url="https://en.wikipedia.org">W<span>Wikipedia</span></button><button data-url="https://discord.com">D<span>Discord</span></button></div></div></section><iframe class="nova-browser-frame" title="Nova Browser page" allow="clipboard-read; clipboard-write; downloads; fullscreen; storage-access-by-user-activation"></iframe><div class="nova-browser-loading"><i></i></div></div></div>';
+        return '<div class="nova-native-app nova-browser-native"><div class="nova-native-top"><div class="nova-app-mark">N</div><button class="nova-round-btn" data-browser="back" aria-label="Back">‹</button><button class="nova-round-btn" data-browser="forward" aria-label="Forward">›</button><button class="nova-round-btn" data-browser="reload" aria-label="Reload">↻</button><form class="nova-address-form"><span class="nova-lock">◇</span><input class="nova-browser-address" value="" placeholder="Search or enter a URL" autocomplete="off" aria-label="Address"><button class="nova-go-btn" type="submit">Go</button></form></div><div class="nova-browser-stage"><section class="nova-browser-home"><div class="nova-browser-hero"><span class="nova-browser-logo">N</span><h2>Where to?</h2><p data-browser-status>Starting secure proxy…</p><button class="nova-browser-retry" data-browser="retry" type="button" hidden>Retry proxy</button><form class="nova-home-search"><input placeholder="Search the web" autocomplete="off"><button type="submit">Search</button></form><div class="nova-browser-shortcuts"><button data-url="https://www.google.com">G<span>Google</span></button><button data-url="https://piped.video">▶<span>Piped</span></button><button data-url="https://en.wikipedia.org">W<span>Wikipedia</span></button><button data-url="https://discord.com">D<span>Discord</span></button></div></div></section><iframe class="nova-browser-frame" title="Nova Browser page" allow="clipboard-read; clipboard-write; downloads; fullscreen; storage-access-by-user-activation"></iframe><div class="nova-browser-loading"><i></i></div></div></div>';
     },
     novaBrowserEncode(url){
         const bytes=new TextEncoder().encode(url);
@@ -2570,7 +2571,9 @@ const nova = {
         const address=root.querySelector(".nova-browser-address");
         const home=root.querySelector(".nova-browser-home");
         const loading=root.querySelector(".nova-browser-loading");
-        const state={history:[],index:-1,ready:false,pending:null};
+        const status=root.querySelector("[data-browser-status]");
+        const retry=root.querySelector('[data-browser="retry"]');
+        const state={history:[],index:-1,ready:false,pending:null,bootTimer:null};
         root._novaBrowserState=state;
         const normalize=value=>{
             value=String(value||"").trim();
@@ -2585,6 +2588,10 @@ const nova = {
             root.querySelector('[data-browser="back"]').disabled=state.index<=0;
             root.querySelector('[data-browser="forward"]').disabled=state.index>=state.history.length-1;
         };
+        const setStatus=(message,canRetry=false)=>{
+            if(status)status.textContent=message;
+            if(retry)retry.hidden=!canRetry;
+        };
         const show=url=>{
             if(!url){home.hidden=false;frame.classList.remove("on");address.value="";loading.classList.remove("on");return;}
             home.hidden=true;frame.classList.add("on");address.value=url;loading.classList.add("on");
@@ -2594,27 +2601,50 @@ const nova = {
             const url=normalize(value); if(!url)return;
             if(push){state.history=state.history.slice(0,state.index+1);state.history.push(url);state.index=state.history.length-1;}
             sync();
-            if(!state.ready){state.pending=url;loading.classList.add("on");return;}
+            if(!state.ready){state.pending=url;loading.classList.add("on");setStatus("Starting secure proxy…");return;}
             show(url);
         };
+        const boot=()=>{
+            state.ready=false;
+            clearTimeout(state.bootTimer);
+            setStatus("Starting secure proxy…");
+            loading.classList.add("on");
+            frame.src=base+"/?nova_boot=3&t="+Date.now();
+            state.bootTimer=setTimeout(()=>{
+                if(!state.ready){loading.classList.remove("on");setStatus("Proxy startup is taking longer than expected.",true);}
+            },12000);
+        };
+        const onMessage=event=>{
+            if(event.origin!==base||event.source!==frame.contentWindow||!event.data)return;
+            if(event.data.type==="nova-browser-ready"){
+                clearTimeout(state.bootTimer);
+                state.ready=true;
+                loading.classList.remove("on");
+                setStatus("Proxy ready");
+                const pending=state.pending;state.pending=null;
+                if(pending)show(pending);
+            }else if(event.data.type==="nova-browser-error"){
+                clearTimeout(state.bootTimer);
+                state.ready=false;
+                loading.classList.remove("on");
+                setStatus(event.data.message||"Proxy failed to start.",true);
+            }
+        };
+        window.addEventListener("message",onMessage);
         root._novaBrowserNavigate=navigate;
         root._novaBrowserReset=()=>{
             state.history=[];state.index=-1;state.pending=null;
             sync();show("");
         };
-        frame.addEventListener("load",()=>{
-            if(!state.ready){
-                setTimeout(()=>{state.ready=true;const pending=state.pending;state.pending=null;if(pending)show(pending);},700);
-            }else loading.classList.remove("on");
-        });
-        frame.src=base+"/";
+        frame.addEventListener("load",()=>{if(state.ready)loading.classList.remove("on")});
         root.querySelector(".nova-address-form").addEventListener("submit",e=>{e.preventDefault();navigate(address.value)});
         root.querySelector(".nova-home-search").addEventListener("submit",e=>{e.preventDefault();navigate(e.currentTarget.querySelector("input").value)});
         root.querySelectorAll("[data-url]").forEach(button=>button.addEventListener("click",()=>navigate(button.dataset.url)));
         root.querySelector('[data-browser="back"]').addEventListener("click",()=>{if(state.index>0){state.index--;sync();show(state.history[state.index])}});
         root.querySelector('[data-browser="forward"]').addEventListener("click",()=>{if(state.index<state.history.length-1){state.index++;sync();show(state.history[state.index])}});
-        root.querySelector('[data-browser="reload"]').addEventListener("click",()=>{if(state.index>=0)show(state.history[state.index]);else{state.ready=false;frame.src=base+"/"}});
-        sync();
+        root.querySelector('[data-browser="reload"]').addEventListener("click",()=>{if(state.ready&&state.index>=0)show(state.history[state.index]);else boot()});
+        retry.addEventListener("click",boot);
+        sync();boot();
     },
     novaChatMarkup(){
         return '<div class="nova-native-app nova-chat-native"><aside class="nova-chat-side"><div class="nova-chat-brand"><span>N</span><div><strong>Nova Chat</strong><small data-chat-status>Connecting…</small></div></div><button class="nova-chat-room active" data-chat-peer="global"><b>#</b><span>Global chat</span></button><div class="nova-chat-label">Online <em data-chat-count>0</em></div><div class="nova-chat-users"></div><button class="nova-chat-profile" type="button"><span data-chat-avatar>?</span><div><strong data-chat-name>Choose a name</strong><small>Change profile</small></div></button></aside><main class="nova-chat-main"><header><div><strong data-chat-title>Global chat</strong><small data-chat-subtitle>Everyone online</small></div><span class="nova-live-dot"></span></header><div class="nova-chat-messages"></div><form class="nova-chat-compose"><input maxlength="2000" placeholder="Message global chat" autocomplete="off"><button type="submit">Send</button></form><div class="nova-chat-setup"><form><span class="nova-chat-setup-logo">N</span><h2>Join Nova Chat</h2><p>Pick a display name to start chatting.</p><input maxlength="20" placeholder="Your name" autocomplete="nickname" required><button type="submit">Join chat</button></form></div></main></div>';
@@ -2623,7 +2653,7 @@ const nova = {
     bindNativeChat(root){
         if(!root||root._novaChatBound)return;
         root._novaChatBound=true;
-        if(!this._novaChatState)this._novaChatState={ws:null,name:localStorage.getItem("nova_chat_name")||"",peerId:"",users:[],selected:"global",messages:{global:[]},roots:new Set(),retry:null};
+        if(!this._novaChatState)this._novaChatState={ws:null,name:localStorage.getItem("nova_chat_name")||"",peerId:"",users:[],selected:"global",messages:{global:[]},roots:new Set(),retry:null,status:"idle"};
         const state=this._novaChatState;
         state.roots.add(root);
         const setup=root.querySelector(".nova-chat-setup");
@@ -2653,9 +2683,10 @@ const nova = {
         const state=this._novaChatState;if(!state||!state.name)return;
         if(state.ws&&(state.ws.readyState===0||state.ws.readyState===1))return;
         clearTimeout(state.retry);
+        state.status="connecting";
         const ws=new WebSocket("wss://global-chat.umarerthteam.workers.dev/ws");state.ws=ws;
         this.novaChatRender();
-        ws.addEventListener("open",()=>{ws.send(JSON.stringify({type:"init",user:state.name}));this.novaChatRender()});
+        ws.addEventListener("open",()=>{state.status="live";ws.send(JSON.stringify({type:"init",user:state.name}));this.novaChatRender()});
         ws.addEventListener("message",event=>{
             let data;try{data=JSON.parse(event.data)}catch{return}
             if(data.type==="session")state.peerId=data.peerId||"";
@@ -2672,8 +2703,14 @@ const nova = {
             Object.keys(state.messages).forEach(key=>{if(state.messages[key].length>150)state.messages[key]=state.messages[key].slice(-150)});
             this.novaChatRender();
         });
-        ws.addEventListener("close",()=>{if(state.ws===ws){state.ws=null;state.retry=setTimeout(()=>this.novaChatConnect(),2500);this.novaChatRender()}});
-        ws.addEventListener("error",()=>this.novaChatRender());
+        ws.addEventListener("close",()=>{
+            if(state.ws===ws){
+                state.ws=null;state.status="retrying";
+                state.retry=setTimeout(()=>this.novaChatConnect(),2500);
+                this.novaChatRender();
+            }
+        });
+        ws.addEventListener("error",()=>{state.status="error";this.novaChatRender()});
     },
     novaChatRender(){
         const state=this._novaChatState;if(!state)return;
@@ -2681,7 +2718,8 @@ const nova = {
         state.roots.forEach(root=>{
             if(!root.isConnected){state.roots.delete(root);return}
             const connected=state.ws&&state.ws.readyState===1;
-            root.querySelector("[data-chat-status]").textContent=connected?"Live":"Connecting…";
+            const connectionLabel=!state.name?"Choose a name":connected?"Live":state.status==="error"?"Connection error":state.status==="retrying"?"Reconnecting…":"Connecting…";
+            root.querySelector("[data-chat-status]").textContent=connectionLabel;
             root.querySelector("[data-chat-count]").textContent=state.users.length;
             root.querySelector("[data-chat-name]").textContent=state.name||"Choose a name";
             root.querySelector("[data-chat-avatar]").textContent=(state.name||"?").charAt(0).toUpperCase();
