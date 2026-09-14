@@ -1562,6 +1562,89 @@ const nova = {
             .ai-drawer { position: absolute; left: 0; top: 0; bottom: 0; z-index: 100; transform: translateX(-100%); }
             .ai-drawer.on { transform: translateX(0); box-shadow: 10px 0 40px rgba(0,0,0,0.9); }
         }
+        /* NOVA CLEAN SHELL */
+        .nova-topbar{height:64px!important;padding:0 clamp(12px,2.2vw,28px)!important;gap:22px!important;background:rgba(8,10,16,.88)!important;border-bottom:1px solid rgba(255,255,255,.07)!important;backdrop-filter:blur(22px) saturate(150%)!important}
+        .nova-wordmark{min-width:auto!important;gap:8px!important}
+        .nova-wordmark>span:last-child{display:none!important}
+        .nova-wordmark strong{font-size:22px!important;letter-spacing:-1px!important}
+        .nova-bolt{font-size:25px!important}
+        .nova-primary-links{display:flex!important;align-items:center!important;justify-content:center!important;gap:4px!important;flex:1!important;overflow:auto!important;scrollbar-width:none}
+        .nova-primary-links::-webkit-scrollbar{display:none}
+        .nova-primary-links button{display:flex!important;align-items:center!important;gap:7px!important;min-width:auto!important;padding:9px 12px!important;border-radius:11px!important;font-size:12px!important;color:rgba(255,255,255,.55)!important;background:transparent!important;border:0!important;white-space:nowrap}
+        .nova-primary-links button i{font-style:normal;color:rgba(255,255,255,.38);font-size:14px}
+        .nova-primary-links button:hover,.nova-primary-links button.active{color:#fff!important;background:rgba(255,255,255,.07)!important}
+        .nova-primary-links button.active i{color:var(--mint)!important}
+        .nova-top-actions{display:flex;align-items:center;gap:6px}
+        .nova-top-actions>button{height:36px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.045);color:rgba(255,255,255,.72);border-radius:11px;padding:0 12px;font:600 12px inherit;cursor:pointer}
+        #nova-command-button{display:flex;align-items:center;gap:18px;min-width:170px;justify-content:space-between}
+        #nova-command-button span{color:rgba(255,255,255,.38);font-weight:500}
+        #nova-command-button kbd,.nova-command-search kbd{font:700 10px inherit;color:rgba(255,255,255,.45);background:rgba(255,255,255,.07);padding:4px 6px;border-radius:6px;border:1px solid rgba(255,255,255,.07)}
+        #tbr{height:42px!important;min-height:42px!important;padding:5px clamp(10px,2vw,24px)!important;gap:5px!important;background:#0c0f17!important;border-bottom:1px solid rgba(255,255,255,.06)!important}
+        .tbt{height:32px!important;max-width:180px!important;min-width:100px!important;border-radius:9px!important;padding:0 8px!important;background:transparent!important;border:0!important}
+        .tbt.on{background:rgba(255,255,255,.075)!important}
+        .tb-new{width:32px!important;height:32px!important;border-radius:9px!important}
+        .nova-library-toolbar{position:relative!important;top:auto!important;min-height:64px!important;height:auto!important;display:flex!important;flex-direction:row!important;align-items:center!important;gap:10px!important;padding:12px clamp(14px,3vw,36px)!important;background:transparent!important;border:0!important}
+        .nova-library-toolbar .mbtn{flex:0 0 auto}
+        .nova-game-search{display:flex;align-items:center;gap:8px;flex:1;max-width:560px;margin-right:auto;background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.08);border-radius:13px;padding:0 13px}
+        .nova-game-search>span{color:rgba(255,255,255,.35);font-size:18px}
+        .nova-game-search .sbar{width:100%!important;max-width:none!important;height:40px!important;padding:0!important;background:transparent!important;border:0!important;box-shadow:none!important}
+        .nova-library-toolbar .fvbtn{position:static!important;width:auto!important;height:40px!important;display:flex!important;align-items:center!important;gap:7px!important;padding:0 13px!important;border-radius:12px!important}
+        .nova-library-toolbar .fvbtn b{font-size:11px}
+        .nova-quick-more{height:40px;padding:0 14px;border:1px solid rgba(255,255,255,.08);border-radius:12px;background:rgba(255,255,255,.045);color:#fff;cursor:pointer;letter-spacing:2px}
+        .nova-library-intro{margin:4px clamp(14px,3vw,36px) 18px!important;padding:clamp(20px,3vw,34px)!important;min-height:0!important;border-radius:22px!important;background:linear-gradient(120deg,rgba(124,92,255,.14),rgba(65,255,184,.055))!important;border:1px solid rgba(255,255,255,.07)!important}
+        .nova-library-intro h1{font-size:clamp(28px,4vw,48px)!important;line-height:1!important;margin:8px 0!important}
+        .nova-library-intro p{max-width:560px!important;margin-bottom:0!important}
+        .nova-section-title{padding:0 clamp(14px,3vw,36px) 10px!important}
+        #grid{padding:0 clamp(14px,3vw,36px) 40px!important;gap:14px!important}
+        .card{border-radius:16px!important;border:1px solid rgba(255,255,255,.065)!important;background:rgba(255,255,255,.035)!important;box-shadow:none!important}
+        .card:hover{transform:translateY(-3px)!important;border-color:rgba(124,92,255,.32)!important;background:rgba(255,255,255,.055)!important}
+        .fpbar{min-height:58px!important;padding:10px 18px!important;background:rgba(10,12,19,.9)!important}
+        .fp-ttl{font-size:15px!important}
+        .nova-native-top{height:58px!important}
+        #nova-command{position:fixed;inset:0;z-index:20000;display:none;align-items:flex-start;justify-content:center;padding:11vh 18px 18px;background:rgba(3,4,8,.58);backdrop-filter:blur(10px)}
+        #nova-command.on{display:flex}
+        .nova-command-card{width:min(620px,100%);max-height:min(650px,78vh);display:flex;flex-direction:column;overflow:hidden;background:#11141d;border:1px solid rgba(255,255,255,.11);border-radius:20px;box-shadow:0 30px 100px rgba(0,0,0,.58);animation:novaCommandIn .18s ease-out}
+        @keyframes novaCommandIn{from{opacity:0;transform:translateY(-10px) scale(.98)}to{opacity:1;transform:none}}
+        .nova-command-search{height:60px;display:flex;align-items:center;gap:12px;padding:0 17px;border-bottom:1px solid rgba(255,255,255,.075)}
+        .nova-command-search>span{font-size:22px;color:var(--mint)}
+        .nova-command-search input{flex:1;min-width:0;border:0;outline:0;background:transparent;color:#fff;font:500 16px inherit}
+        .nova-command-section{padding:11px;overflow:auto}
+        .nova-command-section>span{display:block;padding:4px 8px 8px;text-transform:uppercase;letter-spacing:.12em;font-size:9px;font-weight:800;color:rgba(255,255,255,.3)}
+        .nova-command-item{width:100%;display:flex;align-items:center;gap:12px;padding:9px;border:0;border-radius:12px;background:transparent;color:#fff;text-align:left;cursor:pointer}
+        .nova-command-item.selected,.nova-command-item:hover{background:rgba(124,92,255,.14)}
+        .nova-command-item>i{width:36px;height:36px;display:grid;place-items:center;border-radius:10px;background:rgba(255,255,255,.065);color:var(--mint);font-style:normal;font-weight:800}
+        .nova-command-item>span{min-width:0;flex:1}.nova-command-item strong,.nova-command-item small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .nova-command-item strong{font-size:13px}.nova-command-item small{font-size:10px;color:rgba(255,255,255,.38);margin-top:3px}
+        .nova-command-item em{font-style:normal;color:rgba(255,255,255,.2)}
+        .nova-command-card footer{display:flex;gap:16px;padding:10px 18px;border-top:1px solid rgba(255,255,255,.065);font-size:9px;color:rgba(255,255,255,.3)}
+        .nova-command-empty{padding:35px;text-align:center;color:rgba(255,255,255,.35)}
+        @media(max-width:760px){
+            .nova-topbar{height:58px!important;padding:0 9px!important;gap:8px!important}
+            .nova-wordmark strong{font-size:19px!important}
+            .nova-primary-links{justify-content:flex-start!important}
+            .nova-primary-links button{padding:8px 9px!important}
+            .nova-primary-links button span{display:none}
+            .nova-primary-links button i{font-size:17px}
+            #nova-command-button{min-width:36px;width:36px;padding:0!important;justify-content:center}
+            #nova-command-button span{display:none}
+            #nova-command-button kbd{border:0;background:transparent;padding:0;font-size:0}
+            #nova-command-button kbd:after{content:"⌕";font-size:18px;color:#fff}
+            .nova-top-actions>button{padding:0 10px}
+            .nova-top-actions>button[data-nova-action="os"]{display:none}
+            #tbr{height:38px!important;min-height:38px!important;padding:3px 8px!important}
+            .tbt{height:31px!important;min-width:82px!important;max-width:125px!important}
+            .nova-library-toolbar{padding:9px 12px!important;gap:7px!important}
+            .nova-library-toolbar .fvbtn b{display:none}
+            .nova-library-intro{margin:2px 12px 14px!important;padding:21px!important;border-radius:18px!important}
+            .nova-library-count{display:none!important}
+            .nova-library-intro p{font-size:12px!important}
+            .nova-section-title>span{display:none}
+            #grid{padding:0 12px 28px!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important}
+            .card{min-width:0!important}
+            .card .game-copy p{display:none!important}
+            #nova-command{padding-top:7vh}
+        }
+
         `;
         document.head.appendChild(s);
         if(!document.querySelector('meta[name="viewport"]')){
@@ -2585,21 +2668,27 @@ const nova = {
         const hbHTML=HEADER_BUTTONS.map(b=>`<button class="hbtn" id="${b.id}" title="${this.esc(b.label)}"><span>${b.icon}</span><span class="bl"> ${this.esc(b.label)}</span></button>`).join("");
         app.innerHTML=`
             <nav class="nova-topbar" aria-label="Primary navigation">
-                <button class="nova-wordmark" id="nova-home" type="button" aria-label="Nova Gaming home"><span class="nova-bolt">ϟ</span><strong>nova</strong><span>gaming</span></button>
-                <div class="nova-primary-links"><button data-nova-action="home" class="active">Games</button><button data-nova-action="ai">Nova AI</button><button data-nova-action="youtube">YouTube</button><button data-nova-action="browser">Browser</button><button data-nova-action="chat">Chat</button><button data-nova-action="settings">Settings</button><button data-nova-action="os">OS style</button></div>
+                <button class="nova-wordmark" id="nova-home" type="button" aria-label="Nova Gaming home"><span class="nova-bolt">ϟ</span><strong>nova</strong></button>
+                <div class="nova-primary-links"><button data-nova-action="home" class="active"><i>⌂</i><span>Games</span></button><button data-nova-action="ai"><i>✦</i><span>AI</span></button><button data-nova-action="youtube"><i>▷</i><span>Video</span></button><button data-nova-action="anime"><i>◆</i><span>Anime</span></button><button data-nova-action="browser"><i>◎</i><span>Browser</span></button><button data-nova-action="chat"><i>#</i><span>Chat</span></button></div>
+                <div class="nova-top-actions"><button id="nova-command-button" type="button" title="Quick switch"><span>Search anything</span><kbd>⌘ K</kbd></button><button data-nova-action="settings" aria-label="Settings">⚙</button><button data-nova-action="os" aria-label="Desktop mode">▦</button></div>
             </nav>
             <div id="tbr"><button class="tb-new" id="tb-new" title="New tab">+</button></div>
-            <header>
-                <div class="hl">
-                    <button class="mbtn" id="mbtn" aria-label="Menu"><span></span><span></span><span></span></button>
-                    <div class="brand" id="brand">${this.esc(SITE_NAME)}</div>
-                </div>
-                <div class="sw">${hbHTML}<input type="text" class="sbar" id="sbar" placeholder="     Search Games"><button class="fvbtn" id="fvbtn" title="Favorites">★</button></div>
+            <header class="nova-library-toolbar">
+                <button class="mbtn" id="mbtn" aria-label="Menu"><span></span><span></span><span></span></button>
+                <label class="nova-game-search"><span>⌕</span><input type="text" class="sbar" id="sbar" placeholder="Search games"></label>
+                <button class="fvbtn" id="fvbtn" title="Favorites"><span>★</span><b>Favorites</b></button>
+                <button class="nova-quick-more" id="nova-command-more" title="More actions">•••</button>
             </header>
             <section class="nova-library-intro"><div><span class="nova-kicker">PLAY WITHOUT THE CLUTTER</span><h1>Your games, ready when you are.</h1><p>Search the full Nova library, jump into a favorite, or open a recently played game.</p></div><div class="nova-library-count"><strong data-nova-game-count>${GAMES.length}</strong><span>games available</span></div></section>
             <div class="nova-section-title"><div><span class="nova-section-dot"></span><strong>All games</strong></div><span>Pick one and start playing</span></div>
             <div id="grid"></div>`;
         document.body.appendChild(app);
+
+        const command=document.createElement("div");
+        command.id="nova-command";
+        command.setAttribute("aria-hidden","true");
+        command.innerHTML=`<div class="nova-command-card" role="dialog" aria-modal="true" aria-label="Nova command center"><div class="nova-command-search"><span>⌕</span><input id="nova-command-input" placeholder="Search apps games and actions" autocomplete="off"><kbd>esc</kbd></div><div class="nova-command-section"><span id="nova-command-label">Quick access</span><div id="nova-command-results"></div></div><footer><span>↑↓ move</span><span>enter open</span><span>⌘ K anywhere</span></footer></div>`;
+        document.body.appendChild(command);
 
         // Backdrop & Side Menu
         const bd=document.createElement("div"); bd.id="bd"; document.body.appendChild(bd);
@@ -2716,11 +2805,97 @@ const nova = {
             const action=button.dataset.novaAction;
             if(action==="os") this.setUIMode("os");
             else {
-                const titles={home:"Games",ai:"Nova AI",youtube:"YouTube",browser:"Browser",chat:"Chat",settings:"Settings"};
+                const titles={home:"Games",ai:"Nova AI",youtube:"Video",anime:"Anime",browser:"Browser",chat:"Chat",settings:"Settings"};
                 this.openWorkspaceTab(titles[action]||"Nova",action);
             }
         }));
+        this.bindCommandPalette();
 
+    },
+
+    commandItems(query=""){
+        const apps=[
+            {icon:"⌂",title:"Games",sub:"Game library",action:"home"},
+            {icon:"✦",title:"Nova AI",sub:"AI assistant",action:"ai"},
+            {icon:"▷",title:"Video",sub:"Piped powered video",action:"youtube"},
+            {icon:"◆",title:"Anime",sub:"Discover and watch anime",action:"anime"},
+            {icon:"◎",title:"Browser",sub:"Nova proxy browser",action:"browser"},
+            {icon:"#",title:"Chat",sub:"Global chat and direct messages",action:"chat"},
+            {icon:"⚙",title:"Settings",sub:"Customize Nova",action:"settings"},
+            {icon:"▦",title:"Desktop mode",sub:"Open the Nova desktop",action:"os"}
+        ];
+        const actions=[
+            {icon:"＋",title:"New games tab",sub:"Open another library tab",command:"new"},
+            {icon:"★",title:"Favorites",sub:"Show favorite games",action:"favorites"},
+            {icon:"⊘",title:"Cloak Nova",sub:"Open an about blank session",command:"cloak"},
+            {icon:"⛶",title:"Fullscreen",sub:"Toggle fullscreen mode",command:"fullscreen"}
+        ];
+        const games=GAMES.map((game,index)=>({icon:"▶",title:game.title,sub:"Game",game:index}));
+        const all=[...apps,...actions,...games];
+        const term=String(query||"").trim().toLowerCase();
+        if(term)return all.filter(item=>(item.title+" "+item.sub).toLowerCase().includes(term)).slice(0,14);
+        let recent=[];
+        try{recent=JSON.parse(localStorage.getItem("nova_recent_commands")||"[]")}catch{}
+        const ordered=recent.map(title=>all.find(item=>item.title===title)).filter(Boolean);
+        return [...ordered,...apps,...actions].filter((item,index,array)=>array.findIndex(other=>other.title===item.title)===index).slice(0,12);
+    },
+    renderCommandPalette(query=""){
+        const host=document.getElementById("nova-command-results");if(!host)return;
+        const items=this.commandItems(query);
+        host.innerHTML=items.length?items.map((item,index)=>`<button class="nova-command-item${index===0?" selected":""}" data-command-index="${index}"><i>${this.esc(item.icon)}</i><span><strong>${this.esc(item.title)}</strong><small>${this.esc(item.sub)}</small></span><em>↵</em></button>`).join(""):`<div class="nova-command-empty">Nothing found</div>`;
+        host._items=items;
+        host.querySelectorAll(".nova-command-item").forEach((button,index)=>{
+            button.addEventListener("mouseenter",()=>{host.querySelectorAll(".nova-command-item").forEach(item=>item.classList.remove("selected"));button.classList.add("selected")});
+            button.addEventListener("click",()=>this.runCommandItem(items[index]));
+        });
+        document.getElementById("nova-command-label").textContent=query?"Results":"Quick access";
+    },
+    runCommandItem(item){
+        if(!item)return;
+        try{
+            const recent=JSON.parse(localStorage.getItem("nova_recent_commands")||"[]");
+            localStorage.setItem("nova_recent_commands",JSON.stringify([item.title,...recent.filter(title=>title!==item.title)].slice(0,6)));
+        }catch{}
+        this.closeCommandPalette();
+        if(Number.isInteger(item.game)){this.launch(GAMES[item.game]);return}
+        if(item.action==="os"){this.setUIMode("os");return}
+        if(item.action){const titles={home:"Games",ai:"Nova AI",youtube:"Video",anime:"Anime",browser:"Browser",chat:"Chat",settings:"Settings",favorites:"Favorites"};this.openWorkspaceTab(titles[item.action]||"Nova",item.action);return}
+        if(item.command==="new"){this.tabNew("Games","home");return}
+        if(item.command==="cloak"){openNovaCloak();return}
+        if(item.command==="fullscreen"){if(document.fullscreenElement)document.exitFullscreen?.();else document.documentElement.requestFullscreen?.();return}
+    },
+    openCommandPalette(seed=""){
+        const modal=document.getElementById("nova-command");if(!modal)return;
+        modal.classList.add("on");modal.setAttribute("aria-hidden","false");
+        const input=document.getElementById("nova-command-input");input.value=seed;
+        this.renderCommandPalette(seed);
+        setTimeout(()=>input.focus(),20);
+    },
+    closeCommandPalette(){
+        const modal=document.getElementById("nova-command");if(!modal)return;
+        modal.classList.remove("on");modal.setAttribute("aria-hidden","true");
+    },
+    bindCommandPalette(){
+        if(this._commandBound)return;this._commandBound=true;
+        const modal=document.getElementById("nova-command"),input=document.getElementById("nova-command-input"),host=document.getElementById("nova-command-results");
+        document.getElementById("nova-command-button")?.addEventListener("click",()=>this.openCommandPalette());
+        document.getElementById("nova-command-more")?.addEventListener("click",()=>this.openCommandPalette());
+        modal?.addEventListener("mousedown",event=>{if(event.target===modal)this.closeCommandPalette()});
+        input?.addEventListener("input",()=>this.renderCommandPalette(input.value));
+        input?.addEventListener("keydown",event=>{
+            const items=[...host.querySelectorAll(".nova-command-item")];let index=items.findIndex(item=>item.classList.contains("selected"));
+            if(event.key==="ArrowDown"||event.key==="ArrowUp"){event.preventDefault();index=(index+(event.key==="ArrowDown"?1:-1)+items.length)%items.length;items.forEach(item=>item.classList.remove("selected"));items[index]?.classList.add("selected");items[index]?.scrollIntoView({block:"nearest"})}
+            if(event.key==="Enter"){event.preventDefault();items[index<0?0:index]?.click()}
+        });
+        document.addEventListener("keydown",event=>{
+            if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==="k"){event.preventDefault();modal?.classList.contains("on")?this.closeCommandPalette():this.openCommandPalette();return}
+            if(event.key==="Escape"&&modal?.classList.contains("on")){this.closeCommandPalette();return}
+            if(event.altKey&&/^[1-8]$/.test(event.key)){
+                const actions=["home","ai","youtube","anime","browser","chat","settings","os"];const action=actions[Number(event.key)-1];
+                event.preventDefault();this.runCommandItem(this.commandItems("").find(item=>item.action===action));
+            }
+            if(event.key==="/"&&!event.metaKey&&!event.ctrlKey&&!event.altKey&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName||"")){event.preventDefault();this.openCommandPalette()}
+        });
     },
 
     // ── CARDS & FILTERING ───────────────────────────────────────
