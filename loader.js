@@ -103,19 +103,21 @@ const SAVE_FILENAME = "NovaGaming.html";
 
 // ─── GOOGLE GEMINI AI CONFIG ────────────────────────────────────
 const GEMINI_API_KEY = typeof window.NOVA_API_KEYS?.gemini === "string" ? window.NOVA_API_KEYS.gemini : "AQ.Ab8RN6Ib4cwqUsTDoR_tnt5KVVKF7GUiRwP4OCq6bEuvskhtJg";
-const YOUTUBE_API_KEY = typeof window.NOVA_API_KEYS?.youtube === "string" ? window.NOVA_API_KEYS.youtube : "AIzaSyCZ4JD2OHOfUVqRES6TtzAYYXJLxKSJuBI";
 const DEFAULT_UI_MODE = "classic";
 
-// ─── PIPED & INVIDIOUS INSTANCE POOL ────────────────────────────
-const PIPED_EMBED_INSTANCES = [
-    "https://piped.video",
-    "https://piped.mha.fi",
-    "https://piped.garudalinux.org",
-    "https://inv.thepixora.com",
-    "https://invidious.nerdvpn.de",
-    "https://vid.puppet2016.xyz"
+// ─── PIPED VIDEO API POOL ───────────────────────────────────────
+const PIPED_API_INSTANCES = [
+    "https://pipedapi.ducks.party",
+    "https://piped-api.codespace.cz",
+    "https://api.piped.private.coffee",
+    "https://pipedapi.darkness.services",
+    "https://pipedapi.orangenet.cc",
+    "https://pipedapi.drgns.space",
+    "https://pipedapi.owo.si",
+    "https://pipedapi.reallyaweso.me"
 ];
-let currentYtInstance = PIPED_EMBED_INSTANCES[0];
+let currentPipedApi = PIPED_API_INSTANCES[0];
+const currentYtInstance = "https://piped.video";
 
 // ─── CONSUMET ANIME STREAMING INSTANCES ─────────────────────────
 const CONSUMET_INSTANCES = [
@@ -3282,158 +3284,120 @@ const nova = {
         }
     },
 
-    // ── OFFICIAL YOUTUBE DATA API ENGINE ──────────────────────────
+    // ── PIPED VIDEO ENGINE ────────────────────────────────────────
     async _ytFetch(path, params={}) {
-        if (!YOUTUBE_API_KEY || YOUTUBE_API_KEY.includes("PASTE_YOUR")) throw new Error("Configure a YouTube API key in the host page before loading Nova.");
-        const url=new URL(`https://www.googleapis.com/youtube/v3/${path}`);
-        url.searchParams.set("key",YOUTUBE_API_KEY);
-        Object.entries(params).forEach(([k,v])=>url.searchParams.set(k,String(v)));
-        const res=await fetch(url.toString());
-        const data=await res.json().catch(()=>({}));
-        if(!res.ok) throw new Error(data?.error?.message||`YouTube API error ${res.status}`);
-        return data;
+        const failures=[];
+        const preferred=Math.max(0,PIPED_API_INSTANCES.indexOf(currentPipedApi));
+        const pool=[...PIPED_API_INSTANCES.slice(preferred),...PIPED_API_INSTANCES.slice(0,preferred)];
+        for(const base of pool){
+            const controller=new AbortController();
+            const timer=setTimeout(()=>controller.abort(),8000);
+            try{
+                const url=new URL(path.replace(/^\//,""),base+"/");
+                Object.entries(params).forEach(([k,v])=>v!==undefined&&v!==null&&url.searchParams.set(k,String(v)));
+                const res=await fetch(url.toString(),{signal:controller.signal,headers:{Accept:"application/json"}});
+                if(!res.ok)throw new Error(`HTTP ${res.status}`);
+                const data=await res.json();
+                currentPipedApi=base;
+                return data;
+            }catch(e){failures.push(`${new URL(base).hostname}: ${e.name==="AbortError"?"timeout":e.message}`);}
+            finally{clearTimeout(timer);}
+        }
+        throw new Error("All Piped servers failed");
+    },
+    _pipedVideo(v){
+        const videoId=v?.url?.match(/(?:watch\?v=|shorts\/)([\w-]{6,})/)?.[1]||v?.videoId||v?.id||"";
+        const channelId=v?.uploaderUrl?.match(/\/channel\/([^/?]+)/)?.[1]||v?.channelId||"";
+        return {videoId,title:v?.title||"Untitled",author:v?.uploaderName||v?.author||"",channelId,viewCount:v?.views||v?.viewCount||"",videoThumbnails:[{quality:"high",url:v?.thumbnail||v?.videoThumbnails?.[0]?.url||""}]};
     },
     async ytHome(){
         document.getElementById("yt-panel")?.classList.remove("playing");
-        this._ytLoaded=true; const body=document.getElementById("yp-body"); body.innerHTML=`<div class="fp-spin"></div>`;
-        try {
-            const data=await this._ytFetch("videos",{part:"snippet,statistics,status",chart:"mostPopular",regionCode:this.preference("youtubeRegion","US"),maxResults:24});
-            const videos=(data.items||[]).filter(v=>v.status?.embeddable!==false).map(v=>({videoId:v.id,title:v.snippet?.title||"Untitled",author:v.snippet?.channelTitle||"",channelId:v.snippet?.channelId||"",viewCount:v.statistics?.viewCount||"",videoThumbnails:[{quality:"high",url:v.snippet?.thumbnails?.high?.url||v.snippet?.thumbnails?.medium?.url||v.snippet?.thumbnails?.default?.url}]}));
-            this._renderYtGrid(videos,body,"YouTube Trending");
-        } catch(e){ body.innerHTML=`<div class="fp-msg">YouTube API unavailable ${this.esc(e.message||"")}</div>`; }
+        this._ytLoaded=true;
+        const body=document.getElementById("yp-body");
+        body.innerHTML=`<div class="fp-spin"></div>`;
+        try{
+            const data=await this._ytFetch("trending",{region:this.preference("youtubeRegion","US")});
+            const videos=(Array.isArray(data)?data:data?.items||[]).map(v=>this._pipedVideo(v)).filter(v=>v.videoId).slice(0,24);
+            this._renderYtGrid(videos,body,"Trending on Piped");
+        }catch(e){body.innerHTML=`<div class="fp-msg">Piped unavailable ${this.esc(e.message||"")}</div>`;}
     },
     async ytSearch(q){
         document.getElementById("yt-panel")?.classList.remove("playing");
         q=q.trim(); if(!q){this.ytHome();return;}
         const body=document.getElementById("yp-body"); body.innerHTML=`<div class="fp-spin"></div>`;
-        try {
-            const [videoData,channelData]=await Promise.all([
-                this._ytFetch("search",{part:"snippet",q,type:"video",videoEmbeddable:"true",maxResults:18,regionCode:"US",safeSearch:"moderate"}),
-                this._ytFetch("search",{part:"snippet",q,type:"channel",maxResults:12,regionCode:"US",safeSearch:"moderate"})
-            ]);
-            const videos=(videoData.items||[]).filter(v=>v.id?.videoId).map(v=>({videoId:v.id.videoId,title:v.snippet?.title||"Untitled",author:v.snippet?.channelTitle||"",channelId:v.snippet?.channelId||"",videoThumbnails:[{quality:"high",url:v.snippet?.thumbnails?.high?.url||v.snippet?.thumbnails?.medium?.url||v.snippet?.thumbnails?.default?.url}]}));
-            const channels=(channelData.items||[]).filter(v=>v.id?.channelId).map(v=>({channelId:v.id.channelId,title:v.snippet?.title||"Untitled channel",description:v.snippet?.description||"",thumbnail:v.snippet?.thumbnails?.high?.url||v.snippet?.thumbnails?.medium?.url||v.snippet?.thumbnails?.default?.url}));
+        try{
+            const data=await this._ytFetch("search",{q,filter:"all"});
+            const items=data?.items||[];
+            const videos=items.filter(v=>v.type==="stream"||v.videoId).map(v=>this._pipedVideo(v)).filter(v=>v.videoId);
+            const channels=items.filter(v=>v.type==="channel").map(v=>({channelId:v.url?.match(/\/channel\/([^/?]+)/)?.[1]||v.channelId||"",title:v.name||v.title||"Untitled channel",description:v.description||"",thumbnail:v.thumbnail||""})).filter(v=>v.channelId);
             this._renderYtSearchResults(videos,channels,body,q);
-        } catch(e){ body.innerHTML=`<div class="fp-msg">YouTube search unavailable ${this.esc(e.message||"")}</div>`; }
+        }catch(e){body.innerHTML=`<div class="fp-msg">Piped search unavailable ${this.esc(e.message||"")}</div>`;}
     },
     _renderYtSearchResults(videos,channels,body,q){
         let h=`<div class="fp-sec"><div class="fp-sttl">Channels</div><div class="fp-grid yt-ch-grid">`;
         channels.forEach(c=>{h+=`<div class="acd ytc-channel" data-channel="${this.esc(c.channelId)}" data-title="${this.esc(c.title)}"><img src="${this.esc(c.thumbnail||"")}" alt=""><div class="acd-i"><div class="acd-t">${this.esc(c.title)}</div><div class="acd-m">Channel · Click to view videos</div></div></div>`});
-        if(!channels.length) h+=`<div class="fp-msg">No matching channels.</div>`;
+        if(!channels.length)h+=`<div class="fp-msg">No matching channels.</div>`;
         h+=`</div></div><div class="fp-sec"><div class="fp-sttl">Videos for "${this.esc(q)}"</div><div class="fp-grid">`;
         videos.forEach(v=>{const thumb=v.videoThumbnails?.[0]?.url||`https://i.ytimg.com/vi/${v.videoId}/mqdefault.jpg`;h+=`<div class="acd ytc" data-vid="${this.esc(v.videoId)}" data-title="${this.esc(v.title||"")}"><img src="${this.esc(thumb)}" alt="${this.esc(v.title||"")}" loading="lazy"><div class="acd-i"><div class="acd-t">${this.esc(v.title||"")}</div><div class="acd-m">${this.esc(v.author||"")}</div></div></div>`});
-        if(!videos.length)h+=`<div class="fp-msg">No embeddable videos found.</div>`;
+        if(!videos.length)h+=`<div class="fp-msg">No videos found.</div>`;
         h+=`</div></div>`; body.innerHTML=h;
         body.querySelectorAll(".acd[data-vid]").forEach(el=>el.addEventListener("click",()=>this.ytPlay(el.dataset.vid,el.dataset.title)));
         body.querySelectorAll(".ytc-channel[data-channel]").forEach(el=>el.addEventListener("click",()=>this.ytChannel(el.dataset.channel,el.dataset.title)));
     },
     _renderYtGrid(videos,body,sectionTitle){
-        if(!videos||!videos.length){body.innerHTML=`<div class="fp-msg">No videos found.</div>`;return;}
+        if(!videos?.length){body.innerHTML=`<div class="fp-msg">No videos found.</div>`;return;}
         let h=`<div class="fp-sec"><div class="fp-sttl">${this.esc(sectionTitle)}</div><div class="fp-grid">`;
-        videos.forEach(v=>{if(!v.videoId)return;const thumb=v.videoThumbnails?.[0]?.url||`https://i.ytimg.com/vi/${v.videoId}/mqdefault.jpg`;const views=v.viewCount?Number(v.viewCount).toLocaleString()+" views":"";const meta=[v.author,views].filter(Boolean).join(" · ");h+=`<div class="acd ytc" data-vid="${this.esc(v.videoId)}" data-title="${this.esc(v.title||"")}"><img src="${this.esc(thumb)}" alt="${this.esc(v.title||"")}" loading="lazy"><div class="acd-i"><div class="acd-t">${this.esc(v.title||"")}</div><div class="acd-m">${this.esc(meta)}</div></div></div>`;});
-        h+=`</div></div>`; body.innerHTML=h; body.querySelectorAll(".acd[data-vid]").forEach(el=>el.addEventListener("click",()=>this.ytPlay(el.dataset.vid,el.dataset.title)));
+        videos.forEach(v=>{const thumb=v.videoThumbnails?.[0]?.url||`https://i.ytimg.com/vi/${v.videoId}/mqdefault.jpg`;const views=v.viewCount?Number(v.viewCount).toLocaleString()+" views":"";const meta=[v.author,views].filter(Boolean).join(" · ");h+=`<div class="acd ytc" data-vid="${this.esc(v.videoId)}" data-title="${this.esc(v.title||"")}"><img src="${this.esc(thumb)}" alt="${this.esc(v.title||"")}" loading="lazy"><div class="acd-i"><div class="acd-t">${this.esc(v.title||"")}</div><div class="acd-m">${this.esc(meta)}</div></div></div>`;});
+        h+=`</div></div>`; body.innerHTML=h;
+        body.querySelectorAll(".acd[data-vid]").forEach(el=>el.addEventListener("click",()=>this.ytPlay(el.dataset.vid,el.dataset.title)));
     },
     async ytChannel(channelId,title){
         document.getElementById("yt-panel")?.classList.remove("playing");
         const body=document.getElementById("yp-body"); body.innerHTML=`<div class="fp-spin"></div>`;
         try{
-            const ch=await this._ytFetch("channels",{part:"snippet,contentDetails,statistics",id:channelId});
-            const c=ch.items?.[0]; if(!c)throw new Error("Channel not found");
-            const uploads=c.contentDetails?.relatedPlaylists?.uploads; if(!uploads)throw new Error("Channel uploads unavailable");
-            const data=await this._ytFetch("playlistItems",{part:"snippet,contentDetails",playlistId:uploads,maxResults:24});
-            const videos=(data.items||[]).map(v=>({videoId:v.contentDetails?.videoId,title:v.snippet?.title||"Untitled",author:c.snippet?.title||title||"",channelId,videoThumbnails:[{quality:"high",url:v.snippet?.thumbnails?.high?.url||v.snippet?.thumbnails?.medium?.url||v.snippet?.thumbnails?.default?.url}]})).filter(v=>v.videoId);
-            body.innerHTML=`<div class="yt-channel-head"><button class="fp-back" id="yt-channel-back">← Back</button><div><div class="fp-sttl">${this.esc(c.snippet?.title||title||"Channel")}</div><div class="fp-msg">${Number(c.statistics?.subscriberCount||0).toLocaleString()} subscribers · ${Number(c.statistics?.videoCount||0).toLocaleString()} videos</div></div></div><div class="fp-sec"><div class="fp-sttl">Videos</div><div class="fp-grid" id="yt-channel-grid"></div></div>`;
+            const c=await this._ytFetch(`channel/${encodeURIComponent(channelId)}`);
+            const videos=(c.relatedStreams||[]).map(v=>this._pipedVideo(v)).filter(v=>v.videoId).slice(0,24);
+            body.innerHTML=`<div class="yt-channel-head"><button class="fp-back" id="yt-channel-back">← Back</button><div><div class="fp-sttl">${this.esc(c.name||title||"Channel")}</div><div class="fp-msg">${Number(c.subscriberCount||0).toLocaleString()} subscribers</div></div></div><div class="fp-sec"><div class="fp-sttl">Videos</div><div class="fp-grid" id="yt-channel-grid"></div></div>`;
             const grid=body.querySelector("#yt-channel-grid");
-            videos.forEach(v=>{const thumb=v.videoThumbnails?.[0]?.url||`https://i.ytimg.com/vi/${v.videoId}/mqdefault.jpg`; const el=document.createElement("div"); el.className="acd ytc"; el.dataset.vid=v.videoId; el.dataset.title=v.title||""; el.innerHTML=`<img src="${this.esc(thumb)}" alt="" loading="lazy"><div class="acd-i"><div class="acd-t">${this.esc(v.title||"")}</div><div class="acd-m">${this.esc(v.author||"")}</div></div>`; el.addEventListener("click",()=>this.ytPlay(el.dataset.vid,el.dataset.title)); grid?.appendChild(el);});
-            if(!videos.length && grid)grid.innerHTML=`<div class="fp-msg">No videos found on this channel.</div>`;
+            videos.forEach(v=>{const thumb=v.videoThumbnails?.[0]?.url;const el=document.createElement("div");el.className="acd ytc";el.dataset.vid=v.videoId;el.dataset.title=v.title||"";el.innerHTML=`<img src="${this.esc(thumb||"")}" alt="" loading="lazy"><div class="acd-i"><div class="acd-t">${this.esc(v.title)}</div><div class="acd-m">${this.esc(v.author)}</div></div>`;el.addEventListener("click",()=>this.ytPlay(el.dataset.vid,el.dataset.title));grid?.appendChild(el);});
+            if(!videos.length&&grid)grid.innerHTML=`<div class="fp-msg">No videos found on this channel.</div>`;
             body.querySelector("#yt-channel-back")?.addEventListener("click",()=>{const q=document.getElementById("yp-srch")?.value||"";this.ytSearch(q)});
         }catch(e){body.innerHTML=`<div class="fp-msg">Channel unavailable ${this.esc(e.message||"")}</div>`;}
     },
-    ytPlay(videoId,title){
+    async ytPlay(videoId,title){
         if(!videoId)return;
-
-        // YouTube is NOT a Nova game file. Do not pass YouTube embeds through
-        // launch()/attachHtmlToIframe(), because that engine fetches remote
-        // HTML bytes for game files. youtube-nocookie.com/embed is meant to be loaded
-        // directly in an iframe and its response is not CORS-fetchable.
-        const body=document.getElementById("yp-body");
-        if(!body)return;
+        const body=document.getElementById("yp-body"); if(!body)return;
         document.getElementById("yt-panel")?.classList.add("playing");
-
-        const origin=(location.protocol==="http:"||location.protocol==="https:")?location.origin:"";
-        const showComments=this.preference("youtubeComments",true);
-        const params=new URLSearchParams({autoplay:this.preference("youtubeAutoplay",true)?"1":"0",playsinline:"1",rel:"0",modestbranding:"1"});
-        if(origin)params.set("origin",origin);
-        const embedUrl=`https://www.youtube-nocookie.com/embed/${encodeURIComponent(videoId)}?${params.toString()}`;
-        const safeTitle=this.esc(title||"YouTube Video");
-
-        body.innerHTML=`
-            <div class="nova-yt-player">
-                <div class="nova-yt-playerbar">
-                    <button class="fp-back" id="yt-player-back">← Back</button>
-                    <div>${safeTitle}</div>
-                </div>
-                <div class="nova-yt-watch-layout${showComments?"":" without-comments"}">
-                    <section class="nova-yt-video-column">
-                        <div class="nova-yt-frame-wrap"><iframe
-                            id="yt-player-frame"
-                            title="${safeTitle}"
-                            src="${this.esc(embedUrl)}"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
-                            allowfullscreen
-                            referrerpolicy="strict-origin-when-cross-origin"
-                        ></iframe></div>
-                        <div class="nova-yt-video-title">${safeTitle}</div>
-                    </section>
-                    ${showComments?`<aside class="nova-yt-comments" aria-label="Video comments"><div class="nova-yt-comments-head"><strong>Comments</strong><span>View only</span></div><div id="yt-comments-list"><div class="fp-spin"></div></div></aside>`:""}
-                </div>
-            </div>`;
-
-        body.querySelector("#yt-player-back")?.addEventListener("click",()=>{
-            const q=document.getElementById("yp-srch")?.value?.trim()||"";
-            if(q)this.ytSearch(q); else this.ytHome();
-        });
-        if(showComments)this.ytLoadComments(videoId);
+        body.innerHTML=`<div class="fp-spin"></div>`;
+        try{
+            const data=await this._ytFetch(`streams/${encodeURIComponent(videoId)}`);
+            const progressive=(data.videoStreams||[]).filter(v=>!v.videoOnly&&v.url).sort((a,b)=>(parseInt(b.quality)||0)-(parseInt(a.quality)||0));
+            const stream=progressive.find(v=>/mp4/i.test(v.format||v.mimeType||""))||progressive[0];
+            const src=stream?.url||data.hls;
+            if(!src)throw new Error("No playable stream returned");
+            const safeTitle=this.esc(title||data.title||"Video");
+            const showComments=this.preference("youtubeComments",true);
+            body.innerHTML=`<div class="nova-yt-player"><div class="nova-yt-playerbar"><button class="fp-back" id="yt-player-back">← Back</button><div>${safeTitle}</div></div><div class="nova-yt-watch-layout${showComments?"":" without-comments"}"><section class="nova-yt-video-column"><div class="nova-yt-frame-wrap"><video id="yt-player-frame" title="${safeTitle}" src="${this.esc(src)}" controls playsinline ${this.preference("youtubeAutoplay",true)?"autoplay":""}></video></div><div class="nova-yt-video-title">${safeTitle}</div></section>${showComments?`<aside class="nova-yt-comments" aria-label="Video comments"><div class="nova-yt-comments-head"><strong>Comments</strong><span>View only</span></div><div id="yt-comments-list"><div class="fp-spin"></div></div></aside>`:""}</div></div>`;
+            body.querySelector("#yt-player-back")?.addEventListener("click",()=>{const q=document.getElementById("yp-srch")?.value?.trim()||"";if(q)this.ytSearch(q);else this.ytHome();});
+            if(showComments)this.ytLoadComments(videoId);
+        }catch(e){body.innerHTML=`<div class="fp-msg">Video unavailable ${this.esc(e.message||"")}</div>`;}
     },
     async ytLoadComments(videoId){
-        const host=document.getElementById("yt-comments-list"); if(!host)return;
+        const host=document.getElementById("yt-comments-list");if(!host)return;
         try{
-            const data=await this._ytFetch("commentThreads",{part:"snippet,replies",videoId,maxResults:24,order:"relevance",textFormat:"plainText"});
-            const items=data.items||[];
+            const data=await this._ytFetch(`comments/${encodeURIComponent(videoId)}`);
+            const items=data.comments||[];
             if(!items.length){host.innerHTML=`<div class="nova-comment-empty">Comments are unavailable for this video.</div>`;return;}
-            host.innerHTML=items.map(thread=>{
-                const top=thread.snippet?.topLevelComment; const snippet=top?.snippet||{}; const id=top?.id||"";
-                const replies=(thread.replies?.comments||[]).map(reply=>this.ytCommentMarkup(reply.snippet,true)).join("");
-                const total=Number(thread.snippet?.totalReplyCount||0);
-                return `<article class="nova-comment">${this.ytCommentMarkup(snippet,false)}${total?`<button class="nova-replies-toggle" data-comment-id="${this.esc(id)}" data-count="${total}" aria-expanded="false">View ${total} ${total===1?"reply":"replies"}</button><div class="nova-comment-replies" hidden>${replies}</div>`:""}</article>`;
-            }).join("");
-            host.querySelectorAll(".nova-replies-toggle").forEach(button=>button.addEventListener("click",()=>this.ytToggleReplies(button)));
+            host.innerHTML=items.slice(0,24).map(comment=>this.ytCommentMarkup({authorDisplayName:comment.author,textDisplay:comment.commentText,authorProfileImageUrl:comment.thumbnail,likeCount:comment.likeCount,publishedAt:"",publishedText:comment.commentedTime},false)).join("");
         }catch(e){host.innerHTML=`<div class="nova-comment-empty">Comments could not be loaded. ${this.esc(e.message||"")}</div>`;}
     },
     ytCommentMarkup(snippet,reply){
-        const name=this.esc(snippet?.authorDisplayName||"YouTube user");
+        const name=this.esc(snippet?.authorDisplayName||"User");
         const text=this.esc(snippet?.textDisplay||snippet?.textOriginal||"");
         const avatar=this.esc(snippet?.authorProfileImageUrl||"");
         const likes=Number(snippet?.likeCount||0);
-        const date=snippet?.publishedAt?new Date(snippet.publishedAt).toLocaleDateString():"";
-        return `<div class="nova-comment-row${reply?" reply":""}">${avatar?`<img src="${avatar}" alt="">`:`<span class="nova-comment-avatar">${name.charAt(0)}</span>`}<div><div class="nova-comment-meta"><strong>${name}</strong><span>${this.esc(date)}</span></div><p>${text}</p>${likes?`<small>♡ ${likes.toLocaleString()}</small>`:""}</div></div>`;
-    },
-    async ytToggleReplies(button){
-        const replies=button.nextElementSibling; if(!replies)return;
-        const opening=replies.hidden;
-        if(opening&&!replies.dataset.loaded){
-            button.disabled=true; button.textContent="Loading replies…";
-            try{
-                const data=await this._ytFetch("comments",{part:"snippet",parentId:button.dataset.commentId,maxResults:100,textFormat:"plainText"});
-                replies.innerHTML=(data.items||[]).map(reply=>this.ytCommentMarkup(reply.snippet,true)).join("");
-            }catch(e){replies.innerHTML=`<div class="nova-comment-empty">Replies could not be loaded.</div>`;}
-            replies.dataset.loaded="true";
-            button.disabled=false;
-        }
-        replies.hidden=!opening;
-        button.setAttribute("aria-expanded",String(opening));
-        const count=button.dataset.count||"";
-        button.textContent=opening?"Hide replies":`View ${count} ${count==="1"?"reply":"replies"}`;
+        const date=snippet?.publishedText||"";
+        return `<article class="nova-comment"><div class="nova-comment-row${reply?" reply":""}">${avatar?`<img src="${avatar}" alt="">`:`<span class="nova-comment-avatar">${name.charAt(0)}</span>`}<div><div class="nova-comment-meta"><strong>${name}</strong><span>${this.esc(date)}</span></div><p>${text}</p>${likes?`<small>♡ ${likes.toLocaleString()}</small>`:""}</div></div></article>`;
     },
 
     // ── ABOUT:BLANK CLOAKING ─────────────────────────────────────
