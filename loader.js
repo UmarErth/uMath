@@ -2842,9 +2842,10 @@ const nova = {
 
     // ── VIEW SWITCHING ──────────────────────────────────────────
     _setView(action, url, tabObj){
-        const panels=["anime","youtube","ai","browser","chat","settings"];
-        const next=document.getElementById(action+"-panel");
-        const previous=panels.map(name=>document.getElementById(name+"-panel")).find(panel=>panel?.classList.contains("on")&&panel!==next);
+        const panelIds={anime:"anime-panel",youtube:"yt-panel",ai:"ai-panel",browser:"browser-panel",chat:"chat-panel",settings:"settings-panel"};
+        const panels=Object.keys(panelIds);
+        const next=document.getElementById(panelIds[action]);
+        const previous=panels.map(name=>document.getElementById(panelIds[name])).find(panel=>panel?.classList.contains("on")&&panel!==next);
         const order=["home","ai","youtube","anime","browser","chat","settings"];
         const oldAction=this._activeNovaView||"home";
         const direction=order.indexOf(action)>=order.indexOf(oldAction)?"right":"left";
@@ -2854,7 +2855,7 @@ const nova = {
             setTimeout(()=>previous.classList.remove("on","nova-exit-left","nova-exit-right"),360);
         }
         panels.forEach(name=>{
-            const panel=document.getElementById(name+"-panel");
+            const panel=document.getElementById(panelIds[name]);
             if(panel&&panel!==next&&!panel.classList.contains("nova-exit-left")&&!panel.classList.contains("nova-exit-right"))panel.classList.remove("on");
         });
         if(next){
