@@ -2780,12 +2780,15 @@ const nova = {
     },
     async novaAdminSaveEditor(root){
         const state=this.novaAdminState();if(!state.editor||state.editor.saving)return;
+        const originalUrl=state.editor.originalUrl;
         let url=root.querySelector("[data-admin-edit-url]").value.trim();
         if(!/^https?:\/\//i.test(url))url="https://cdn.jsdelivr.net/gh/UmarErth/uMath@main/"+encodeURI(url.replace(/^\/+/, ""));
         const game={title:root.querySelector("[data-admin-edit-title]").value.trim(),url,desc:root.querySelector("[data-admin-edit-desc]").value.trim(),download:root.querySelector("[data-admin-edit-download]").checked,newTab:root.querySelector("[data-admin-edit-newtab]").checked};
         state.editor.game=game;state.editor.saving=true;state.error="";this.novaAdminRender();
         try{
-            await this.novaAdminCall({action:state.editor.originalUrl?"update":"add",originalUrl:state.editor.originalUrl,game});
+            await this.novaAdminCall({action:originalUrl?"update":"add",originalUrl,game});
+            const runtimeIndex=GAMES.findIndex(item=>item.url===originalUrl||item.url===game.url);
+            if(runtimeIndex>=0)GAMES[runtimeIndex]={...game};else GAMES.push({...game});
             state.editor=null;await this.novaAdminLoad();window.dispatchEvent(new CustomEvent("nova:games-updated"));
         }catch(error){state.error=error.message||"Could not save game";state.editor.saving=false;this.novaAdminRender()}
     },
@@ -3522,7 +3525,7 @@ const nova = {
         const theater=document.getElementById("theater");
         const isGame=action==="game"&&tabObj;
         document.body.classList.toggle("nova-app-open",Boolean(next||isGame));
-        const immersive=(isGame&&this.preference("immersiveGames",true))||(action==="browser"&&this.preference("immersiveBrowser",true));
+        const immersive=(isGame&&this.preference("immersiveGames",true))||(action==="browser"&&this.preference("immersiveBrowser",false));
         document.body.classList.toggle("nova-immersive",immersive);
         theater.classList.toggle("on",isGame);
         document.body.classList.toggle("in-game",isGame);
@@ -5291,7 +5294,7 @@ try{document.title='Home - Classroom'}catch(_){}
 /* NOVA MEGA APPEARANCE SYSTEM — wallpapers, themes, cursor, scale, dock, fonts, motion and more. */
 (function(){
   const STORAGE='nova_appearance_v2';
-  const defaults={theme:'midnight',accent:'#7c5cff',wallpaper:'nova',wallpaperUrl:'',cursor:'default',font:'system',scale:100,fontSize:100,radius:18,density:'comfortable',cardSize:200,tabWidth:190,dockSize:64,dockPosition:'bottom',animations:true,desktopGrid:true,showLabels:true,highContrast:false,showGameDescriptions:true,immersiveGames:true,immersiveBrowser:true,reuseAppTabs:true,youtubeComments:true,youtubeAutoplay:true,youtubeRegion:'US',aiModel:'gemini-3.6-flash',startup:'browser',chatAlerts:false,autoCloak:true};
+  const defaults={theme:'midnight',accent:'#7c5cff',wallpaper:'nova',wallpaperUrl:'',cursor:'default',font:'system',scale:100,fontSize:100,radius:18,density:'comfortable',cardSize:200,tabWidth:190,dockSize:64,dockPosition:'bottom',animations:true,desktopGrid:true,showLabels:true,highContrast:false,showGameDescriptions:true,immersiveGames:true,immersiveBrowser:false,reuseAppTabs:true,youtubeComments:true,youtubeAutoplay:true,youtubeRegion:'US',aiModel:'gemini-3.6-flash',startup:'browser',chatAlerts:false,autoCloak:true};
   const themes={
     midnight:{name:'Midnight',bg:'#080b12',surface:'#151821',bar:'#0b0d14',text:'#f7f8ff'},
     ocean:{name:'Ocean',bg:'#061018',surface:'#0e1c27',bar:'#07131b',text:'#f1fbff'},
@@ -5762,8 +5765,8 @@ body:not(.os-mode) #tb-new{position:static!important;flex:0 0 29px!important;wid
 body:not(.os-mode) #bnav{display:none!important}
 body:not(.os-mode) #theater{top:96px!important}
 body:not(.os-mode) .fpanel{top:96px!important;bottom:0!important;height:auto!important;border-radius:0!important}
-body:not(.os-mode).nova-immersive .nova-topbar{display:none!important}
-body:not(.os-mode).nova-immersive #theater,body:not(.os-mode).nova-immersive .fpanel{top:42px!important}
+body:not(.os-mode).in-game.nova-immersive .nova-topbar{display:none!important}
+body:not(.os-mode).in-game.nova-immersive #theater{top:42px!important}
 body:not(.os-mode) .th,body:not(.os-mode) .fpbar{min-height:50px!important;padding:8px 22px!important;background:#121f32!important;border-bottom:1px solid #2a3d5b!important;box-shadow:none!important}
 body:not(.os-mode) .tt,body:not(.os-mode) .fp-ttl{font-size:14px!important;font-weight:800!important;text-transform:none!important;color:#edf4ff!important}
 body:not(.os-mode) :is(.ab,.cb,.fp-back){padding:7px 11px!important;border-radius:9px!important;font-size:11px!important;background:#1b2b43!important;border:1px solid #334a6b!important;color:#e4efff!important;box-shadow:none!important}
