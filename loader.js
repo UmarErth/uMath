@@ -1769,6 +1769,24 @@ const nova = {
         .nova-browser-hero h2{font-weight:400!important;letter-spacing:-.04em!important}
         .nova-home-search{border-radius:6px!important;background:#0d0d11!important;border-color:rgba(255,255,255,.17)!important}
         .nova-browser-retry{margin:0 auto 14px;padding:8px 13px;border:1px solid rgba(255,255,255,.16);border-radius:6px;background:#15151b;color:#f4f3f8;font-family:inherit;font-size:12px;font-weight:650;cursor:pointer}.nova-browser-retry:hover{background:#202029}.nova-browser-retry[hidden]{display:none!important}
+
+.nova-admin-panel .fp-body{padding:0!important}
+.nova-admin-native{height:100%;min-height:0;background:#08080b;color:#f5f4f8;font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.nova-admin-native *{box-sizing:border-box}.nova-admin-native button,.nova-admin-native input,.nova-admin-native textarea{font:inherit}
+.nova-admin-login{height:100%;display:grid;place-items:center;padding:24px;background:radial-gradient(55vw 42vw at 50% 0,rgba(91,35,190,.36),transparent 68%),#08080b}
+.nova-admin-login-card{width:min(410px,100%);padding:31px;border:1px solid #292932;border-radius:15px;background:#101014;box-shadow:0 25px 70px #0008}
+.nova-admin-brand{display:flex;align-items:center;gap:11px;margin-bottom:27px}.nova-admin-brand>span{width:38px;height:38px;display:grid;place-items:center;border-radius:9px;background:linear-gradient(145deg,#956fff,#5e35d0);font-weight:900}.nova-admin-brand strong,.nova-admin-brand small{display:block}.nova-admin-brand strong{font-size:17px}.nova-admin-brand small{margin-top:2px;color:#8f8e9b;font-size:10px}
+.nova-admin-login h2{margin:0 0 7px;font-size:25px;letter-spacing:-.04em}.nova-admin-login p{margin:0 0 22px;color:#9292a1;font-size:12px;line-height:1.55}.nova-admin-native label{display:block;margin:0 0 13px;color:#c9c8d0;font-size:11px;font-weight:700}.nova-admin-native input,.nova-admin-native textarea{width:100%;margin-top:6px;padding:11px 12px;border:1px solid #2b2b34;border-radius:8px;background:#0b0b0e;color:#f5f4f8;outline:0}.nova-admin-native input:focus,.nova-admin-native textarea:focus{border-color:#8059f1;box-shadow:0 0 0 3px #8059f122}.nova-admin-native textarea{min-height:84px;resize:vertical}
+.nova-admin-primary,.nova-admin-secondary,.nova-admin-native header button,.nova-admin-editor-actions>button{border:0;border-radius:8px;color:white;font-weight:750;cursor:pointer}.nova-admin-primary{padding:11px 15px;background:linear-gradient(135deg,#885dff,#6338d7)}.nova-admin-primary:disabled{opacity:.45;cursor:not-allowed}.nova-admin-secondary,.nova-admin-native header button,.nova-admin-editor-actions>button{padding:9px 12px;border:1px solid #2b2b34;background:#17171d}.nova-admin-error{min-height:18px;margin-top:10px;color:#ff8994;font-size:11px;line-height:1.45}
+.nova-admin-dashboard{height:100%;min-height:0;display:flex;flex-direction:column}.nova-admin-dashboard[hidden],.nova-admin-login[hidden]{display:none!important}.nova-admin-dashboard>header{height:56px;flex:0 0 56px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;border-bottom:1px solid #292932;background:#0d0d11}.nova-admin-dashboard>header strong,.nova-admin-dashboard>header small{display:block}.nova-admin-dashboard>header strong{font-size:13px}.nova-admin-dashboard>header small{margin-top:3px;color:#82818e;font-size:9px}.nova-admin-head-actions{display:flex;align-items:center;gap:10px}.nova-admin-connection{display:flex;align-items:center;gap:7px;color:#9292a1;font-size:10px}.nova-admin-connection i{width:7px;height:7px;border-radius:50%;background:#777}.nova-admin-connection.on i{background:#4de2a0;box-shadow:0 0 10px #4de2a077}.nova-admin-connection.warn i{background:#ffb451}
+.nova-admin-dashboard>main{min-height:0;flex:1;overflow:auto;padding:25px;background:radial-gradient(60vw 40vw at 22% 0,rgba(80,24,171,.25),transparent 64%),#08080b}.nova-admin-hero{display:flex;align-items:end;justify-content:space-between;gap:20px;margin:0 auto 20px;max-width:1100px}.nova-admin-hero>div>span{color:#9e82ed;font-size:9px;font-weight:850;letter-spacing:.15em}.nova-admin-hero h2{margin:7px 0 7px;font-size:28px;letter-spacing:-.045em}.nova-admin-hero p{max-width:680px;margin:0;color:#9292a1;font-size:12px;line-height:1.55}.nova-admin-setup{max-width:1100px;margin:0 auto 14px;padding:11px 13px;border:1px solid #ffb45145;border-radius:9px;background:#ffb45110;color:#ffd49a;font-size:11px}
+.nova-admin-drop{width:min(1100px,100%);min-height:150px;margin:0 auto 16px;display:flex;flex-direction:column;align-items:center;justify-content:center;border:1px dashed #4a3b70;border-radius:13px;background:#121017;color:#f5f4f8;cursor:pointer}.nova-admin-drop:hover,.nova-admin-drop.drag{border-color:#9a76ff;background:#171222}.nova-admin-drop b{font-size:28px;color:#9d7cff;font-weight:400}.nova-admin-drop strong{margin:7px 0 5px;font-size:14px}.nova-admin-drop span{color:#858491;font-size:10px}
+.nova-admin-queue-card,.nova-admin-library{width:min(1100px,100%);margin:0 auto 16px;border:1px solid #292932;border-radius:12px;background:#101014;overflow:hidden}.nova-admin-queue-card[hidden]{display:none}.nova-admin-section-head{min-height:50px;display:flex;align-items:center;justify-content:space-between;gap:15px;padding:10px 14px;border-bottom:1px solid #292932}.nova-admin-section-head>div>strong,.nova-admin-section-head>div>span{display:block}.nova-admin-section-head>div>strong{font-size:12px}.nova-admin-section-head>div>span{margin-top:3px;color:#7f7e8b;font-size:9px}.nova-admin-section-head>button{border:0;background:transparent;color:#9292a1;font-size:10px;cursor:pointer}
+.nova-admin-queue{max-height:360px;overflow:auto}.nova-admin-queue-row{display:grid;grid-template-columns:40px minmax(0,1fr) 28px;gap:11px;align-items:center;padding:11px 14px;border-bottom:1px solid #24242b}.nova-admin-file-icon{width:38px;height:38px;display:grid;place-items:center;border-radius:8px;background:#8059f11b;color:#b69eff;font-size:8px;font-weight:850}.nova-admin-queue-row input{height:31px;margin:0 0 5px;padding:7px 9px}.nova-admin-queue-row small{display:block;color:#777683;font-size:8px}.nova-admin-queue-row>button{border:0;background:transparent;color:#888;font-size:18px;cursor:pointer}.nova-admin-upload-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px}.nova-admin-upload-bar>span{color:#9292a1;font-size:10px}
+.nova-admin-search{position:relative;width:min(300px,48%)}.nova-admin-search span{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#777}.nova-admin-search input{height:33px;margin:0;padding:7px 9px 7px 29px}.nova-admin-catalog{max-height:430px;overflow:auto}.nova-admin-catalog>p{padding:35px;text-align:center;color:#858491;font-size:11px}.nova-admin-game-row{display:grid;grid-template-columns:34px minmax(0,1fr) 65px 44px 49px;gap:9px;align-items:center;padding:10px 13px;border-bottom:1px solid #24242b}.nova-admin-game-letter{width:31px;height:31px;display:grid;place-items:center;border-radius:8px;background:#8059f116;color:#b79eff;font-weight:800}.nova-admin-game-row>div{min-width:0}.nova-admin-game-row strong,.nova-admin-game-row small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.nova-admin-game-row strong{font-size:11px}.nova-admin-game-row small{margin-top:4px;color:#777683;font-size:8px}.nova-admin-game-row em{color:#9d91bd;font-size:8px;font-style:normal}.nova-admin-game-row>button{padding:6px 5px;border:0;background:transparent;color:#aaa9b5;font-size:9px;cursor:pointer}.nova-admin-game-row>button:last-child{color:#ff8994}
+.nova-admin-editor{position:absolute;inset:0;z-index:8;display:grid;place-items:center;padding:20px;background:#000b;backdrop-filter:blur(7px)}.nova-admin-editor[hidden]{display:none}.nova-admin-editor>form{width:min(530px,100%);max-height:calc(100% - 20px);overflow:auto;padding:21px;border:1px solid #303039;border-radius:13px;background:#111116;box-shadow:0 25px 75px #000}.nova-admin-editor-head{display:flex;align-items:start;justify-content:space-between;margin-bottom:18px}.nova-admin-editor-head strong,.nova-admin-editor-head small{display:block}.nova-admin-editor-head strong{font-size:17px}.nova-admin-editor-head small{margin-top:4px;color:#858491;font-size:9px}.nova-admin-editor-head button{border:0;background:transparent;color:#999;font-size:22px;cursor:pointer}.nova-admin-checks{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}.nova-admin-checks label{display:flex;align-items:center;gap:7px;margin:0;padding:9px;border:1px solid #292932;border-radius:8px}.nova-admin-checks input{width:14px;margin:0}.nova-admin-editor-actions{display:flex;justify-content:flex-end;gap:8px}
+@media(max-width:700px){.nova-admin-dashboard>header{padding:0 12px}.nova-admin-connection{display:none}.nova-admin-dashboard>main{padding:16px 11px}.nova-admin-hero{align-items:start;flex-direction:column}.nova-admin-hero h2{font-size:24px}.nova-admin-drop{min-height:125px}.nova-admin-game-row{grid-template-columns:31px minmax(0,1fr) 42px 46px}.nova-admin-game-row>em{display:none}.nova-admin-queue-row input[data-admin-field="desc"]{display:none}.nova-admin-editor{align-items:end;padding:0}.nova-admin-editor>form{width:100%;max-height:90%;border-radius:15px 15px 0 0}.nova-admin-checks{grid-template-columns:1fr}}
+
         .nova-browser-shortcuts button{border-radius:6px!important;background:rgba(255,255,255,.035)!important}
         .nova-chat-side{width:248px!important;background:rgba(5,5,8,.9)!important;border-color:rgba(255,255,255,.1)!important}
         .nova-chat-main{background:radial-gradient(58vw 42vw at 28% 0,rgba(84,17,201,.33),transparent 65%),#050507!important}
@@ -1867,6 +1885,7 @@ const nova = {
             {id:"youtube",label:"YouTube",icon:this.osIcon("youtube"),action:()=>this.osOpenService("youtube")},
             {id:"anime",label:"Anime",icon:this.osIcon("anime"),action:()=>this.osOpenService("anime")},
             {id:"settings",label:"Settings",icon:this.osIcon("settings"),action:()=>this.osOpenWindow("System Settings","settings",this.osSettingsBody())},
+            {id:"admin",label:"Nova Admin",icon:this.osIcon("settings"),action:()=>this.osOpenAdminWindow()},
             {id:"about",label:"About Nova","icon":"●",action:()=>this.osOpenWindow("About This Mac","about",this.osAboutBody())}
         ];
     },
@@ -2554,6 +2573,235 @@ const nova = {
         }else w.remove();
     },
 
+
+    _novaAdminState:null,
+    novaAdminState(){
+        if(!this._novaAdminState)this._novaAdminState={client:null,clientPromise:null,session:null,roots:new Set(),games:[],queue:[],query:"",githubConfigured:null,loading:false,uploading:false,progress:"",error:"",editor:null};
+        return this._novaAdminState;
+    },
+    novaAdminMarkup(){
+        return '<div class="nova-admin-native">'+
+          '<section class="nova-admin-login"><form class="nova-admin-login-card"><div class="nova-admin-brand"><span>N</span><div><strong>Nova Admin</strong><small>Game publishing studio</small></div></div><h2>Administrator login</h2><p>Use the existing Nova administrator account. Public registration is disabled.</p><label>Email<input data-admin-email type="email" value="umarerthteam@pm.me" autocomplete="username" required></label><label>Password<input data-admin-password type="password" autocomplete="current-password" required></label><button class="nova-admin-primary" data-admin-login-button type="submit">Sign in</button><div class="nova-admin-error" data-admin-login-error role="alert"></div></form></section>'+
+          '<section class="nova-admin-dashboard" hidden><header><div><strong>Game Publisher</strong><small data-admin-account></small></div><div class="nova-admin-head-actions"><span class="nova-admin-connection" data-admin-connection><i></i>Checking GitHub</span><button data-admin-signout type="button">Sign out</button></div></header><main>'+
+          '<div class="nova-admin-hero"><div><span>NOVA CONTENT</span><h2>Upload games in bulk</h2><p>Select or drop a whole group of HTML games. Nova batches them safely and commits each batch to GitHub with catalog entries included.</p></div><button class="nova-admin-secondary" data-admin-add-link type="button">Add URL instead</button></div>'+
+          '<div class="nova-admin-setup" data-admin-setup hidden>GitHub uploads need the <b>GITHUB_TOKEN</b> Edge Function secret with Contents read/write access to UmarErth/uMath.</div>'+
+          '<input data-admin-files type="file" accept=".html,.htm,text/html" multiple hidden><button class="nova-admin-drop" data-admin-drop type="button"><b>＋</b><strong>Drop HTML games here</strong><span>or click to choose as many files as you want</span></button>'+
+          '<section class="nova-admin-queue-card" data-admin-queue-card hidden><div class="nova-admin-section-head"><div><strong>Upload queue</strong><span data-admin-queue-count></span></div><button data-admin-clear type="button">Clear</button></div><div class="nova-admin-queue" data-admin-queue></div><div class="nova-admin-upload-bar"><span data-admin-progress>Ready to publish</span><button class="nova-admin-primary" data-admin-upload type="button">Publish games</button></div></section>'+
+          '<section class="nova-admin-library"><div class="nova-admin-section-head"><div><strong>Current catalog</strong><span data-admin-game-count>0 games</span></div><div class="nova-admin-search"><span>⌕</span><input data-admin-search type="search" placeholder="Search catalog"></div></div><div class="nova-admin-catalog" data-admin-catalog><p>Sign in to load the catalog.</p></div></section>'+
+          '</main><div class="nova-admin-editor" data-admin-editor hidden><form><div class="nova-admin-editor-head"><div><strong data-admin-editor-title>Add game URL</strong><small>Commit one catalog entry</small></div><button data-admin-editor-close type="button">×</button></div><label>Title<input data-admin-edit-title maxlength="120" required></label><label>Game URL or repository filename<input data-admin-edit-url required></label><label>Description<textarea data-admin-edit-desc maxlength="300" required></textarea></label><div class="nova-admin-checks"><label><input data-admin-edit-download type="checkbox" checked>Available offline</label><label><input data-admin-edit-newtab type="checkbox">Open in new tab</label></div><div class="nova-admin-error" data-admin-editor-error role="alert"></div><div class="nova-admin-editor-actions"><button data-admin-editor-cancel type="button">Cancel</button><button class="nova-admin-primary" data-admin-editor-save type="submit">Add game</button></div></form></div></section>'+
+          '</div>';
+    },
+    async novaAdminClient(){
+        const state=this.novaAdminState();
+        if(state.client)return state.client;
+        if(!state.clientPromise){
+            state.clientPromise=import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/+esm").then(async module=>{
+                const client=module.createClient("https://ztbedievifwxunjllbjh.supabase.co","sb_publishable_OmTNAlHkNxLHVPTGsoY6iQ_mcHmAiA-");
+                state.client=client;
+                client.auth.onAuthStateChange((_event,session)=>{
+                    state.session=session;state.error="";
+                    this.novaAdminRender();
+                    if(session)setTimeout(()=>this.novaAdminLoad(),0);
+                });
+                const result=await client.auth.getSession();
+                state.session=result.data.session;
+                this.novaAdminRender();
+                if(state.session)this.novaAdminLoad();
+                return client;
+            }).catch(error=>{state.clientPromise=null;state.error=error.message||"Could not start Supabase";this.novaAdminRender();throw error});
+        }
+        return state.clientPromise;
+    },
+    async novaAdminCall(body){
+        const client=await this.novaAdminClient();
+        const result=await client.functions.invoke("nova-game-admin",{body});
+        if(result.error){
+            let message=result.error.message||"Admin request failed";
+            try{const payload=await result.error.context?.json();if(payload?.error)message=payload.error;}catch{}
+            throw new Error(message);
+        }
+        if(result.data?.error)throw new Error(result.data.error);
+        return result.data;
+    },
+    bindNovaAdmin(root){
+        if(!root||root._novaAdminBound)return;
+        root._novaAdminBound=true;
+        const state=this.novaAdminState();state.roots.add(root);
+        root.querySelector(".nova-admin-login-card").addEventListener("submit",async event=>{
+            event.preventDefault();state.error="";this.novaAdminRender();
+            const button=root.querySelector("[data-admin-login-button]");button.disabled=true;button.textContent="Signing in…";
+            try{
+                const client=await this.novaAdminClient();
+                const result=await client.auth.signInWithPassword({email:root.querySelector("[data-admin-email]").value.trim(),password:root.querySelector("[data-admin-password]").value});
+                if(result.error)throw result.error;
+            }catch(error){state.error=error.message||"Could not sign in";this.novaAdminRender();}
+            button.disabled=false;button.textContent="Sign in";
+        });
+        root.querySelector("[data-admin-signout]").addEventListener("click",async()=>{const client=await this.novaAdminClient();await client.auth.signOut()});
+        const fileInput=root.querySelector("[data-admin-files]");
+        const drop=root.querySelector("[data-admin-drop]");
+        drop.addEventListener("click",()=>fileInput.click());
+        drop.addEventListener("dragover",event=>{event.preventDefault();drop.classList.add("drag")});
+        drop.addEventListener("dragleave",()=>drop.classList.remove("drag"));
+        drop.addEventListener("drop",event=>{event.preventDefault();drop.classList.remove("drag");this.novaAdminQueueFiles(event.dataTransfer?.files)});
+        fileInput.addEventListener("change",()=>{this.novaAdminQueueFiles(fileInput.files);fileInput.value=""});
+        root.querySelector("[data-admin-search]").addEventListener("input",event=>{state.query=event.target.value;this.novaAdminRender()});
+        root.querySelector("[data-admin-clear]").addEventListener("click",()=>{if(!state.uploading){state.queue=[];this.novaAdminRender()}});
+        root.querySelector("[data-admin-upload]").addEventListener("click",()=>this.novaAdminUpload());
+        root.querySelector("[data-admin-add-link]").addEventListener("click",()=>this.novaAdminOpenEditor(null));
+        root.addEventListener("input",event=>{
+            const input=event.target.closest("[data-admin-queue-id][data-admin-field]");if(!input)return;
+            const item=state.queue.find(entry=>entry.id===input.dataset.adminQueueId);if(item)item[input.dataset.adminField]=input.value;
+        });
+        root.addEventListener("click",event=>{
+            const remove=event.target.closest("[data-admin-remove-file]");
+            if(remove&&!state.uploading){state.queue=state.queue.filter(item=>item.id!==remove.dataset.adminRemoveFile);this.novaAdminRender();return}
+            const edit=event.target.closest("[data-admin-edit]");
+            if(edit){this.novaAdminOpenEditor(decodeURIComponent(edit.dataset.adminEdit));return}
+            const del=event.target.closest("[data-admin-delete]");
+            if(del){this.novaAdminDelete(decodeURIComponent(del.dataset.adminDelete));return}
+            if(event.target.closest("[data-admin-editor-close],[data-admin-editor-cancel]")){state.editor=null;state.error="";this.novaAdminRender()}
+        });
+        root.querySelector("[data-admin-editor] form").addEventListener("submit",event=>{event.preventDefault();this.novaAdminSaveEditor(root)});
+        this.novaAdminClient();
+        this.novaAdminRender();
+    },
+    novaAdminQueueFiles(fileList){
+        const state=this.novaAdminState();
+        const files=[...(fileList||[])].filter(file=>/\.html?$/i.test(file.name));
+        const existing=new Set(state.queue.map(item=>item.file.name+":"+item.file.size));
+        files.forEach(file=>{
+            const key=file.name+":"+file.size;if(existing.has(key))return;existing.add(key);
+            const title=file.name.replace(/\.html?$/i,"").replace(/[-_]+/g," ").replace(/\b\w/g,char=>char.toUpperCase()).trim();
+            state.queue.push({id:crypto.randomUUID(),file,title,desc:"Play "+title+" in Nova Gaming.",newTab:false,download:true});
+        });
+        if(!files.length)state.error="Choose HTML game files";
+        else state.error="";
+        this.novaAdminRender();
+    },
+    novaAdminRender(){
+        const state=this.novaAdminState();
+        state.roots.forEach(root=>{
+            if(!root.isConnected){state.roots.delete(root);return}
+            const signed=Boolean(state.session);
+            root.querySelector(".nova-admin-login").hidden=signed;
+            root.querySelector(".nova-admin-dashboard").hidden=!signed;
+            root.querySelector("[data-admin-login-error]").textContent=!signed?state.error:"";
+            if(!signed)return;
+            root.querySelector("[data-admin-account]").textContent=state.session.user.email||"Administrator";
+            const connection=root.querySelector("[data-admin-connection]");
+            connection.classList.toggle("on",state.githubConfigured===true);
+            connection.classList.toggle("warn",state.githubConfigured===false);
+            connection.lastChild.textContent=state.githubConfigured===true?"GitHub connected":state.githubConfigured===false?"GitHub setup needed":"Checking GitHub";
+            root.querySelector("[data-admin-setup]").hidden=state.githubConfigured!==false;
+            const queue=root.querySelector("[data-admin-queue]");
+            root.querySelector("[data-admin-queue-card]").hidden=!state.queue.length;
+            root.querySelector("[data-admin-queue-count]").textContent=state.queue.length+" file"+(state.queue.length===1?"":"s");
+            queue.innerHTML=state.queue.map(item=>'<div class="nova-admin-queue-row"><span class="nova-admin-file-icon">HTML</span><div><input data-admin-queue-id="'+item.id+'" data-admin-field="title" value="'+this.esc(item.title)+'" aria-label="Game title"><input data-admin-queue-id="'+item.id+'" data-admin-field="desc" value="'+this.esc(item.desc)+'" aria-label="Game description"><small>'+this.esc(item.file.name)+' · '+this.novaAdminSize(item.file.size)+'</small></div><button data-admin-remove-file="'+item.id+'" type="button" aria-label="Remove">×</button></div>').join("");
+            root.querySelector("[data-admin-progress]").textContent=state.progress||"Ready to publish";
+            const upload=root.querySelector("[data-admin-upload]");
+            upload.disabled=!state.queue.length||state.uploading||state.githubConfigured!==true;
+            upload.textContent=state.uploading?"Publishing…":"Publish "+state.queue.length+" game"+(state.queue.length===1?"":"s");
+            root.querySelector("[data-admin-game-count]").textContent=state.games.length+" games";
+            const term=state.query.trim().toLowerCase();
+            const games=state.games.filter(game=>!term||(game.title+" "+game.desc+" "+game.url).toLowerCase().includes(term));
+            root.querySelector("[data-admin-catalog]").innerHTML=state.loading?'<p>Loading the GitHub catalog…</p>':games.length?games.map(game=>'<div class="nova-admin-game-row"><span class="nova-admin-game-letter">'+this.esc((game.title||"?").charAt(0).toUpperCase())+'</span><div><strong>'+this.esc(game.title)+'</strong><small>'+this.esc(game.url)+'</small></div><em>'+(game.newTab?"New tab":"Immersive")+'</em><button data-admin-edit="'+encodeURIComponent(game.url)+'" type="button">Edit</button><button data-admin-delete="'+encodeURIComponent(game.url)+'" type="button">Delete</button></div>').join(""):'<p>No matching games</p>';
+            const editor=root.querySelector("[data-admin-editor]");
+            editor.hidden=!state.editor;
+            if(state.editor){
+                const game=state.editor.game;
+                root.querySelector("[data-admin-editor-title]").textContent=state.editor.originalUrl?"Edit game":"Add game URL";
+                root.querySelector("[data-admin-editor-save]").textContent=state.editor.saving?"Saving…":state.editor.originalUrl?"Save changes":"Add game";
+                root.querySelector("[data-admin-editor-save]").disabled=Boolean(state.editor.saving);
+                root.querySelector("[data-admin-edit-title]").value=game.title||"";
+                root.querySelector("[data-admin-edit-url]").value=game.url||"";
+                root.querySelector("[data-admin-edit-desc]").value=game.desc||"";
+                root.querySelector("[data-admin-edit-download]").checked=game.download!==false;
+                root.querySelector("[data-admin-edit-newtab]").checked=game.newTab===true;
+                root.querySelector("[data-admin-editor-error]").textContent=state.error||"";
+            }
+        });
+    },
+    novaAdminSize(bytes){
+        if(bytes<1024)return bytes+" B";
+        if(bytes<1048576)return(bytes/1024).toFixed(1)+" KB";
+        return(bytes/1048576).toFixed(1)+" MB";
+    },
+    async novaAdminLoad(){
+        const state=this.novaAdminState();if(!state.session||state.loading)return;
+        state.loading=true;state.error="";this.novaAdminRender();
+        try{
+            const data=await this.novaAdminCall({action:"list"});
+            state.games=Array.isArray(data.games)?data.games:[];
+            state.githubConfigured=Boolean(data.githubConfigured);
+        }catch(error){state.error=error.message||"Could not load games";}
+        state.loading=false;this.novaAdminRender();
+    },
+    async novaAdminFileBase64(file){
+        const bytes=new Uint8Array(await file.arrayBuffer());let binary="";
+        for(let index=0;index<bytes.length;index+=32768)binary+=String.fromCharCode(...bytes.subarray(index,index+32768));
+        return btoa(binary);
+    },
+    async novaAdminUpload(){
+        const state=this.novaAdminState();if(state.uploading||!state.queue.length)return;
+        if(state.githubConfigured!==true){state.error="Add GITHUB_TOKEN in Supabase Edge Function secrets first";this.novaAdminRender();return}
+        state.uploading=true;state.error="";let completed=0;this.novaAdminRender();
+        try{
+            while(state.queue.length){
+                const batch=[];let bytes=0;
+                for(const item of state.queue){
+                    if(item.file.size>7*1024*1024)throw new Error(item.file.name+" is over the 7 MB per-file limit");
+                    if(batch.length>=8||(batch.length&&bytes+item.file.size>7*1024*1024))break;
+                    if(!item.title.trim()||!item.desc.trim())throw new Error("Every queued game needs a title and description");
+                    batch.push(item);bytes+=item.file.size;
+                }
+                state.progress="Preparing batch "+(completed+1)+"…";this.novaAdminRender();
+                const files=[];
+                for(let index=0;index<batch.length;index++){
+                    state.progress="Reading "+(completed+index+1)+" of "+(completed+state.queue.length)+" · "+batch[index].file.name;this.novaAdminRender();
+                    files.push({name:batch[index].file.name,title:batch[index].title.trim(),desc:batch[index].desc.trim(),newTab:false,download:true,content:await this.novaAdminFileBase64(batch[index].file)});
+                }
+                state.progress="Committing "+files.length+" game"+(files.length===1?"":"s")+" to GitHub…";this.novaAdminRender();
+                await this.novaAdminCall({action:"bulkUpload",files});
+                state.queue.splice(0,batch.length);completed+=batch.length;
+            }
+            state.progress="Published "+completed+" game"+(completed===1?"":"s")+" successfully";
+            window.dispatchEvent(new CustomEvent("nova:games-updated"));
+            await this.novaAdminLoad();
+        }catch(error){state.error=error.message||"Upload failed";state.progress="Upload paused · "+state.error}
+        state.uploading=false;this.novaAdminRender();
+    },
+    novaAdminOpenEditor(url){
+        const state=this.novaAdminState();
+        const existing=url?state.games.find(game=>game.url===url):null;
+        state.editor={originalUrl:existing?.url||"",saving:false,game:existing?{...existing}:{title:"",url:"",desc:"",newTab:false,download:true}};
+        state.error="";this.novaAdminRender();
+    },
+    async novaAdminSaveEditor(root){
+        const state=this.novaAdminState();if(!state.editor||state.editor.saving)return;
+        let url=root.querySelector("[data-admin-edit-url]").value.trim();
+        if(!/^https?:\/\//i.test(url))url="https://cdn.jsdelivr.net/gh/UmarErth/uMath@main/"+encodeURI(url.replace(/^\/+/, ""));
+        const game={title:root.querySelector("[data-admin-edit-title]").value.trim(),url,desc:root.querySelector("[data-admin-edit-desc]").value.trim(),download:root.querySelector("[data-admin-edit-download]").checked,newTab:root.querySelector("[data-admin-edit-newtab]").checked};
+        state.editor.game=game;state.editor.saving=true;state.error="";this.novaAdminRender();
+        try{
+            await this.novaAdminCall({action:state.editor.originalUrl?"update":"add",originalUrl:state.editor.originalUrl,game});
+            state.editor=null;await this.novaAdminLoad();window.dispatchEvent(new CustomEvent("nova:games-updated"));
+        }catch(error){state.error=error.message||"Could not save game";state.editor.saving=false;this.novaAdminRender()}
+    },
+    async novaAdminDelete(url){
+        const state=this.novaAdminState();const game=state.games.find(item=>item.url===url);if(!game)return;
+        if(!confirm('Remove "'+game.title+'" from Nova Gaming?'))return;
+        try{await this.novaAdminCall({action:"delete",originalUrl:url});await this.novaAdminLoad();window.dispatchEvent(new CustomEvent("nova:games-updated"))}
+        catch(error){state.error=error.message||"Could not remove game";this.novaAdminRender()}
+    },
+    osOpenAdminWindow(){
+        const key="nova-admin";const existing=document.querySelector('.os-window[data-key="'+CSS.escape(key)+'"]');
+        if(existing){this.osFocusWindow(existing);existing.classList.remove("minimized");return existing}
+        const w=this.osOpenWindow("Nova Admin",key,this.novaAdminMarkup(),{center:true,width:1120,height:760});
+        if(w)this.bindNovaAdmin(w.querySelector(".nova-admin-native"));
+        return w;
+    },
+
     novaBrowserMarkup(){
         return '<div class="nova-native-app nova-browser-native"><div class="nova-native-top"><div class="nova-app-mark">N</div><button class="nova-round-btn" data-browser="back" aria-label="Back">‹</button><button class="nova-round-btn" data-browser="forward" aria-label="Forward">›</button><button class="nova-round-btn" data-browser="reload" aria-label="Reload">↻</button><form class="nova-address-form"><span class="nova-lock">◇</span><input class="nova-browser-address" value="" placeholder="Search or enter a URL" autocomplete="off" aria-label="Address"><button class="nova-go-btn" type="submit">Go</button></form></div><div class="nova-browser-stage"><section class="nova-browser-home"><div class="nova-browser-hero"><span class="nova-browser-logo">N</span><h2>Where to?</h2><p data-browser-status>Starting secure proxy…</p><button class="nova-browser-retry" data-browser="retry" type="button" hidden>Retry proxy</button><form class="nova-home-search"><input placeholder="Search the web" autocomplete="off"><button type="submit">Search</button></form><div class="nova-browser-shortcuts"><button data-url="https://www.google.com">G<span>Google</span></button><button data-url="https://piped.video">▶<span>Piped</span></button><button data-url="https://en.wikipedia.org">W<span>Wikipedia</span></button><button data-url="https://discord.com">D<span>Discord</span></button></div></div></section><iframe class="nova-browser-frame" title="Nova Browser page" allow="clipboard-read; clipboard-write; downloads; fullscreen; storage-access-by-user-activation"></iframe><div class="nova-browser-loading"><i></i></div></div></div>';
     },
@@ -2882,7 +3130,7 @@ const nova = {
                 <button id="nova-command-button" class="nova-side-search" type="button" title="Quick switch"><span>⌕ Search anything</span><kbd>⌘ K</kbd></button>
                 <div class="nova-sidebar-pins"><button data-nova-action="browser" title="Browser">◎</button><button data-nova-action="chat" title="Chat">#</button><button id="nova-sidebar-add" title="Open command center">＋</button></div>
                 <div class="nova-side-caption">Workspace</div>
-                <div class="nova-primary-links"><button data-nova-action="browser" class="active"><i>◎</i><span>Browser</span></button><button data-nova-action="home"><i>⌂</i><span>Games</span></button><button data-nova-action="ai"><i>✦</i><span>Nova AI</span></button><button data-nova-action="youtube"><i>▷</i><span>Video</span></button><button data-nova-action="anime"><i>◆</i><span>Anime</span></button><button data-nova-action="chat"><i>#</i><span>Chat</span></button><button data-nova-action="settings"><i>⚙</i><span>Settings</span></button><button data-nova-action="os"><i>▦</i><span>Desktop</span></button></div>
+                <div class="nova-primary-links"><button data-nova-action="browser" class="active"><i>◎</i><span>Browser</span></button><button data-nova-action="home"><i>⌂</i><span>Games</span></button><button data-nova-action="ai"><i>✦</i><span>Nova AI</span></button><button data-nova-action="youtube"><i>▷</i><span>Video</span></button><button data-nova-action="anime"><i>◆</i><span>Anime</span></button><button data-nova-action="chat"><i>#</i><span>Chat</span></button><button data-nova-action="settings"><i>⚙</i><span>Settings</span></button><button data-nova-action="admin"><i>◇</i><span>Admin</span></button><button data-nova-action="os"><i>▦</i><span>Desktop</span></button></div>
             </nav>
             <div id="tbr"><button class="tb-new" id="tb-new" title="New tab">+</button></div>
             <header class="nova-library-toolbar">
@@ -2976,6 +3224,9 @@ const nova = {
         const sp=document.createElement("div"); sp.id="settings-panel"; sp.className="fpanel nova-settings-panel";
         sp.innerHTML=`<div class="fpbar"><div class="fp-ttl">Nova Settings</div></div><div class="fp-body">${this.osSettingsBody()}</div>`;
         document.body.appendChild(sp);
+        const adp=document.createElement("div"); adp.id="admin-panel"; adp.className="fpanel nova-native-panel nova-admin-panel";
+        adp.innerHTML=this.novaAdminMarkup();
+        document.body.appendChild(adp);
 
         // Nova is browser first. Games remain available as a native workspace.
         if(!this._educationFirstBoot){
@@ -3012,7 +3263,7 @@ const nova = {
             const action=button.dataset.novaAction;
             if(action==="os") this.setUIMode("os");
             else {
-                const titles={home:"Games",ai:"Nova AI",youtube:"Video",anime:"Anime",browser:"Browser",chat:"Chat",settings:"Settings"};
+                const titles={home:"Games",ai:"Nova AI",youtube:"Video",anime:"Anime",browser:"Browser",chat:"Chat",settings:"Settings",admin:"Admin"};
                 this.openWorkspaceTab(titles[action]||"Nova",action);
             }
         }));
@@ -3029,6 +3280,7 @@ const nova = {
             {icon:"◆",title:"Anime",sub:"Discover and watch anime",action:"anime"},
             {icon:"#",title:"Chat",sub:"Global chat and direct messages",action:"chat"},
             {icon:"⚙",title:"Settings",sub:"Customize Nova",action:"settings"},
+            {icon:"◇",title:"Admin",sub:"Upload and manage games",action:"admin"},
             {icon:"▦",title:"Desktop mode",sub:"Open the Nova desktop",action:"os"}
         ];
         const actions=[
@@ -3066,7 +3318,7 @@ const nova = {
         this.closeCommandPalette();
         if(Number.isInteger(item.game)){this.launch(GAMES[item.game]);return}
         if(item.action==="os"){this.setUIMode("os");return}
-        if(item.action){if(this.uiMode==="os")this.setUIMode("classic");const titles={home:"Games",ai:"Nova AI",youtube:"Video",anime:"Anime",browser:"Browser",chat:"Chat",settings:"Settings",favorites:"Favorites"};this.openWorkspaceTab(titles[item.action]||"Nova",item.action);return}
+        if(item.action){if(this.uiMode==="os")this.setUIMode("classic");const titles={home:"Games",ai:"Nova AI",youtube:"Video",anime:"Anime",browser:"Browser",chat:"Chat",settings:"Settings",admin:"Admin",favorites:"Favorites"};this.openWorkspaceTab(titles[item.action]||"Nova",item.action);return}
         if(item.command==="new"){this.tabNew("Games","home");return}
         if(item.command==="cloak"){openNovaCloak();return}
         if(item.command==="fullscreen"){if(document.fullscreenElement)document.exitFullscreen?.();else document.documentElement.requestFullscreen?.();return}
@@ -3098,8 +3350,8 @@ const nova = {
         document.addEventListener("keydown",event=>{
             if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==="k"){event.preventDefault();modal?.classList.contains("on")?this.closeCommandPalette():this.openCommandPalette();return}
             if(event.key==="Escape"&&modal?.classList.contains("on")){this.closeCommandPalette();return}
-            if(event.altKey&&/^[1-8]$/.test(event.key)){
-                const actions=["home","ai","youtube","anime","browser","chat","settings","os"];const action=actions[Number(event.key)-1];
+            if(event.altKey&&/^[1-9]$/.test(event.key)){
+                const actions=["home","ai","youtube","anime","browser","chat","settings","admin","os"];const action=actions[Number(event.key)-1];
                 event.preventDefault();this.runCommandItem(this.commandItems("").find(item=>item.action===action));
             }
             if(event.key==="/"&&!event.metaKey&&!event.ctrlKey&&!event.altKey&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName||"")){event.preventDefault();this.openCommandPalette()}
@@ -3200,7 +3452,7 @@ const nova = {
         const bar=document.getElementById("tbr"); if(!bar) return;
         bar.querySelectorAll(".tbt").forEach(t=>t.remove());
         const nb=document.getElementById("tb-new");
-        const icons={home:"⌂",game:"▶",ai:"✦",youtube:"▷",anime:"◆",browser:"◎",chat:"#",settings:"⚙",favorites:"★"};
+        const icons={home:"⌂",game:"▶",ai:"✦",youtube:"▷",anime:"◆",browser:"◎",chat:"#",settings:"⚙",admin:"◇",favorites:"★"};
         this._tabs.forEach(t=>{
             const el=document.createElement("button");
             el.className=`tbt${t.active?" on":""}`; el.dataset.id=t.id;
@@ -3238,11 +3490,11 @@ const nova = {
 
     // ── VIEW SWITCHING ──────────────────────────────────────────
     _setView(action, url, tabObj){
-        const panelIds={anime:"anime-panel",youtube:"yt-panel",ai:"ai-panel",browser:"browser-panel",chat:"chat-panel",settings:"settings-panel"};
+        const panelIds={anime:"anime-panel",youtube:"yt-panel",ai:"ai-panel",browser:"browser-panel",chat:"chat-panel",settings:"settings-panel",admin:"admin-panel"};
         const panels=Object.keys(panelIds);
         const next=document.getElementById(panelIds[action]);
         const previous=panels.map(name=>document.getElementById(panelIds[name])).find(panel=>panel?.classList.contains("on")&&panel!==next);
-        const order=["home","ai","youtube","anime","browser","chat","settings"];
+        const order=["home","browser","ai","youtube","anime","chat","settings","admin"];
         const oldAction=this._activeNovaView||"home";
         const direction=order.indexOf(action)>=order.indexOf(oldAction)?"right":"left";
         if(previous){
@@ -3265,6 +3517,7 @@ const nova = {
             const settingsBody=document.querySelector("#settings-panel .fp-body");
             if(settingsBody&&!settingsBody.querySelector(".nova-mega-settings"))settingsBody.innerHTML=this.osSettingsBody();
         }
+        if(action==="admin"&&next)this.bindNovaAdmin(next.querySelector(".nova-admin-native"));
         const theater=document.getElementById("theater");
         const isGame=action==="game"&&tabObj;
         document.body.classList.toggle("nova-app-open",Boolean(next||isGame));
