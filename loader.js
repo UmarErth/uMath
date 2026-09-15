@@ -1771,7 +1771,7 @@ const nova = {
         .nova-browser-retry{margin:0 auto 14px;padding:8px 13px;border:1px solid rgba(255,255,255,.16);border-radius:6px;background:#15151b;color:#f4f3f8;font-family:inherit;font-size:12px;font-weight:650;cursor:pointer}.nova-browser-retry:hover{background:#202029}.nova-browser-retry[hidden]{display:none!important}
 
 .nova-admin-panel .fp-body{padding:0!important}
-.nova-admin-native{height:100%;min-height:0;background:#08080b;color:#f5f4f8;font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.nova-admin-native{position:relative;height:100%;min-height:0;background:#08080b;color:#f5f4f8;font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 .nova-admin-native *{box-sizing:border-box}.nova-admin-native button,.nova-admin-native input,.nova-admin-native textarea{font:inherit}
 .nova-admin-login{height:100%;display:grid;place-items:center;padding:24px;background:radial-gradient(55vw 42vw at 50% 0,rgba(91,35,190,.36),transparent 68%),#08080b}
 .nova-admin-login-card{width:min(410px,100%);padding:31px;border:1px solid #292932;border-radius:15px;background:#101014;box-shadow:0 25px 70px #0008}
@@ -2734,6 +2734,7 @@ const nova = {
             const data=await this.novaAdminCall({action:"list"});
             state.games=Array.isArray(data.games)?data.games:[];
             state.githubConfigured=Boolean(data.githubConfigured);
+            state.games.forEach(game=>{if(!GAMES.some(existing=>existing.url===game.url))GAMES.push({...game})});
         }catch(error){state.error=error.message||"Could not load games";}
         state.loading=false;this.novaAdminRender();
     },
@@ -2791,7 +2792,7 @@ const nova = {
     async novaAdminDelete(url){
         const state=this.novaAdminState();const game=state.games.find(item=>item.url===url);if(!game)return;
         if(!confirm('Remove "'+game.title+'" from Nova Gaming?'))return;
-        try{await this.novaAdminCall({action:"delete",originalUrl:url});await this.novaAdminLoad();window.dispatchEvent(new CustomEvent("nova:games-updated"))}
+        try{await this.novaAdminCall({action:"delete",originalUrl:url});const index=GAMES.findIndex(item=>item.url===url);if(index>=0)GAMES.splice(index,1);await this.novaAdminLoad();window.dispatchEvent(new CustomEvent("nova:games-updated"))}
         catch(error){state.error=error.message||"Could not remove game";this.novaAdminRender()}
     },
     osOpenAdminWindow(){
