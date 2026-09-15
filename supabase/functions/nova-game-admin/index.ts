@@ -168,6 +168,103 @@ const commitCatalog = async (source: string, sha: string, message: string) => {
   return String(payload?.commit?.sha ?? "");
 };
 
+
+type UploadFile = {
+  path: string;
+  content: string;
+};
+
+const githubRequest = async (path: string, init: RequestInit = {}) => {
+  const response = await fetch("https://api.github.com/repos/" + REPOSITORY + path, {
+    ...init,
+    headers: {
+      ...githubHeaders(),
+      ...((init.headers ?? {}) as Record<string, string>),
+      "Content-Type": "application/json",
+    },
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(payload?.message || "GitHub returned " + response.status);
+    (error as Error & { status?: number }).status = response.status === 422 ? 409 : response.status;
+    throw error;
+  }
+  return payload;
+};
+
+const safeUploadPath = (name: string) => {
+  const leaf = name.split(/[\\/]/).pop() ?? "";
+  const dot = leaf.toLowerCase().endsWith(".html") ? ".html" : leaf.toLowerCase().endsWith(".htm") ? ".htm" : "";
+  if (!dot) throw new Error("Every uploaded game must be an HTML file");
+  const stem = leaf.slice(0, -dot.length)
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 100);
+  if (!stem) throw new Error("One uploaded file has an invalid filename");
+  return "games/" + stem + dot;
+};
+
+const cdnUrlForPath = (path: string) =>
+  "https://cdn.jsdelivr.net/gh/" + REPOSITORY + "@" + BRANCH + "/" +
+  path.split("/").map(encodeURIComponent).join("/");
+
+const commitBulkUpload = async (files: UploadFile[], loaderSource: string, title: string) => {
+  if (!GITHUB_TOKEN) throw new Error("GitHub write access is not configured yet");
+
+  const ref = await githubRequest("/git/ref/heads/" + encodeURIComponent(BRANCH));
+  const parentSha = String(ref?.object?.sha ?? "");
+  const parent = await githubRequest("/git/commits/" + parentSha);
+  const baseTreeSha = String(parent?.tree?.sha ?? "");
+  const existingTree = await githubRequest("/git/trees/" + baseTreeSha + "?recursive=1");
+  const existingPaths = new Set(
+    (Array.isArray(existingTree?.tree) ? existingTree.tree : []).map((item: { path?: string }) => String(item.path ?? "")),
+  );
+
+  for (const file of files) {
+    if (existingPaths.has(file.path)) throw new Error(file.path + " already exists in GitHub. Rename that file and try again.");
+  }
+
+  const fileBlobs = await Promise.all(files.map((file) =>
+    githubRequest("/git/blobs", {
+      method: "POST",
+      body: JSON.stringify({ content: file.content, encoding: "base64" }),
+    })
+  ));
+  const loaderBlob = await githubRequest("/git/blobs", {
+    method: "POST",
+    body: JSON.stringify({ content: loaderSource, encoding: "utf-8" }),
+  });
+
+  const entries = files.map((file, index) => ({
+    path: file.path,
+    mode: "100644",
+    type: "blob",
+    sha: String(fileBlobs[index]?.sha ?? ""),
+  }));
+  entries.push({ path: LOADER_PATH, mode: "100644", type: "blob", sha: String(loaderBlob?.sha ?? "") });
+
+  const tree = await githubRequest("/git/trees", {
+    method: "POST",
+    body: JSON.stringify({ base_tree: baseTreeSha, tree: entries }),
+  });
+  const commit = await githubRequest("/git/commits", {
+    method: "POST",
+    body: JSON.stringify({
+      message: title,
+      tree: String(tree?.sha ?? ""),
+      parents: [parentSha],
+    }),
+  });
+  const commitSha = String(commit?.sha ?? "");
+  await githubRequest("/git/refs/heads/" + encodeURIComponent(BRANCH), {
+    method: "PATCH",
+    body: JSON.stringify({ sha: commitSha, force: false }),
+  });
+  return commitSha;
+};
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors(req) });
   if (req.method !== "POST") return json(req, { error: "Method not allowed" }, 405);
@@ -207,6 +304,64 @@ Deno.serve(async (req: Request) => {
         repository: REPOSITORY,
         branch: BRANCH,
       });
+    }
+
+
+    if (action === "bulkUpload") {
+      if (!GITHUB_TOKEN) return json(req, { error: "Add GITHUB_TOKEN to the Edge Function secrets first" }, 503);
+      const rawFiles = Array.isArray(body.files) ? body.files : [];
+      if (!rawFiles.length || rawFiles.length > 8) return json(req, { error: "Upload between 1 and 8 games per batch" }, 400);
+
+      let encodedBytes = 0;
+      const paths = new Set<string>();
+      const newGames: Game[] = [];
+      const uploads: UploadFile[] = [];
+
+      for (const raw of rawFiles) {
+        const item = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+        const content = String(item.content ?? "").replace(/\s/g, "");
+        if (!content || !/^[A-Za-z0-9+/]+={0,2}$/.test(content)) throw new Error("One uploaded game is not valid base64");
+        encodedBytes += content.length;
+        if (encodedBytes > 10 * 1024 * 1024) throw new Error("This batch is too large. Nova will automatically retry it in smaller batches.");
+
+        const path = safeUploadPath(String(item.name ?? ""));
+        if (paths.has(path)) throw new Error("Two selected files turn into the same GitHub filename");
+        paths.add(path);
+        const game = normalizeGame({
+          title: item.title,
+          url: cdnUrlForPath(path),
+          desc: item.desc,
+          newTab: item.newTab === true,
+          download: item.download !== false,
+        });
+        if (parsed.games.some((existing) => existing.url === game.url)) {
+          throw new Error(game.title + " is already in the Nova catalog");
+        }
+        uploads.push({ path, content });
+        newGames.push(game);
+      }
+
+      const beforeClose = catalog.source.slice(0, parsed.close);
+      const separator = beforeClose.trimEnd().endsWith(",") ? "" : ",";
+      const updatedSource = beforeClose + separator + "\n" + newGames.map(renderGame).join("\n") + "\n" + catalog.source.slice(parsed.close);
+      const commitSha = await commitBulkUpload(
+        uploads,
+        updatedSource,
+        "Upload " + newGames.length + " game" + (newGames.length === 1 ? "" : "s") + " via Nova Admin",
+      );
+
+      await serviceClient.from("nova_admin_audit").insert(newGames.map((game) => ({
+        user_id: user.id,
+        action: "add",
+        game_title: game.title,
+        game_url: game.url,
+        github_commit_sha: commitSha || null,
+      })));
+
+      EdgeRuntime.waitUntil(
+        fetch("https://purge.jsdelivr.net/gh/" + REPOSITORY + "@" + BRANCH + "/" + LOADER_PATH).catch(() => undefined),
+      );
+      return json(req, { ok: true, count: newGames.length, commitSha });
     }
 
     if (!["add", "update", "delete"].includes(action)) return json(req, { error: "Unknown action" }, 400);
