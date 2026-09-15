@@ -3524,7 +3524,7 @@ const nova = {
         if(action==="admin"&&next)this.bindNovaAdmin(next.querySelector(".nova-admin-native"));
         const theater=document.getElementById("theater");
         const isGame=action==="game"&&tabObj;
-        document.body.classList.toggle("nova-app-open",Boolean(next||isGame));
+        document.body.classList.toggle("nova-app-open",Boolean(next||isGame||action==="home"));
         const immersive=(isGame&&this.preference("immersiveGames",true))||(action==="browser"&&this.preference("immersiveBrowser",false));
         document.body.classList.toggle("nova-immersive",immersive);
         theater.classList.toggle("on",isGame);
@@ -5829,12 +5829,38 @@ body:not(.os-mode) .fp-body{padding:16px!important}
 body:not(.os-mode) .nova-native-panel .fp-body,body:not(.os-mode) .nova-settings-panel .fp-body{padding:0!important}
 body:not(.os-mode) #ai-panel .ai-main,body:not(.os-mode) .nova-chat-main,body:not(.os-mode) .nova-browser-home,body:not(.os-mode) #settings-panel .nova-mega-settings{background:radial-gradient(60vw 44vw at 22% 0,rgba(76,16,184,.34),transparent 63%),#050507!important}
 body:not(.os-mode) #ai-panel .ai-drawer,body:not(.os-mode) .nova-chat-side{background:#07070a!important}
+@media(min-width:761px){
+ body.nova-app-open:not(.os-mode){--nova-sidebar:0px}
+ body.nova-app-open:not(.os-mode) #app{padding-left:0!important;padding-top:100px!important}
+ body.nova-app-open:not(.os-mode) #app:before{left:0!important;top:57px!important}
+ body.nova-app-open:not(.os-mode) .nova-topbar{inset:0 0 auto 0!important;width:100%!important;height:58px!important;display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:flex-start!important;padding:0 14px!important;gap:12px!important;border-right:0!important;border-bottom:1px solid rgba(255,255,255,.1)!important}
+ body.nova-app-open:not(.os-mode) .nova-wordmark{display:flex!important;width:auto!important;height:40px!important;padding:0 6px!important;justify-content:flex-start!important;flex:0 0 auto!important}
+ body.nova-app-open:not(.os-mode) .nova-wordmark strong{display:block!important;font-size:20px!important}
+ body.nova-app-open:not(.os-mode) .nova-side-search{display:flex!important;width:168px!important;height:36px!important;flex:0 0 168px!important}
+ body.nova-app-open:not(.os-mode) .nova-sidebar-pins,body.nova-app-open:not(.os-mode) .nova-side-caption{display:none!important}
+ body.nova-app-open:not(.os-mode) .nova-primary-links{width:auto!important;height:100%!important;min-width:0!important;display:flex!important;flex:1 1 auto!important;flex-direction:row!important;align-items:center!important;justify-content:flex-start!important;gap:3px!important;overflow-x:auto!important;overflow-y:hidden!important}
+ body.nova-app-open:not(.os-mode) .nova-primary-links button{width:auto!important;min-width:max-content!important;height:38px!important;display:flex!important;flex-direction:row!important;justify-content:center!important;gap:7px!important;padding:0 10px!important;border-radius:7px!important}
+ body.nova-app-open:not(.os-mode) .nova-primary-links button i{width:auto!important;font-size:14px!important}
+ body.nova-app-open:not(.os-mode) .nova-primary-links button span{display:block!important;font-size:11px!important}
+ body.nova-app-open:not(.os-mode) #tbr{left:0!important;right:0!important;top:58px!important;width:100%!important;height:42px!important;max-height:42px!important;display:flex!important;flex-direction:row!important;align-items:flex-end!important;padding:5px 10px 0!important;gap:3px!important;background:#09090d!important;border-bottom:1px solid rgba(255,255,255,.09)!important;overflow-x:auto!important}
+ body.nova-app-open:not(.os-mode) #tbr .tbt{width:auto!important;min-width:118px!important;max-width:230px!important;height:36px!important;min-height:36px!important;display:flex!important;flex:0 1 180px!important;align-items:center!important;justify-content:flex-start!important;padding:0 9px 0 11px!important;border-radius:8px 8px 0 0!important;background:#111117!important}
+ body.nova-app-open:not(.os-mode) #tbr .tb-ttl,body.nova-app-open:not(.os-mode) #tbr .tb-x{display:block!important}
+ body.nova-app-open:not(.os-mode) #tbr .tb-ttl{flex:1!important;min-width:0!important;overflow:hidden!important;text-overflow:ellipsis!important;text-align:left!important}
+ body.nova-app-open:not(.os-mode) #tb-new{order:99!important;width:32px!important;min-width:32px!important;max-width:32px!important;height:32px!important;min-height:32px!important;display:grid!important;place-items:center!important;margin:0 0 2px 2px!important;border-radius:7px!important;background:#17171f!important}
+ body.nova-app-open:not(.os-mode) .fpanel{left:0!important;top:100px!important;bottom:0!important}
+ body.nova-app-open:not(.os-mode) #theater{left:0!important;top:100px!important;bottom:0!important}
+ body.nova-app-open:not(.os-mode).in-game .nova-topbar,body.nova-app-open:not(.os-mode).in-game #tbr{display:none!important}
+ body.nova-app-open:not(.os-mode).in-game #theater{left:0!important;top:0!important;bottom:0!important}
+}
 @media(max-width:760px){
  body:not(.os-mode) .fpanel,body:not(.os-mode) #theater{top:39px!important;bottom:62px!important;padding-top:0!important}
  body:not(.os-mode).in-game #theater{top:0!important;bottom:0!important}
  body.nova-app-open:not(.os-mode) #tbr{left:0!important;right:0!important;top:0!important;width:100%!important;height:39px!important;max-height:39px!important;display:flex!important;flex-direction:row!important;padding:3px 5px!important;background:#07070af2!important}
  body.nova-app-open:not(.os-mode) #tbr .tbt{width:auto!important;min-width:84px!important;max-width:120px!important;display:flex!important}
  body.nova-app-open:not(.os-mode) #tbr .tb-ttl{display:block!important}
+ body.nova-app-open:not(.os-mode) .nova-primary-links{justify-content:flex-start!important;overflow-x:auto!important;scroll-snap-type:x proximity}
+ body.nova-app-open:not(.os-mode) .nova-primary-links button{display:flex!important;flex:0 0 58px!important;scroll-snap-align:start}
+ body.nova-app-open:not(.os-mode) .nova-primary-links button:nth-last-child(-n+2){display:flex!important}
  body:not(.os-mode) .nova-library-toolbar{height:62px!important;padding:9px!important}
  body:not(.os-mode) .nova-game-search{width:100%!important}
  body:not(.os-mode) .nova-home-actions{display:none!important}
