@@ -220,7 +220,7 @@ Deno.serve(async (req: Request) => {
     if (action === "add") {
       const game = normalizeGame(body.game);
       if (parsed.games.some((item) => item.url === game.url)) return json(req, { error: "That game URL already exists" }, 409);
-      updatedSource = catalog.source.slice(0, parsed.close) + renderGame(game) + "\n" + catalog.source.slice(parsed.close);
+      const beforeClose = catalog.source.slice(0, parsed.close);\n      const separator = beforeClose.trimEnd().endsWith(",") ? "" : ",";\n      updatedSource = beforeClose + separator + "\n" + renderGame(game) + "\n" + catalog.source.slice(parsed.close);
       title = game.title;
       gameUrl = game.url;
     } else {
