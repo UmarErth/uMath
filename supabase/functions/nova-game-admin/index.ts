@@ -306,6 +306,44 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    if (action === "getLoader") {
+      return json(req, {
+        source: catalog.source,
+        sha: catalog.sha,
+        githubConfigured: Boolean(GITHUB_TOKEN),
+      });
+    }
+
+    if (action === "updateLoader") {
+      if (!GITHUB_TOKEN) return json(req, { error: "Add GITHUB_TOKEN to the Edge Function secrets first" }, 503);
+      const source = String(body.source ?? "");
+      const expectedSha = String(body.sha ?? "").trim();
+      const requestedMessage = String(body.message ?? "").replace(/[\r\n]+/g, " ").trim();
+      if (source.length < 10_000 || source.length > 1_500_000) {
+        return json(req, { error: "loader.js must be between 10 KB and 1.5 MB" }, 400);
+      }
+      if (!source.includes("function novaLoader") || !source.includes("const GAMES")) {
+        return json(req, { error: "This does not look like a valid Nova loader.js file" }, 400);
+      }
+      findGamesBlock(source);
+      if (!expectedSha || expectedSha !== catalog.sha) {
+        return json(req, { error: "loader.js changed on GitHub after you opened it. Reload the editor before saving." }, 409);
+      }
+      const message = (requestedMessage || "Edit loader.js via Nova Admin").slice(0, 120);
+      const commitSha = await commitCatalog(source, catalog.sha, message);
+      await serviceClient.from("nova_admin_audit").insert({
+        user_id: user.id,
+        action: "edit_loader",
+        game_title: "loader.js",
+        game_url: null,
+        github_commit_sha: commitSha || null,
+      });
+      EdgeRuntime.waitUntil(
+        fetch("https://purge.jsdelivr.net/gh/" + REPOSITORY + "@" + BRANCH + "/" + LOADER_PATH).catch(() => undefined),
+      );
+      return json(req, { ok: true, commitSha });
+    }
+
 
     if (action === "bulkUpload") {
       if (!GITHUB_TOKEN) return json(req, { error: "Add GITHUB_TOKEN to the Edge Function secrets first" }, 503);
