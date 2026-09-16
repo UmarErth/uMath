@@ -3171,6 +3171,21 @@ const nova = {
         return `<div class="os-about"><div class="os-about-logo">✦</div><h1>Nova Gaming</h1><p>${this.esc(SITE_TAGLINE)}</p><div class="os-about-grid"><div><small>Games</small><strong data-nova-game-count>${GAMES.length}</strong></div><div><small>Engine</small><strong>HyperGlass</strong></div><div><small>Interface</small><strong>OS Style</strong></div></div><p class="os-muted">A browser based desktop environment for games tools media and Nova apps</p></div>`;
     },
 
+    renderNovaDashboard(){
+        const root=document.getElementById("nova-dashboard");if(!root)return;
+        const recent=this._recentGames.map(url=>GAMES.find(game=>game.url===url)).filter(Boolean).slice(0,6);
+        const favoriteCount=this.favorites.length;
+        const continueGame=recent[0]||GAMES[0];
+        const recentHost=root.querySelector("[data-dashboard-recents]");
+        root.querySelector("[data-dashboard-games]").textContent=String(GAMES.length);
+        root.querySelector("[data-dashboard-favorites]").textContent=String(favoriteCount);
+        root.querySelector("[data-dashboard-continue-title]").textContent=continueGame?continueGame.title:"Browse the library";
+        root.querySelector("[data-dashboard-continue]").disabled=!continueGame;
+        root.querySelector("[data-dashboard-continue]").onclick=()=>continueGame&&this.launch(continueGame);
+        recentHost.innerHTML=recent.length?recent.map(game=>`<button class="nova-recent-chip" data-recent-url="${this.esc(encodeURIComponent(game.url))}"><span>${this.esc((game.title||"?").charAt(0).toUpperCase())}</span><strong>${this.esc(game.title)}</strong><small>Play again</small></button>`).join(""):`<div class="nova-dashboard-empty">Games you play will show up here</div>`;
+        recentHost.querySelectorAll("[data-recent-url]").forEach(button=>button.addEventListener("click",()=>{const game=GAMES.find(item=>item.url===decodeURIComponent(button.dataset.recentUrl));if(game)this.launch(game)}));
+    },
+
     // ── DOM CONSTRUCTION ────────────────────────────────────────
     buildDOM(){
         try{
@@ -3198,6 +3213,23 @@ const nova = {
                 <label class="nova-game-search"><span>⌕</span><input type="text" class="sbar" id="sbar" placeholder="Search games"></label>
                 <div class="nova-home-actions"><button class="mbtn" id="mbtn" aria-label="Menu"><span></span><span></span><span></span><b>Menu</b></button><button class="fvbtn" id="fvbtn" title="Favorites"><span>★</span><b>Favorites</b></button><button class="nova-quick-more" id="nova-command-more" title="More actions">More</button></div>
             </header>
+            <section class="nova-dashboard" id="nova-dashboard">
+                <div class="nova-dashboard-hero">
+                    <div><span class="nova-dashboard-eyebrow">NOVA WORKSPACE</span><h1>Everything you want<br>one click away</h1><p>Browse the web jump back into a game or open any Nova app without digging through menus</p></div>
+                    <div class="nova-dashboard-actions"><button class="nova-dashboard-primary" data-dashboard-action="browser"><span>◎</span><b>Open Browser</b><small>Search and browse</small></button><button data-dashboard-continue><span>▶</span><b>Continue playing</b><small data-dashboard-continue-title>Browse the library</small></button></div>
+                </div>
+                <div class="nova-dashboard-strip">
+                    <button data-dashboard-action="ai"><span>✦</span><b>Nova AI</b><small>Ask anything</small></button>
+                    <button data-dashboard-action="youtube"><span>▷</span><b>Video</b><small>Search and watch</small></button>
+                    <button data-dashboard-action="chat"><span>#</span><b>Nova Chat</b><small>Talk with everyone</small></button>
+                    <button data-dashboard-action="favorites"><span>★</span><b>Favorites</b><small><i data-dashboard-favorites>0</i> saved</small></button>
+                    <button data-dashboard-random><span>↝</span><b>Surprise me</b><small>Random game</small></button>
+                    <button data-dashboard-focus><span>◐</span><b>Focus mode</b><small>Hide distractions</small></button>
+                </div>
+                <div class="nova-dashboard-recents-head"><div><strong>Jump back in</strong><span>Your recent games</span></div><button data-dashboard-action="recent">View all</button></div>
+                <div class="nova-dashboard-recents" data-dashboard-recents></div>
+                <div class="nova-dashboard-stats"><span><b data-dashboard-games>${GAMES.length}</b> games ready</span><span><b>9</b> native apps</span><span><b>⌘ K</b> quick switch</span></div>
+            </section>
             <section class="nova-library-intro"><div><span class="nova-kicker">PLAY WITHOUT THE CLUTTER</span><h1>Your games, ready when you are.</h1><p>Search the full Nova library, jump into a favorite, or open a recently played game.</p></div><div class="nova-library-count"><strong data-nova-game-count>${GAMES.length}</strong><span>games available</span></div></section>
             <div class="nova-section-title"><div><span class="nova-section-dot"></span><strong>All games</strong></div><span>Pick one and start playing</span></div>
             <div id="grid"></div>`;
@@ -3327,6 +3359,10 @@ const nova = {
             }
         }));
         this.bindCommandPalette();
+        this.renderNovaDashboard();
+        app.querySelectorAll("[data-dashboard-action]").forEach(button=>button.addEventListener("click",()=>{const action=button.dataset.dashboardAction;if(action==="favorites"||action==="recent"){this.openWorkspaceTab("Games","home");this.onlyFavs=action==="favorites";this.filter();document.getElementById("sbar")?.focus();return}const titles={browser:"Browser",ai:"Nova AI",youtube:"Video",chat:"Chat"};this.openWorkspaceTab(titles[action]||"Nova",action)}));
+        app.querySelector("[data-dashboard-random]")?.addEventListener("click",()=>{const game=GAMES[Math.floor(Math.random()*GAMES.length)];if(game)this.launch(game)});
+        app.querySelector("[data-dashboard-focus]")?.addEventListener("click",event=>{document.body.classList.toggle("nova-focus-mode");event.currentTarget.classList.toggle("on",document.body.classList.contains("nova-focus-mode"))});
 
     },
 
@@ -3600,6 +3636,11 @@ const nova = {
 
     // ── GAME LAUNCHING & RELIABLE IFRAME ENGINE ─────────────────
     async launch(item){
+        if(item?.url){
+            this._recentGames=[item.url,...this._recentGames.filter(url=>url!==item.url)].slice(0,24);
+            try{localStorage.setItem("nova_recent_games",JSON.stringify(this._recentGames));}catch{}
+            this.renderNovaDashboard();
+        }
         if(item?.url && /^https:\/\/(?:www\.)?youtube\.com\/embed\//i.test(item.url)){
             const match=item.url.match(/\/embed\/([^?&#/]+)/i);
             if(match?.[1]){
@@ -5870,6 +5911,20 @@ body:not(.os-mode) .nova-home-actions{margin:0 0 0 8px!important}
 body:not(.os-mode) .nova-library-intro{display:none!important}
 body:not(.os-mode) .nova-section-title{padding-top:12px!important}
 body:not(.os-mode) #grid{padding-top:0!important}
+.nova-dashboard{width:min(1440px,calc(100% - 44px));margin:14px auto 22px;display:grid;gap:16px}
+.nova-dashboard-hero{position:relative;overflow:hidden;min-height:260px;display:flex;align-items:flex-end;justify-content:space-between;gap:24px;padding:36px;border:1px solid rgba(255,255,255,.09);border-radius:24px;background:radial-gradient(700px 300px at 78% 0,rgba(134,75,255,.34),transparent 65%),radial-gradient(500px 280px at 0 100%,rgba(47,221,187,.14),transparent 68%),#0b0b11;box-shadow:0 28px 90px rgba(0,0,0,.3)}
+.nova-dashboard-hero:after{content:"";position:absolute;width:330px;height:330px;right:9%;top:-54%;border:1px solid rgba(255,255,255,.09);border-radius:50%;box-shadow:0 0 0 45px rgba(255,255,255,.018),0 0 0 90px rgba(255,255,255,.012);pointer-events:none}
+.nova-dashboard-eyebrow{display:block;margin-bottom:13px;color:#a88bff;font-size:10px;font-weight:850;letter-spacing:.18em}
+.nova-dashboard h1{margin:0;color:#fff;font-size:clamp(35px,4.8vw,68px);line-height:.94;letter-spacing:-.055em}
+.nova-dashboard-hero p{max-width:580px;margin:18px 0 0;color:rgba(255,255,255,.5);font-size:14px;line-height:1.65}
+.nova-dashboard-actions{position:relative;z-index:1;display:grid;grid-template-columns:1fr 1fr;gap:10px;min-width:min(430px,42%)}
+.nova-dashboard-actions button,.nova-dashboard-strip button{border:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.045);color:#fff;text-align:left;cursor:pointer;transition:transform .18s ease,border-color .18s ease,background .18s ease}
+.nova-dashboard-actions button{min-height:98px;padding:18px;border-radius:17px}.nova-dashboard-actions button:hover,.nova-dashboard-strip button:hover,.nova-recent-chip:hover{transform:translateY(-3px);border-color:rgba(163,126,255,.45);background:rgba(137,83,255,.1)}
+.nova-dashboard-actions button span{float:left;margin-right:12px;font-size:22px;color:#a986ff}.nova-dashboard-actions b,.nova-dashboard-actions small,.nova-dashboard-strip b,.nova-dashboard-strip small{display:block}.nova-dashboard-actions b{font-size:13px}.nova-dashboard-actions small{margin-top:6px;color:rgba(255,255,255,.4);font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.nova-dashboard-actions .nova-dashboard-primary{background:linear-gradient(135deg,#7952ff,#9b6cff);border-color:transparent;box-shadow:0 14px 35px rgba(111,63,255,.28)}.nova-dashboard-actions .nova-dashboard-primary span,.nova-dashboard-actions .nova-dashboard-primary small{color:#fff}
+.nova-dashboard-strip{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}.nova-dashboard-strip button{min-width:0;padding:15px;border-radius:15px}.nova-dashboard-strip button>span{width:32px;height:32px;display:grid;place-items:center;margin-bottom:13px;border-radius:10px;background:rgba(151,111,255,.12);color:#a98aff;font-size:17px}.nova-dashboard-strip b{font-size:12px}.nova-dashboard-strip small{margin-top:4px;color:rgba(255,255,255,.36);font-size:9px}.nova-dashboard-strip small i{font-style:normal}.nova-dashboard-strip button.on{border-color:#9170ff;background:rgba(137,83,255,.14)}
+.nova-dashboard-recents-head{display:flex;align-items:end;justify-content:space-between;margin-top:5px}.nova-dashboard-recents-head strong,.nova-dashboard-recents-head span{display:block}.nova-dashboard-recents-head strong{font-size:17px}.nova-dashboard-recents-head span{margin-top:4px;color:rgba(255,255,255,.35);font-size:10px}.nova-dashboard-recents-head button{border:0;background:transparent;color:#a98aff;font:700 10px inherit;cursor:pointer}
+.nova-dashboard-recents{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}.nova-recent-chip{min-width:0;display:grid;grid-template-columns:42px minmax(0,1fr);grid-template-rows:1fr 1fr;column-gap:11px;padding:10px;border:1px solid rgba(255,255,255,.075);border-radius:14px;background:#0b0b10;color:#fff;text-align:left;cursor:pointer;transition:.18s}.nova-recent-chip>span{grid-row:1/3;width:42px;height:42px;display:grid;place-items:center;border-radius:11px;background:linear-gradient(135deg,#603ddd,#272038);font-weight:850}.nova-recent-chip strong,.nova-recent-chip small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.nova-recent-chip strong{align-self:end;font-size:10px}.nova-recent-chip small{color:rgba(255,255,255,.33);font-size:8px}.nova-dashboard-empty{grid-column:1/-1;padding:22px;border:1px dashed rgba(255,255,255,.09);border-radius:14px;color:rgba(255,255,255,.32);text-align:center;font-size:11px}
+.nova-dashboard-stats{display:flex;gap:22px;padding:0 4px;color:rgba(255,255,255,.3);font-size:9px}.nova-dashboard-stats b{color:rgba(255,255,255,.68);font-size:10px}.nova-focus-mode .nova-dashboard-strip,.nova-focus-mode .nova-dashboard-recents-head,.nova-focus-mode .nova-dashboard-recents,.nova-focus-mode .nova-dashboard-stats,.nova-focus-mode .nova-section-title{display:none!important}.nova-focus-mode .nova-dashboard-hero{min-height:340px}.nova-focus-mode #grid{grid-template-columns:repeat(auto-fill,minmax(210px,1fr))!important}
 body:not(.os-mode) .card{font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important;background:#0c0c10!important;border-color:rgba(255,255,255,.08)!important;border-radius:8px!important}
 body:not(.os-mode) .card h3{font-family:inherit!important;font-weight:650!important;letter-spacing:-.01em!important}
 body.nova-app-open:not(.os-mode) #tbr{display:flex!important;position:fixed!important;left:5px!important;top:112px!important;width:42px!important;max-height:calc(100vh - 440px)!important;height:auto!important;padding:0!important;gap:4px!important;flex-direction:column!important;background:transparent!important;border:0!important;z-index:7001!important}
@@ -5911,20 +5966,4 @@ body:not(.os-mode) #ai-panel .ai-drawer,body:not(.os-mode) .nova-chat-side{backg
  body:not(.os-mode) .fpanel,body:not(.os-mode) #theater{top:39px!important;bottom:62px!important;padding-top:0!important}
  body:not(.os-mode).in-game #theater{top:0!important;bottom:0!important}
  body.nova-app-open:not(.os-mode) #tbr{left:0!important;right:0!important;top:0!important;width:100%!important;height:39px!important;max-height:39px!important;display:flex!important;flex-direction:row!important;padding:3px 5px!important;background:#07070af2!important}
- body.nova-app-open:not(.os-mode) #tbr .tbt{width:auto!important;min-width:84px!important;max-width:120px!important;display:flex!important}
- body.nova-app-open:not(.os-mode) #tbr .tb-ttl{display:block!important}
- body.nova-app-open:not(.os-mode) .nova-primary-links{justify-content:flex-start!important;overflow-x:auto!important;scroll-snap-type:x proximity}
- body.nova-app-open:not(.os-mode) .nova-primary-links button{display:flex!important;flex:0 0 58px!important;scroll-snap-align:start}
- body.nova-app-open:not(.os-mode) .nova-primary-links button:nth-last-child(-n+2){display:flex!important}
- body:not(.os-mode) .nova-library-toolbar{height:62px!important;padding:9px!important}
- body:not(.os-mode) .nova-game-search{width:100%!important}
- body:not(.os-mode) .nova-home-actions{display:none!important}
-}
-`;
-document.head.appendChild(style);
-})();
-
-}
-if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",launchNova,{once:true});
-else launchNova();
-})();
+ body.nova-app-open:not(.os-mode) #tbr .tbt{width:auto!important;min-width:84px!impor
