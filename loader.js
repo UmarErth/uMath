@@ -2576,13 +2576,13 @@ const nova = {
 
     _novaAdminState:null,
     novaAdminState(){
-        if(!this._novaAdminState)this._novaAdminState={client:null,clientPromise:null,session:null,roots:new Set(),games:[],queue:[],query:"",githubConfigured:null,loading:false,uploading:false,progress:"",error:"",editor:null};
+        if(!this._novaAdminState)this._novaAdminState={client:null,clientPromise:null,session:null,roots:new Set(),games:[],queue:[],query:"",githubConfigured:null,githubStatus:"idle",loading:false,uploading:false,progress:"",error:"",editor:null};
         return this._novaAdminState;
     },
     novaAdminMarkup(){
         return '<div class="nova-admin-native">'+
           '<section class="nova-admin-login"><form class="nova-admin-login-card" autocomplete="off"><div class="nova-admin-brand"><span>N</span><div><strong>Nova Admin</strong><small>Game publishing studio</small></div></div><h2>Administrator login</h2><p>Use the existing Nova administrator account. Public registration is disabled.</p><label>Email<input data-admin-email type="email" autocomplete="off" required></label><label>Password<input data-admin-password type="password" autocomplete="off" required></label><button class="nova-admin-primary" data-admin-login-button type="submit">Sign in</button><div class="nova-admin-error" data-admin-login-error role="alert"></div></form></section>'+
-          '<section class="nova-admin-dashboard" hidden><header><div><strong>Game Publisher</strong><small data-admin-account></small></div><div class="nova-admin-head-actions"><span class="nova-admin-connection" data-admin-connection><i></i>Checking GitHub</span><button data-admin-signout type="button">Sign out</button></div></header><main>'+
+          '<section class="nova-admin-dashboard" hidden><header><div><strong>Game Publisher</strong><small data-admin-account></small></div><div class="nova-admin-head-actions"><span class="nova-admin-connection" data-admin-connection><i></i>Checking GitHub</span><button data-admin-retry type="button" hidden>Retry</button><button data-admin-signout type="button">Sign out</button></div></header><main>'+
           '<div class="nova-admin-hero"><div><span>NOVA CONTENT</span><h2>Upload games in bulk</h2><p>Select or drop a whole group of HTML games. Nova batches them safely and commits each batch to GitHub with catalog entries included.</p></div><button class="nova-admin-secondary" data-admin-add-link type="button">Add URL instead</button></div>'+
           '<div class="nova-admin-setup" data-admin-setup hidden>GitHub uploads need the <b>GITHUB_TOKEN</b> Edge Function secret with Contents read/write access to UmarErth/uMath.</div>'+
           '<input data-admin-files type="file" accept=".html,.htm,text/html" multiple hidden><button class="nova-admin-drop" data-admin-drop type="button"><b>＋</b><strong>Drop HTML games here</strong><span>or click to choose as many files as you want</span></button>'+
@@ -2614,7 +2614,9 @@ const nova = {
     },
     async novaAdminCall(body){
         const client=await this.novaAdminClient();
-        const result=await client.functions.invoke("nova-game-admin",{body});
+        let timer;
+        const timeout=new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error("GitHub check timed out")),15000)});
+        const result=await Promise.race([client.functions.invoke("nova-game-admin",{body}),timeout]).finally(()=>clearTimeout(timer));
         if(result.error){
             let message=result.error.message||"Admin request failed";
             try{const payload=await result.error.context?.json();if(payload?.error)message=payload.error;}catch{}
@@ -2638,6 +2640,7 @@ const nova = {
             button.disabled=false;button.textContent="Sign in";
         });
         root.querySelector("[data-admin-signout]").addEventListener("click",async()=>{const client=await this.novaAdminClient();await client.auth.signOut()});
+        root.querySelector("[data-admin-retry]").addEventListener("click",()=>this.novaAdminLoad(true));
         const fileInput=root.querySelector("[data-admin-files]");
         const drop=root.querySelector("[data-admin-drop]");
         drop.addEventListener("click",()=>fileInput.click());
@@ -2691,8 +2694,10 @@ const nova = {
             root.querySelector("[data-admin-account]").textContent=state.session.user.email||"Administrator";
             const connection=root.querySelector("[data-admin-connection]");
             connection.classList.toggle("on",state.githubConfigured===true);
-            connection.classList.toggle("warn",state.githubConfigured===false);
-            connection.lastChild.textContent=state.githubConfigured===true?"GitHub connected":state.githubConfigured===false?"GitHub setup needed":"Checking GitHub";
+            connection.classList.toggle("warn",state.githubConfigured===false||state.githubStatus==="error");
+            connection.lastChild.textContent=state.githubConfigured===true?"GitHub connected":state.githubConfigured===false?"GitHub setup needed":state.githubStatus==="error"?"GitHub check failed":"Checking GitHub";
+            connection.title=state.githubStatus==="error"?(state.error||"Could not reach the admin service"):"";
+            root.querySelector("[data-admin-retry]").hidden=state.githubStatus!=="error";
             root.querySelector("[data-admin-setup]").hidden=state.githubConfigured!==false;
             const queue=root.querySelector("[data-admin-queue]");
             root.querySelector("[data-admin-queue-card]").hidden=!state.queue.length;
@@ -2727,15 +2732,16 @@ const nova = {
         if(bytes<1048576)return(bytes/1024).toFixed(1)+" KB";
         return(bytes/1048576).toFixed(1)+" MB";
     },
-    async novaAdminLoad(){
-        const state=this.novaAdminState();if(!state.session||state.loading)return;
-        state.loading=true;state.error="";this.novaAdminRender();
+    async novaAdminLoad(force=false){
+        const state=this.novaAdminState();if(!state.session||(state.loading&&!force))return;
+        state.loading=true;state.githubConfigured=null;state.githubStatus="checking";state.error="";this.novaAdminRender();
         try{
             const data=await this.novaAdminCall({action:"list"});
             state.games=Array.isArray(data.games)?data.games:[];
             state.githubConfigured=Boolean(data.githubConfigured);
+            state.githubStatus=state.githubConfigured?"connected":"setup";
             state.games.forEach(game=>{if(!GAMES.some(existing=>existing.url===game.url))GAMES.push({...game})});
-        }catch(error){state.error=error.message||"Could not load games";}
+        }catch(error){state.githubConfigured=null;state.githubStatus="error";state.error=error.message||"Could not load games";}
         state.loading=false;this.novaAdminRender();
     },
     async novaAdminFileBase64(file){
