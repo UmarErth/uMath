@@ -5966,4 +5966,22 @@ body:not(.os-mode) #ai-panel .ai-drawer,body:not(.os-mode) .nova-chat-side{backg
  body:not(.os-mode) .fpanel,body:not(.os-mode) #theater{top:39px!important;bottom:62px!important;padding-top:0!important}
  body:not(.os-mode).in-game #theater{top:0!important;bottom:0!important}
  body.nova-app-open:not(.os-mode) #tbr{left:0!important;right:0!important;top:0!important;width:100%!important;height:39px!important;max-height:39px!important;display:flex!important;flex-direction:row!important;padding:3px 5px!important;background:#07070af2!important}
- body.nova-app-open:not(.os-mode) #tbr .tbt{width:auto!important;min-width:84px!impor
+ body.nova-app-open:not(.os-mode) #tbr .tbt{width:auto!important;min-width:84px!important;max-width:120px!important;display:flex!important}
+ body.nova-app-open:not(.os-mode) #tbr .tb-ttl{display:block!important}
+ body.nova-app-open:not(.os-mode) .nova-primary-links{justify-content:flex-start!important;overflow-x:auto!important;scroll-snap-type:x proximity}
+ body.nova-app-open:not(.os-mode) .nova-primary-links button{display:flex!important;flex:0 0 58px!important;scroll-snap-align:start}
+ body.nova-app-open:not(.os-mode) .nova-primary-links button:nth-last-child(-n+2){display:flex!important}
+ body:not(.os-mode) .nova-library-toolbar{height:62px!important;padding:9px!important}
+ body:not(.os-mode) .nova-game-search{width:100%!important}
+ body:not(.os-mode) .nova-home-actions{display:none!important}
+ .nova-dashboard{width:calc(100% - 20px);margin:8px auto 16px;gap:12px}.nova-dashboard-hero{min-height:0;display:block;padding:24px 20px;border-radius:19px}.nova-dashboard h1{font-size:38px}.nova-dashboard-hero p{font-size:12px}.nova-dashboard-actions{min-width:0;margin-top:22px;grid-template-columns:1fr}.nova-dashboard-actions button{min-height:72px}.nova-dashboard-strip{grid-template-columns:repeat(3,minmax(0,1fr))}.nova-dashboard-strip button{padding:12px}.nova-dashboard-recents{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:4px}.nova-recent-chip{flex:0 0 180px;scroll-snap-align:start}.nova-dashboard-stats{overflow-x:auto;white-space:nowrap}.nova-dashboard-hero:after{display:none}
+}
+@media(min-width:761px) and (max-width:1050px){.nova-dashboard-hero{align-items:stretch;flex-direction:column}.nova-dashboard-actions{min-width:0;width:100%}.nova-dashboard-strip,.nova-dashboard-recents{grid-template-columns:repeat(3,minmax(0,1fr))}}
+`;
+document.head.appendChild(style);
+})();
+
+}
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",launchNova,{once:true});
+else launchNova();
+})();
