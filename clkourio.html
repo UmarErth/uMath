@@ -13,7 +13,7 @@
     <script>
         const isDiscord = window.location.hostname.includes('discord');
         function getAssetUrl(path) {
-            return isDiscord ? '/.proxy/kour/' + path : 'https://kour.io/' + path;
+            return isDiscord ? '/./kour/' + path : 'https://kour.io/' + path;
         }
         if (isDiscord) {
             const idsToRemove = ['data-link', 'framework-link', 'code-link'];
@@ -1808,7 +1808,7 @@ return "https://cdn.jsdelivr.net/gh/Pok12d/ta@main/kour/" + original.split("http
     <script>
         //v2
         const firebaseBase = isDiscord
-            ? '/.proxy/gstatic/firebasejs/10.8.0/'
+            ? '/./gstatic/firebasejs/10.8.0/'
             : 'https://www.gstatic.com/firebasejs/10.8.0/';
 
         const firebaseScripts = [
