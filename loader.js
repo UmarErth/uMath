@@ -2616,7 +2616,7 @@ const nova = {
     },
     async novaAdminCall(body){
         const client=await this.novaAdminClient();
-        const timeoutMs=["getLoader","updateLoader"].includes(body?.action)?45000:15000;
+        const timeoutMs=["list","getLoader","updateLoader"].includes(body?.action)?45000:15000;
         let timer;
         const timeout=new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error("Admin request timed out")),timeoutMs)});
         const result=await Promise.race([client.functions.invoke("nova-game-admin",{body}),timeout]).finally(()=>clearTimeout(timer));
@@ -2705,7 +2705,10 @@ const nova = {
             connection.lastChild.textContent=state.githubConfigured===true?"GitHub connected":state.githubConfigured===false?"GitHub setup needed":state.githubStatus==="error"?"GitHub check failed":"Checking GitHub";
             connection.title=state.githubStatus==="error"?(state.error||"Could not reach the admin service"):"";
             root.querySelector("[data-admin-retry]").hidden=state.githubStatus!=="error";
-            root.querySelector("[data-admin-setup]").hidden=state.githubConfigured!==false;
+            const setup=root.querySelector("[data-admin-setup]");
+            setup.hidden=state.githubConfigured!==false&&state.githubStatus!=="error";
+            if(state.githubStatus==="error")setup.textContent="Could not check GitHub · "+(state.error||"Unknown admin service error");
+            else setup.innerHTML='GitHub uploads need the <b>GITHUB_TOKEN</b> Edge Function secret with Contents read/write access to UmarErth/uMath.';
             const queue=root.querySelector("[data-admin-queue]");
             root.querySelector("[data-admin-queue-card]").hidden=!state.queue.length;
             root.querySelector("[data-admin-queue-count]").textContent=state.queue.length+" file"+(state.queue.length===1?"":"s");
