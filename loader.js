@@ -3204,7 +3204,7 @@ const nova = {
                 <button id="nova-command-button" class="nova-side-search" type="button" title="Quick switch"><span>⌕ Search anything</span><kbd>⌘ K</kbd></button>
                 <div class="nova-sidebar-pins"><button data-nova-action="browser" title="Browser">◎</button><button data-nova-action="chat" title="Chat">#</button><button id="nova-sidebar-add" title="Open command center">＋</button></div>
                 <div class="nova-side-caption">Workspace</div>
-                <div class="nova-primary-links"><button data-nova-action="browser" class="active"><i>◎</i><span>Browser</span></button><button data-nova-action="home"><i>⌂</i><span>Games</span></button><button data-nova-action="ai"><i>✦</i><span>Nova AI</span></button><button data-nova-action="youtube"><i>▷</i><span>Video</span></button><button data-nova-action="anime"><i>◆</i><span>Anime</span></button><button data-nova-action="chat"><i>#</i><span>Chat</span></button><button data-nova-action="settings"><i>⚙</i><span>Settings</span></button><button data-nova-action="admin"><i>◇</i><span>Admin</span></button><button data-nova-action="os"><i>▦</i><span>Desktop</span></button></div>
+                <div class="nova-primary-links"><button data-nova-action="home" class="active"><i>⌂</i><span>Games</span></button><button data-nova-action="browser"><i>◎</i><span>Browser</span></button><button data-nova-action="ai"><i>✦</i><span>Nova AI</span></button><button data-nova-action="youtube"><i>▷</i><span>Video</span></button><button data-nova-action="anime"><i>◆</i><span>Anime</span></button><button data-nova-action="chat"><i>#</i><span>Chat</span></button><button data-nova-action="settings"><i>⚙</i><span>Settings</span></button><button data-nova-action="admin"><i>◇</i><span>Admin</span></button><button data-nova-action="os"><i>▦</i><span>Desktop</span></button></div>
             </nav>
             <div id="tbr"><button class="tb-new" id="tb-new" title="New tab">+</button></div>
             <header class="nova-library-toolbar">
@@ -3319,10 +3319,10 @@ const nova = {
         adp.innerHTML=this.novaAdminMarkup();
         document.body.appendChild(adp);
 
-        // Nova is browser first. Games remain available as a native workspace.
+        // Nova opens directly into the game dashboard.
         if(!this._educationFirstBoot){
             this.renderCards();
-            this.tabNew("New Tab","browser");
+            this.tabNew("Games","home");
         }
         this.uiModeInit();
 
