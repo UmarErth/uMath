@@ -9,26 +9,8 @@ const BRANCH = Deno.env.get("GITHUB_BRANCH") ?? "main";
 const LOADER_PATH = "loader.js";
 const API_VERSION = "2022-11-28";
 
-const trustedOrigin = (origin: string) => {
-  if (!origin) return "";
-  try {
-    const { hostname, protocol } = new URL(origin);
-    if (protocol !== "https:" && origin !== "http://localhost:3000" && origin !== "http://localhost:5173") return "";
-    return hostname === "nova.staticdomains.app" ||
-      hostname === "cdn.jsdelivr.net" ||
-      hostname === "umarerth.github.io" ||
-      hostname.endsWith(".staticdomains.app") ||
-      hostname.endsWith(".static.app") ||
-      hostname.endsWith(".github.io")
-      ? origin
-      : "";
-  } catch {
-    return "";
-  }
-};
-
 const cors = (req: Request) => ({
-  "Access-Control-Allow-Origin": trustedOrigin(req.headers.get("Origin") ?? "") || "https://nova.staticdomains.app",
+  "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Vary": "Origin",
@@ -145,6 +127,12 @@ const loadCatalog = async () => {
     { headers: githubHeaders() },
   );
   const payload = await response.json();
+  if (response.status === 401 && GITHUB_TOKEN) {
+    throw new Error("GitHub rejected GITHUB_TOKEN. Replace it in Supabase Edge Function secrets.");
+  }
+  if (response.status === 403 && GITHUB_TOKEN) {
+    throw new Error("GITHUB_TOKEN cannot read UmarErth/uMath. Check its repository and Contents permissions.");
+  }
   if (!response.ok) throw new Error(payload?.message || `GitHub returned ${response.status}`);
   return { source: decodeBase64Utf8(payload.content), sha: String(payload.sha) };
 };
