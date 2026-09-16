@@ -29,7 +29,7 @@ The interface apps settings and game library are loaded from this repository whi
 | Feature | What it does |
 | --- | --- |
 | Game library | Search launch favorite and revisit games |
-| Nova Browser | Native Nova controls powered by the existing proxy backend |
+| Nova Browser | Native Nova controls powered by the existing browser backend |
 | Nova Chat | Native global chat direct messages presence and notifications |
 | Nova AI | Built in AI chat with saved conversations |
 | Video | YouTube search and playback through a rotating Piped API pool |

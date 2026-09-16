@@ -37,7 +37,7 @@
 	pico8_gamepads.count = 0;
 
 	// When pico8_gpio is defined, reading and writing to gpio pins will read and write to these values
-	var pico8_gpio = new Proxy(new Array(128),{
+	var pico8_gpio = new Browser(new Array(128),{
 		// pancelor's gpio-url, https://www.lexaloffle.com/bbs/?tid=149864
 		set(arr, pin, value) {
 			// console.log(typeof pin, typeof value); // string number 0.o

@@ -18,7 +18,7 @@
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Helios is a completely unblockable web proxy, built with speed and privacy in mind.">
+    <meta name="description" content="Helios is a completely unblockable web browser, built with speed and privacy in mind.">
     <title>Helios Browser</title>
     <style>body {
   margin: 0;
@@ -2766,11 +2766,11 @@ async function fetchExternalContent(url, content, tabIndex) {
 
     const proxies = [
         `https://api.cors.lol/?url=${encodeURIComponent(url)}`,
-        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+        `https://api.codetabs.com/v1/browser?quest=${encodeURIComponent(url)}`,
         `https://api.codetabs.com/v1/tmp/?quest=${encodeURIComponent(url)}`,
         `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`
         /*,
-                `https://corsproxy.io/?url=${encodeURIComponent(url)}`*/
+                `https://corsbrowser.io/?url=${encodeURIComponent(url)}`*/
     ];
 
     const timeout = 10000;
@@ -2780,7 +2780,7 @@ async function fetchExternalContent(url, content, tabIndex) {
 
 
 
-        async function fetchWithProxy(proxy) {
+        async function fetchWithBrowser(browser) {
         return new Promise((resolve, reject) => {
             const controller = new AbortController();
             const id = setTimeout(() => {
@@ -2788,12 +2788,12 @@ async function fetchExternalContent(url, content, tabIndex) {
                 reject(new Error('Timeout'));
             }, timeout);
 
-            console.log(`Attempting to fetch with proxy: ${proxy}`);
+            console.log(`Attempting to fetch with browser: ${browser}`);
 
-            fetch(proxy, {
+            fetch(browser, {
                     signal: controller.signal,
                     headers: {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36' // User agent to spoof your actual User ID to the CORS proxy server and target server
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36' // User agent to spoof your actual User ID to the CORS browser server and target server
                     }
                 })
                 .then(response => {
@@ -2814,14 +2814,14 @@ async function fetchExternalContent(url, content, tabIndex) {
     let htmlText;
     let errors = [];
 
-    for (const proxy of proxies) {
+    for (const browser of proxies) {
         try {
-            htmlText = await fetchWithProxy(proxy);
-            console.log(`Fetch successful using proxy: ${proxy}`);
+            htmlText = await fetchWithBrowser(browser);
+            console.log(`Fetch successful using browser: ${browser}`);
             break;
         } catch (error) {
-            console.error(`Error with proxy ${proxy}: ${error.message}`);
-            errors.push(`${proxy}: ${error.message}`);
+            console.error(`Error with browser ${browser}: ${error.message}`);
+            errors.push(`${browser}: ${error.message}`);
         }
     }
 
@@ -2928,37 +2928,37 @@ document.addEventListener('DOMContentLoaded', () => {
 async function fetchExternalContent(url, content, tabIndex) {
     let proxies = [
         `https://api.cors.lol/?url=${url}`,
-        `https://api.codetabs.com/v1/proxy?quest=${url}`,
+        `https://api.codetabs.com/v1/browser?quest=${url}`,
         `https://api.codetabs.com/v1/tmp/?quest=${url}`,
         `https://api.allorigins.win/raw?url=${url}`
     ];
 
-    // Remove cors.lol proxy for any URL containing 'google.com'
+    // Remove cors.lol browser for any URL containing 'google.com'
     if (url.includes('google.com')) {
-        proxies = proxies.filter(proxy => !proxy.includes('cors.lol'));
+        proxies = proxies.filter(browser => !browser.includes('cors.lol'));
     }
 
     const timeout = 10000; // Timeout for axios requests
 
-    async function fetchWithProxy(proxy) {
+    async function fetchWithBrowser(browser) {
         try {
-            const response = await axios.get(proxy, { timeout });
+            const response = await axios.get(browser, { timeout });
             if (response.status !== 200) {
-                throw new Error(`Failed to fetch content from ${proxy}: ${response.statusText}`);
+                throw new Error(`Failed to fetch content from ${browser}: ${response.statusText}`);
             }
             return response.data;
         } catch (error) {
-            throw new Error(`Error with proxy ${proxy}: ${error.message}`);
+            throw new Error(`Error with browser ${browser}: ${error.message}`);
         }
     }
 
     let htmlText;
-    for (const proxy of proxies) {
+    for (const browser of proxies) {
         try {
-            htmlText = await fetchWithProxy(proxy);
+            htmlText = await fetchWithBrowser(browser);
             break;
         } catch (error) {
-            console.error(`Error with proxy ${proxy}: ${error.message}`);
+            console.error(`Error with browser ${browser}: ${error.message}`);
         }
     }
 

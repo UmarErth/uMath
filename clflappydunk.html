@@ -82,10 +82,10 @@
         if (!shouldDecompress)
           return Promise.resolve(codeUrl);
 
-        const proxy = { onResolve: () => {} };
+        const browser = { onResolve: () => {} };
         const blobType = typeToBlob[type] || typeToBlob["binary"];
-        const promise = new Promise((resolve) => proxy.onResolve = resolve);
-        DecompressFile(codeUrl, blobType, (file) => proxy.onResolve(file));
+        const promise = new Promise((resolve) => browser.onResolve = resolve);
+        DecompressFile(codeUrl, blobType, (file) => browser.onResolve(file));
 
         return promise;
       }

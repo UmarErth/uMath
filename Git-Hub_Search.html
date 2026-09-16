@@ -598,23 +598,23 @@ document.querySelectorAll('input[type="checkbox"], input[type="radio"]').forEach
             if (!repo.default_branch) throw new Error('Default branch not found');
             const zipUrl = `https://github.com/${fullName}/archive/refs/heads/${repo.default_branch}.zip`;
             const codetabsTmpUrl = `https://api.codetabs.com/v1/tmp?quest=${encodeURIComponent(zipUrl)}`;
-            const codetabsProxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(zipUrl)}`;
+            const codetabsBrowserUrl = `https://api.codetabs.com/v1/browser?quest=${encodeURIComponent(zipUrl)}`;
 
             fetch(codetabsTmpUrl)
                 .then(response => {
-                    if (!response.ok) throw new Error('Tmp proxy failed');
+                    if (!response.ok) throw new Error('Tmp browser failed');
                     return response.blob();
                 })
                 .then(blob => triggerDownload(blob, `${fullName.replace('/', '-')}-${repo.default_branch}.zip`))
                 .catch(() => {
-                    fetch(codetabsProxyUrl)
+                    fetch(codetabsBrowserUrl)
                         .then(response => {
-                            if (!response.ok) throw new Error('Proxy failed');
+                            if (!response.ok) throw new Error('Browser failed');
                             return response.blob();
                         })
                         .then(blob => triggerDownload(blob, `${fullName.replace('/', '-')}-${repo.default_branch}.zip`))
                         .catch(error => {
-                            alert('Failed to download ZIP file via proxy. Please try again.');
+                            alert('Failed to download ZIP file via browser. Please try again.');
                             console.error('Download error:', error);
                         });
                 });
