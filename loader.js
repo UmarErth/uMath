@@ -3616,6 +3616,7 @@ const nova = {
         const theater=document.getElementById("theater");
         const isGame=action==="game"&&tabObj;
         document.body.classList.toggle("nova-app-open",Boolean(next||isGame||action==="home"));
+        document.body.classList.toggle("nova-home-open",action==="home"||action==="favorites");
         const immersive=(isGame&&this.preference("immersiveGames",true))||(action==="browser"&&this.preference("immersiveBrowser",false));
         document.body.classList.toggle("nova-immersive",immersive);
         theater.classList.toggle("on",isGame);
@@ -5925,6 +5926,10 @@ body:not(.os-mode) #grid{padding-top:0!important}
 .nova-dashboard-recents-head{display:flex;align-items:end;justify-content:space-between;margin-top:5px}.nova-dashboard-recents-head strong,.nova-dashboard-recents-head span{display:block}.nova-dashboard-recents-head strong{font-size:17px}.nova-dashboard-recents-head span{margin-top:4px;color:rgba(255,255,255,.35);font-size:10px}.nova-dashboard-recents-head button{border:0;background:transparent;color:#a98aff;font:700 10px inherit;cursor:pointer}
 .nova-dashboard-recents{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}.nova-recent-chip{min-width:0;display:grid;grid-template-columns:42px minmax(0,1fr);grid-template-rows:1fr 1fr;column-gap:11px;padding:10px;border:1px solid rgba(255,255,255,.075);border-radius:14px;background:#0b0b10;color:#fff;text-align:left;cursor:pointer;transition:.18s}.nova-recent-chip>span{grid-row:1/3;width:42px;height:42px;display:grid;place-items:center;border-radius:11px;background:linear-gradient(135deg,#603ddd,#272038);font-weight:850}.nova-recent-chip strong,.nova-recent-chip small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.nova-recent-chip strong{align-self:end;font-size:10px}.nova-recent-chip small{color:rgba(255,255,255,.33);font-size:8px}.nova-dashboard-empty{grid-column:1/-1;padding:22px;border:1px dashed rgba(255,255,255,.09);border-radius:14px;color:rgba(255,255,255,.32);text-align:center;font-size:11px}
 .nova-dashboard-stats{display:flex;gap:22px;padding:0 4px;color:rgba(255,255,255,.3);font-size:9px}.nova-dashboard-stats b{color:rgba(255,255,255,.68);font-size:10px}.nova-focus-mode .nova-dashboard-strip,.nova-focus-mode .nova-dashboard-recents-head,.nova-focus-mode .nova-dashboard-recents,.nova-focus-mode .nova-dashboard-stats,.nova-focus-mode .nova-section-title{display:none!important}.nova-focus-mode .nova-dashboard-hero{min-height:340px}.nova-focus-mode #grid{grid-template-columns:repeat(auto-fill,minmax(210px,1fr))!important}
+body.nova-home-open:not(.os-mode) #app{height:100vh!important;height:100dvh!important;overflow-x:hidden!important;overflow-y:auto!important;overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch;scrollbar-gutter:stable}
+body.nova-home-open:not(.os-mode) #grid{flex:none!important;min-height:auto!important;overflow:visible!important}
+body.nova-home-open:not(.os-mode) .nova-library-toolbar,body.nova-home-open:not(.os-mode) .nova-dashboard,body.nova-home-open:not(.os-mode) .nova-section-title{flex-shrink:0}
+body.nova-home-open:not(.os-mode) #app::-webkit-scrollbar{width:9px}body.nova-home-open:not(.os-mode) #app::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border:2px solid transparent;border-radius:10px;background-clip:padding-box}
 body:not(.os-mode) .card{font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important;background:#0c0c10!important;border-color:rgba(255,255,255,.08)!important;border-radius:8px!important}
 body:not(.os-mode) .card h3{font-family:inherit!important;font-weight:650!important;letter-spacing:-.01em!important}
 body.nova-app-open:not(.os-mode) #tbr{display:flex!important;position:fixed!important;left:5px!important;top:112px!important;width:42px!important;max-height:calc(100vh - 440px)!important;height:auto!important;padding:0!important;gap:4px!important;flex-direction:column!important;background:transparent!important;border:0!important;z-index:7001!important}
@@ -5974,9 +5979,11 @@ body:not(.os-mode) #ai-panel .ai-drawer,body:not(.os-mode) .nova-chat-side{backg
  body:not(.os-mode) .nova-library-toolbar{height:62px!important;padding:9px!important}
  body:not(.os-mode) .nova-game-search{width:100%!important}
  body:not(.os-mode) .nova-home-actions{display:none!important}
+ body.nova-home-open:not(.os-mode) #app{padding-top:39px!important;padding-bottom:72px!important}
  .nova-dashboard{width:calc(100% - 20px);margin:8px auto 16px;gap:12px}.nova-dashboard-hero{min-height:0;display:block;padding:24px 20px;border-radius:19px}.nova-dashboard h1{font-size:38px}.nova-dashboard-hero p{font-size:12px}.nova-dashboard-actions{min-width:0;margin-top:22px;grid-template-columns:1fr}.nova-dashboard-actions button{min-height:72px}.nova-dashboard-strip{grid-template-columns:repeat(3,minmax(0,1fr))}.nova-dashboard-strip button{padding:12px}.nova-dashboard-recents{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:4px}.nova-recent-chip{flex:0 0 180px;scroll-snap-align:start}.nova-dashboard-stats{overflow-x:auto;white-space:nowrap}.nova-dashboard-hero:after{display:none}
 }
 @media(min-width:761px) and (max-width:1050px){.nova-dashboard-hero{align-items:stretch;flex-direction:column}.nova-dashboard-actions{min-width:0;width:100%}.nova-dashboard-strip,.nova-dashboard-recents{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(min-width:761px) and (max-height:720px){.nova-dashboard-hero{min-height:205px;padding:24px}.nova-dashboard h1{font-size:44px}.nova-dashboard-hero p{margin-top:10px}.nova-dashboard-actions button{min-height:78px;padding:14px}.nova-dashboard-strip button{padding:11px}.nova-dashboard-strip button>span{margin-bottom:8px}}
 `;
 document.head.appendChild(style);
 })();
