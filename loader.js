@@ -3362,6 +3362,7 @@ const nova = {
 
         const refreshOpenGameViews=()=>{
             document.querySelectorAll("[data-nova-game-count]").forEach(el=>{el.textContent=String(GAMES.length);});
+            this.renderNovaDashboard();
 
             // The live repository scan finishes after the Classic grid is first
             // painted. Rebuild it so newly discovered games appear as cards too,
