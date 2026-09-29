@@ -109,7 +109,11 @@ const SAVE_URL      = "https://cdn.jsdelivr.net/gh/UmarErth/uMath@main/singlefil
 const SAVE_FILENAME = "NovaGaming.html";
 
 // ─── GOOGLE GEMINI AI CONFIG ────────────────────────────────────
-const GEMINI_API_KEY = typeof window.NOVA_API_KEYS?.gemini === "string" ? window.NOVA_API_KEYS.gemini : "AQ.Ab8RN6Ib4cwqUsTDoR_tnt5KVVKF7GUiRwP4OCq6bEuvskhtJg";
+// The deployment can inject a key before loader.js with
+// window.NOVA_API_KEYS = { gemini: "..." }. Never ship a credential in the
+// public bundle: expired public keys made the UI claim it was connected while
+// every request actually failed with a 401.
+const GEMINI_API_KEY = typeof window.NOVA_API_KEYS?.gemini === "string" ? window.NOVA_API_KEYS.gemini.trim() : "";
 const DEFAULT_UI_MODE = "classic";
 
 // ─── PIPED VIDEO API POOL ───────────────────────────────────────
@@ -814,7 +818,7 @@ const nova = {
     _animeState:"overview",
     _htmlCache: new Map(),
     _aiChats:[], _currentChatId:null, _aiGenerating:false,
-    _aiModels:[], _selectedModel:"gemini-3.6-flash",
+    _aiModels:[], _selectedModel:"gemini-3.8-flash",
     _aiAttachments:[],
     isLowSpec: false,
 
@@ -2862,7 +2866,7 @@ const nova = {
     },
 
     novaBrowserMarkup(){
-        return '<div class="nova-native-app nova-browser-native"><div class="nova-native-top"><div class="nova-app-mark">N</div><button class="nova-round-btn" data-browser="back" aria-label="Back">‹</button><button class="nova-round-btn" data-browser="forward" aria-label="Forward">›</button><button class="nova-round-btn" data-browser="reload" aria-label="Reload">↻</button><form class="nova-address-form"><span class="nova-lock">◇</span><input class="nova-browser-address" value="" placeholder="Search or enter a URL" autocomplete="off" aria-label="Address"><button class="nova-go-btn" type="submit">Go</button></form></div><div class="nova-browser-stage"><section class="nova-browser-home"><div class="nova-browser-hero"><span class="nova-browser-logo">N</span><h2>Where to?</h2><p data-browser-status>Starting secure proxy…</p><button class="nova-browser-retry" data-browser="retry" type="button" hidden>Retry proxy</button><form class="nova-home-search"><input placeholder="Search the web" autocomplete="off"><button type="submit">Search</button></form><div class="nova-browser-shortcuts"><button data-url="https://www.google.com">G<span>Google</span></button><button data-url="https://piped.video">▶<span>Piped</span></button><button data-url="https://en.wikipedia.org">W<span>Wikipedia</span></button><button data-url="https://discord.com">D<span>Discord</span></button></div></div></section><iframe class="nova-browser-frame" title="Nova Browser page" allow="clipboard-read; clipboard-write; downloads; fullscreen; storage-access-by-user-activation"></iframe><div class="nova-browser-loading"><i></i></div></div></div>';
+        return '<div class="nova-native-app nova-browser-native"><div class="nova-native-top"><div class="nova-app-mark">N</div><button class="nova-round-btn" data-browser="back" aria-label="Back">‹</button><button class="nova-round-btn" data-browser="forward" aria-label="Forward">›</button><button class="nova-round-btn" data-browser="reload" aria-label="Reload">↻</button><form class="nova-address-form"><span class="nova-lock">◇</span><input class="nova-browser-address" value="" placeholder="Search or enter a URL" autocomplete="off" aria-label="Address"><button class="nova-go-btn" type="submit">Go</button></form></div><div class="nova-browser-stage"><section class="nova-browser-home"><div class="nova-browser-hero"><span class="nova-browser-logo">N</span><h2>Where to?</h2><p data-browser-status>Starting Nova Browser…</p><button class="nova-browser-retry" data-browser="retry" type="button" hidden>Retry Browser</button><form class="nova-home-search"><input placeholder="Search the web" autocomplete="off"><button type="submit">Search</button></form><div class="nova-browser-shortcuts"><button data-url="https://www.google.com">G<span>Google</span></button><button data-url="https://piped.video">▶<span>Piped</span></button><button data-url="https://en.wikipedia.org">W<span>Wikipedia</span></button><button data-url="https://discord.com">D<span>Discord</span></button></div></div></section><iframe class="nova-browser-frame" title="Nova Browser page" allow="clipboard-read; clipboard-write; downloads; fullscreen; storage-access-by-user-activation"></iframe><div class="nova-browser-loading"><i></i></div></div></div>';
     },
     novaBrowserEncode(url){
         const bytes=new TextEncoder().encode(url);
@@ -2880,8 +2884,19 @@ const nova = {
         const loading=root.querySelector(".nova-browser-loading");
         const status=root.querySelector("[data-browser-status]");
         const retry=root.querySelector('[data-browser="retry"]');
-        const state={history:[],index:-1,ready:false,pending:null,bootTimer:null};
+        const state={ready:false,pending:null,bootTimer:null,standalone:{browserHistory:[],browserIndex:-1,url:""}};
         root._novaBrowserState=state;
+        const isWorkspace=Boolean(root.closest("#browser-panel"));
+        const ensureSession=session=>{
+            if(!session)return null;
+            if(!Array.isArray(session.browserHistory))session.browserHistory=[];
+            if(!Number.isInteger(session.browserIndex))session.browserIndex=-1;
+            return session;
+        };
+        const getSession=()=>{
+            if(!isWorkspace)return ensureSession(state.standalone);
+            return ensureSession(this._tabs.find(tab=>tab.active&&tab.action==="browser"));
+        };
         const normalize=value=>{
             value=String(value||"").trim();
             if(!value)return "";
@@ -2892,8 +2907,9 @@ const nova = {
             return value;
         };
         const sync=()=>{
-            root.querySelector('[data-browser="back"]').disabled=state.index<=0;
-            root.querySelector('[data-browser="forward"]').disabled=state.index>=state.history.length-1;
+            const session=getSession();
+            root.querySelector('[data-browser="back"]').disabled=!session||session.browserIndex<0;
+            root.querySelector('[data-browser="forward"]').disabled=!session||session.browserIndex>=session.browserHistory.length-1;
         };
         const setStatus=(message,canRetry=false)=>{
             if(status)status.textContent=message;
@@ -2906,19 +2922,25 @@ const nova = {
         };
         const navigate=(value,push=true)=>{
             const url=normalize(value); if(!url)return;
-            if(push){state.history=state.history.slice(0,state.index+1);state.history.push(url);state.index=state.history.length-1;}
+            const session=getSession();if(!session)return;
+            if(push){session.browserHistory=session.browserHistory.slice(0,session.browserIndex+1);session.browserHistory.push(url);session.browserIndex=session.browserHistory.length-1;}
+            session.url=url;
+            if(isWorkspace){
+                try{session.title=new URL(url).hostname.replace(/^www\./,"")||"Browser";}catch{session.title="Browser";}
+                this.tabRender();
+            }
             sync();
-            if(!state.ready){state.pending=url;loading.classList.add("on");setStatus("Starting secure proxy…");return;}
+            if(!state.ready){state.pending={session,url};loading.classList.add("on");setStatus("Starting Nova Browser…");return;}
             show(url);
         };
         const boot=()=>{
             state.ready=false;
             clearTimeout(state.bootTimer);
-            setStatus("Starting secure proxy…");
+            setStatus("Starting Nova Browser…");
             loading.classList.add("on");
             frame.src=base+"/?nova_boot=3&t="+Date.now();
             state.bootTimer=setTimeout(()=>{
-                if(!state.ready){loading.classList.remove("on");setStatus("Proxy startup is taking longer than expected.",true);}
+                if(!state.ready){loading.classList.remove("on");setStatus("Nova Browser is taking longer than expected.",true);}
             },12000);
         };
         const onMessage=event=>{
@@ -2927,29 +2949,41 @@ const nova = {
                 clearTimeout(state.bootTimer);
                 state.ready=true;
                 loading.classList.remove("on");
-                setStatus("Proxy ready");
+                setStatus("Browser ready");
+                const session=getSession();
                 const pending=state.pending;state.pending=null;
-                if(pending)show(pending);
+                if(pending&&pending.session===session)show(pending.url);
+                else if(session?.browserIndex>=0)show(session.browserHistory[session.browserIndex]);
+                else show("");
             }else if(event.data.type==="nova-browser-error"){
                 clearTimeout(state.bootTimer);
                 state.ready=false;
                 loading.classList.remove("on");
-                setStatus(event.data.message||"Proxy failed to start.",true);
+                setStatus(event.data.message||"Nova Browser failed to start.",true);
             }
         };
         window.addEventListener("message",onMessage);
         root._novaBrowserNavigate=navigate;
         root._novaBrowserReset=()=>{
-            state.history=[];state.index=-1;state.pending=null;
+            const session=getSession();if(!session)return;
+            session.browserHistory=[];session.browserIndex=-1;session.url="";state.pending=null;
             sync();show("");
+        };
+        root._novaBrowserActivate=tab=>{
+            const session=ensureSession(tab||getSession());if(!session)return;
+            if(session.url&&session.browserHistory.length===0){session.browserHistory=[session.url];session.browserIndex=0;}
+            const url=session.browserIndex>=0?session.browserHistory[session.browserIndex]:"";
+            sync();
+            if(!state.ready){state.pending=url?{session,url}:null;if(!url)show("");return;}
+            show(url);
         };
         frame.addEventListener("load",()=>{if(state.ready)loading.classList.remove("on")});
         root.querySelector(".nova-address-form").addEventListener("submit",e=>{e.preventDefault();navigate(address.value)});
         root.querySelector(".nova-home-search").addEventListener("submit",e=>{e.preventDefault();navigate(e.currentTarget.querySelector("input").value)});
         root.querySelectorAll("[data-url]").forEach(button=>button.addEventListener("click",()=>navigate(button.dataset.url)));
-        root.querySelector('[data-browser="back"]').addEventListener("click",()=>{if(state.index>0){state.index--;sync();show(state.history[state.index])}});
-        root.querySelector('[data-browser="forward"]').addEventListener("click",()=>{if(state.index<state.history.length-1){state.index++;sync();show(state.history[state.index])}});
-        root.querySelector('[data-browser="reload"]').addEventListener("click",()=>{if(state.ready&&state.index>=0)show(state.history[state.index]);else boot()});
+        root.querySelector('[data-browser="back"]').addEventListener("click",()=>{const session=getSession();if(!session||session.browserIndex<0)return;if(session.browserIndex===0){session.browserIndex=-1;session.url="";show("");}else{session.browserIndex--;session.url=session.browserHistory[session.browserIndex];show(session.url);}sync();});
+        root.querySelector('[data-browser="forward"]').addEventListener("click",()=>{const session=getSession();if(session&&session.browserIndex<session.browserHistory.length-1){session.browserIndex++;session.url=session.browserHistory[session.browserIndex];sync();show(session.url)}});
+        root.querySelector('[data-browser="reload"]').addEventListener("click",()=>{const session=getSession();if(state.ready&&session?.browserIndex>=0)show(session.browserHistory[session.browserIndex]);else boot()});
         retry.addEventListener("click",boot);
         sync();boot();
     },
@@ -3368,7 +3402,7 @@ const nova = {
 
     commandItems(query=""){
         const apps=[
-            {icon:"◎",title:"Browser",sub:"Nova proxy browser",action:"browser"},
+            {icon:"◎",title:"Browser",sub:"Nova web browser",action:"browser"},
             {icon:"⌂",title:"Games",sub:"Game library",action:"home"},
             {icon:"✦",title:"Nova AI",sub:"AI assistant",action:"ai"},
             {icon:"▷",title:"Video",sub:"Piped powered video",action:"youtube"},
@@ -3454,59 +3488,65 @@ const nova = {
     },
 
     // ── CARDS & FILTERING ───────────────────────────────────────
+    classicMatches(){
+        const query=this.searchQuery;
+        return GAMES.filter(item=>{
+            const title=item.title||"",desc=item.desc||"";
+            return (!this.onlyFavs||this.favorites.includes(title))&&(!query||`${title.toLowerCase()} ${desc.toLowerCase()}`.includes(query));
+        });
+    },
+    makeClassicCard(item){
+        const descText=item.desc||"";
+        const card=document.createElement("div");
+        card.className=`card${this.favorites.includes(item.title)?" fav":""}`;
+        card.innerHTML=`<div class="game-art" aria-hidden="true"><span>${this.esc((item.title||"?").charAt(0).toUpperCase())}</span></div><div class="game-copy"><h3>${this.esc(item.title)}</h3><p>${this.esc(descText)}</p><span class="game-play">▶ Play now</span></div><span class="fvs">★</span>`;
+        card.addEventListener("click",()=>this.launch(item));
+        card.addEventListener("contextmenu",e=>{e.preventDefault();e.stopPropagation();this.showCtx(e.clientX,e.clientY,item,card);});
+        this.cards.push({el:card,title:item.title,str:`${(item.title||"").toLowerCase()} ${descText.toLowerCase()}`});
+        return card;
+    },
+    updateClassicPagination(){
+        const grid=document.getElementById("grid");if(!grid)return;
+        let footer=document.getElementById("nova-classic-pagination");
+        if(!footer){footer=document.createElement("div");footer.id="nova-classic-pagination";footer.className="nova-classic-pagination";grid.after(footer);}
+        const total=this._classicSource?.length||0,shown=Math.min(this._classicRenderedCount||0,total),remaining=Math.max(0,total-shown);
+        if(!total){footer.innerHTML='<div class="nova-classic-empty"><strong>No games found</strong><span>Try another search or turn off Favorites.</span></div>';return;}
+        footer.innerHTML=`<span>Showing ${shown.toLocaleString()} of ${total.toLocaleString()} games</span>${remaining?`<button type="button">Show ${Math.min(remaining,this.isLowSpec?36:72)} more</button>`:""}`;
+        footer.querySelector("button")?.addEventListener("click",()=>this.renderMoreClassicGames());
+    },
     renderCards(){
         const grid=document.getElementById("grid"); if(!grid) return;
         grid.innerHTML = "";
         this.cards=[];
-
-        const frag=document.createDocumentFragment();
-        // Show the complete catalog. The previous 60-card batch had no active
-        // scroll/load-more trigger, which made every later game unreachable.
-        const initial=GAMES.length;
-        const add=(item)=>{
-            const descText=item.desc||"";
-            const card=document.createElement("div");
-            card.className=`card${this.favorites.includes(item.title)?" fav":""}`;
-            card.innerHTML=`<div class="game-art" aria-hidden="true"><span>${this.esc((item.title||"?").charAt(0).toUpperCase())}</span></div><div class="game-copy"><h3>${this.esc(item.title)}</h3><p>${this.esc(descText)}</p><span class="game-play">▶ Play now</span></div><span class="fvs">★</span>`;
-            card.addEventListener("click",()=>this.launch(item));
-            card.addEventListener("contextmenu",e=>{e.preventDefault();e.stopPropagation();this.showCtx(e.clientX,e.clientY,item,card);});
-            frag.appendChild(card);
-            this.cards.push({el:card,title:item.title,str:`${(item.title||"").toLowerCase()} ${descText.toLowerCase()}`});
-        };
-        for(let i=0;i<initial;i++) add(GAMES[i]);
-        grid.appendChild(frag);
-        this._classicRenderedCount=initial;
-        this.filter();
+        this._classicSource=this.classicMatches();
+        this._classicRenderedCount=0;
+        this.renderMoreClassicGames();
+        const app=document.getElementById("app");
+        if(app&&!this._classicScrollBound){
+            this._classicScrollBound=true;
+            let queued=false;
+            app.addEventListener("scroll",()=>{
+                if(queued||!document.body.classList.contains("nova-home-open"))return;
+                queued=true;
+                requestAnimationFrame(()=>{queued=false;if(app.scrollTop+app.clientHeight>=app.scrollHeight-1000)this.renderMoreClassicGames();});
+            },{passive:true});
+        }
     },
 
     renderMoreClassicGames(){
         const grid=document.getElementById("grid");
-        if(!grid||this._classicRenderedCount>=GAMES.length)return;
+        const source=this._classicSource||[];
+        if(!grid||this._classicRenderedCount>=source.length){this.updateClassicPagination();return;}
         const frag=document.createDocumentFragment();
-        const end=Math.min(GAMES.length,this._classicRenderedCount+80);
+        const end=Math.min(source.length,this._classicRenderedCount+(this.isLowSpec?36:72));
         for(let i=this._classicRenderedCount;i<end;i++){
-            const item=GAMES[i],descText=item.desc||"";
-            const card=document.createElement("div");
-            card.className=`card${this.favorites.includes(item.title)?" fav":""}`;
-            card.innerHTML=`<div class="game-art" aria-hidden="true"><span>${this.esc((item.title||"?").charAt(0).toUpperCase())}</span></div><div class="game-copy"><h3>${this.esc(item.title)}</h3><p>${this.esc(descText)}</p><span class="game-play">▶ Play now</span></div><span class="fvs">★</span>`;
-            card.addEventListener("click",()=>this.launch(item));
-            card.addEventListener("contextmenu",e=>{e.preventDefault();e.stopPropagation();this.showCtx(e.clientX,e.clientY,item,card);});
-            frag.appendChild(card); this.cards.push({el:card,title:item.title,str:`${(item.title||"").toLowerCase()} ${descText.toLowerCase()}`});
+            frag.appendChild(this.makeClassicCard(source[i]));
         }
-        grid.appendChild(frag); this._classicRenderedCount=end; this.filter();
+        grid.appendChild(frag);this._classicRenderedCount=end;this.updateClassicPagination();
     },
 
     filter(){
-        for(let i=0; i<this.cards.length; i++){
-            const c = this.cards[i];
-            const ok=(!this.onlyFavs||this.favorites.includes(c.title))&&(!this.searchQuery||c.str.includes(this.searchQuery));
-            c.el.classList.toggle("hidden",!ok);
-            // Some appearance themes set card display with !important. Mirror
-            // the filter in an inline important declaration so search and the
-            // favorites filter always win the cascade.
-            if(ok)c.el.style.removeProperty("display");
-            else c.el.style.setProperty("display","none","important");
-        }
+        this.renderCards();
     },
 
     // ── MULTI-TAB CONTROLLER ────────────────────────────────────
@@ -3588,23 +3628,23 @@ const nova = {
         const panelIds={anime:"anime-panel",youtube:"yt-panel",ai:"ai-panel",browser:"browser-panel",chat:"chat-panel",settings:"settings-panel",admin:"admin-panel"};
         const panels=Object.keys(panelIds);
         const next=document.getElementById(panelIds[action]);
-        const previous=panels.map(name=>document.getElementById(panelIds[name])).find(panel=>panel?.classList.contains("on")&&panel!==next);
         const order=["home","browser","ai","youtube","anime","chat","settings","admin"];
         const oldAction=this._activeNovaView||"home";
         const direction=order.indexOf(action)>=order.indexOf(oldAction)?"right":"left";
-        if(previous){
-            previous.classList.remove("nova-enter-left","nova-enter-right");
-            previous.classList.add(direction==="right"?"nova-exit-left":"nova-exit-right");
-            setTimeout(()=>previous.classList.remove("on","nova-exit-left","nova-exit-right"),360);
-        }
         panels.forEach(name=>{
             const panel=document.getElementById(panelIds[name]);
-            if(panel&&panel!==next&&!panel.classList.contains("nova-exit-left")&&!panel.classList.contains("nova-exit-right"))panel.classList.remove("on");
+            if(!panel)return;
+            clearTimeout(panel._novaTransitionTimer);
+            panel.classList.remove("on","nova-enter-left","nova-enter-right","nova-exit-left","nova-exit-right");
+            panel.setAttribute("aria-hidden","true");
         });
         if(next){
-            next.classList.remove("nova-exit-left","nova-exit-right","nova-enter-left","nova-enter-right");
-            next.classList.add("on",direction==="right"?"nova-enter-right":"nova-enter-left");
-            setTimeout(()=>next.classList.remove("nova-enter-left","nova-enter-right"),360);
+            next.classList.add("on");
+            next.setAttribute("aria-hidden","false");
+            if(oldAction!==action){
+                next.classList.add(direction==="right"?"nova-enter-right":"nova-enter-left");
+                next._novaTransitionTimer=setTimeout(()=>next.classList.remove("nova-enter-left","nova-enter-right"),360);
+            }
         }
         this._activeNovaView=action;
         document.querySelectorAll("[data-nova-action]").forEach(button=>button.classList.toggle("active",button.dataset.novaAction===action));
@@ -3613,6 +3653,7 @@ const nova = {
             if(settingsBody&&!settingsBody.querySelector(".nova-mega-settings"))settingsBody.innerHTML=this.osSettingsBody();
         }
         if(action==="admin"&&next)this.bindNovaAdmin(next.querySelector(".nova-admin-native"));
+        if(action==="browser"&&next)next.querySelector(".nova-browser-native")?._novaBrowserActivate?.(tabObj);
         const theater=document.getElementById("theater");
         const isGame=action==="game"&&tabObj;
         document.body.classList.toggle("nova-app-open",Boolean(next||isGame||action==="home"));
@@ -3792,7 +3833,7 @@ const nova = {
 
     async aiFetchModels() {
         const allModels = [];
-        try {
+        if(GEMINI_API_KEY)try {
             let pageToken = "";
             do {
                 const url = new URL("https://generativelanguage.googleapis.com/v1beta/models");
@@ -3829,7 +3870,7 @@ const nova = {
 
         if (!this._aiModels || this._aiModels.length === 0) {
             this._aiModels = [
-                { id: "gemini-3.6-flash", name: "Gemini 3.6 Flash" },
+                { id: "gemini-3.8-flash", name: "Gemini 3.8 Flash" },
                 { id: "gemini-3.5-flash", name: "Gemini 3.5 Flash" },
                 { id: "gemini-3.5-flash-lite", name: "Gemini 3.5 Flash Lite" },
                 { id: "gemini-3.1-flash-lite", name: "Gemini 3.1 Flash Lite" },
@@ -3882,7 +3923,9 @@ const nova = {
             title: "New Session",
             messages: [{
                 role: "model",
-                content: "Greetings! I am **Nova AI Engine**, powered by Google Gemini. How can I assist your gaming, code optimization, or media streaming today?"
+                content: GEMINI_API_KEY
+                    ? "Hey! I am **Nova AI**, powered by Google Gemini. What can I help you with?"
+                    : "**Nova AI is not configured on this deployment yet.** The site owner needs to provide `window.NOVA_API_KEYS.gemini` before loader.js. No key is stored in Nova or sent anywhere else."
             }]
         };
         this._aiChats.unshift(newChat);
@@ -4053,6 +4096,10 @@ const nova = {
 
         const activeChat = this._aiChats.find(c => c.id === this._currentChatId);
         if (!activeChat) return;
+        if(!GEMINI_API_KEY){
+            this.aiAppendMessageDOM("model","Nova AI cannot send yet because this deployment has no Gemini API key configured.");
+            return;
+        }
 
         const fullPromptText = text || (hasAttachments ? "[Uploaded Attachments]" : "");
 
@@ -4118,8 +4165,9 @@ const nova = {
             thinkIndicator.remove();
 
             if (!response.ok) {
-                const err = await response.json();
-                throw new Error(err.error?.message || "Gemini API stream error.");
+                if(response.status===401||response.status===403)throw new Error("NOVA_AI_AUTH");
+                const err = await response.json().catch(()=>({}));
+                throw new Error(err.error?.message || `Nova AI request failed (${response.status}).`);
             }
 
             const data = await response.json();
@@ -4131,7 +4179,9 @@ const nova = {
 
         } catch(e) {
             thinkIndicator.remove();
-            const errText = `⚠️ **API Exception (${this._selectedModel}):** ${e.message}`;
+            const errText = e.message==="NOVA_AI_AUTH"
+                ? "Nova AI could not authenticate. The deployment key needs to be replaced by the site owner."
+                : `Nova AI could not answer right now: ${e.message}`;
             activeChat.messages.push({ role: "model", content: errText });
             this.aiSaveChats();
             this.aiAppendMessageDOM("model", errText);
@@ -4459,7 +4509,6 @@ const nova = {
         // Multi-Tab bar
         $("tb-new")?.addEventListener("click",()=>{
             this.tabNew("New Tab","browser");
-            document.querySelector("#browser-panel .nova-browser-native")?._novaBrowserReset?.();
         });
 
         // Bottom Navigation Tabs
@@ -5391,7 +5440,7 @@ try{document.title='Home - Classroom'}catch(_){}
 /* NOVA MEGA APPEARANCE SYSTEM — wallpapers, themes, cursor, scale, dock, fonts, motion and more. */
 (function(){
   const STORAGE='nova_appearance_v2';
-  const defaults={theme:'midnight',accent:'#7c5cff',wallpaper:'nova',wallpaperUrl:'',cursor:'default',font:'system',scale:100,fontSize:100,radius:18,density:'comfortable',cardSize:200,tabWidth:190,dockSize:64,dockPosition:'bottom',animations:true,desktopGrid:true,showLabels:true,highContrast:false,showGameDescriptions:true,immersiveGames:true,immersiveBrowser:false,reuseAppTabs:true,youtubeComments:true,youtubeAutoplay:true,youtubeRegion:'US',aiModel:'gemini-3.6-flash',startup:'browser',chatAlerts:false,autoCloak:true};
+  const defaults={theme:'midnight',accent:'#7c5cff',wallpaper:'nova',wallpaperUrl:'',cursor:'default',font:'system',scale:100,fontSize:100,radius:18,density:'comfortable',cardSize:200,tabWidth:190,dockSize:64,dockPosition:'bottom',animations:true,desktopGrid:true,showLabels:true,highContrast:false,showGameDescriptions:true,immersiveGames:true,immersiveBrowser:false,reuseAppTabs:true,youtubeComments:true,youtubeAutoplay:true,youtubeRegion:'US',aiModel:'gemini-3.8-flash',chatAlerts:false,autoCloak:true};
   const themes={
     midnight:{name:'Midnight',bg:'#080b12',surface:'#151821',bar:'#0b0d14',text:'#f7f8ff'},
     ocean:{name:'Ocean',bg:'#061018',surface:'#0e1c27',bar:'#07131b',text:'#f1fbff'},
@@ -5412,10 +5461,10 @@ try{document.title='Home - Classroom'}catch(_){}
     let raw={};try{raw=JSON.parse(localStorage.getItem(STORAGE)||'{}')||{}}catch{}
     const a={...defaults};
     if(typeof raw!=='object'||Array.isArray(raw))return a;
-    for(const [key,allowed] of Object.entries({theme:Object.keys(themes),wallpaper:[...Object.keys(wallpapers),'custom'],font:['system','serif','mono','rounded','condensed'],dockPosition:['bottom','left','right'],density:['compact','comfortable','spacious'],youtubeRegion:['US','GB','CA','AU','IN','JP','DE','BR'],aiModel:['gemini-3.6-flash','gemini-3.5-flash','gemini-3.5-flash-lite','gemini-3.1-flash-lite'],startup:['games','ai','youtube','browser','chat','settings']})){
+    for(const [key,allowed] of Object.entries({theme:Object.keys(themes),wallpaper:[...Object.keys(wallpapers),'custom'],font:['system','serif','mono','rounded','condensed'],dockPosition:['bottom','left','right'],density:['compact','comfortable','spacious'],youtubeRegion:['US','GB','CA','AU','IN','JP','DE','BR'],aiModel:['gemini-3.8-flash','gemini-3.5-flash','gemini-3.5-flash-lite','gemini-3.1-flash-lite','gemini-2.5-flash','gemini-2.5-flash-lite']})){
       if(allowed.includes(raw[key]))a[key]=raw[key];
     }
-    for(const key of ['animations','desktopGrid','showLabels','highContrast','showGameDescriptions','immersiveGames','immersiveBrowser','reuseAppTabs','youtubeComments','youtubeAutoplay','chatAlerts'])if(typeof raw[key]==='boolean')a[key]=raw[key];
+    for(const key of ['animations','desktopGrid','showLabels','highContrast','showGameDescriptions','immersiveGames','immersiveBrowser','reuseAppTabs','youtubeComments','youtubeAutoplay','chatAlerts','autoCloak'])if(typeof raw[key]==='boolean')a[key]=raw[key];
     for(const [key,min,max] of [['scale',85,120],['fontSize',85,125],['radius',4,32],['cardSize',150,280],['tabWidth',120,260],['dockSize',48,92]])if(Number.isFinite(raw[key]))a[key]=Math.max(min,Math.min(max,raw[key]));
     if(/^#[0-9a-f]{6}$/i.test(raw.accent))a.accent=raw.accent;
     if(typeof raw.wallpaperUrl==='string'&&/^(https?:|data:image\/)/i.test(raw.wallpaperUrl))a.wallpaperUrl=raw.wallpaperUrl;
@@ -5444,7 +5493,7 @@ try{document.title='Home - Classroom'}catch(_){}
     document.body.classList.toggle('nova-hide-desktop-grid',!a.desktopGrid);
     document.body.classList.toggle('nova-hide-dock-labels',!a.showLabels);
     document.body.classList.toggle('nova-hide-game-descriptions',!a.showGameDescriptions);
-    nova._selectedModel=a.aiModel||'gemini-3.6-flash';
+    nova._selectedModel=a.aiModel||'gemini-3.8-flash';
     try{localStorage.setItem('nova_chat_alerts',a.chatAlerts?'on':'off')}catch{}
     const cursor=(a.cursor||'default').startsWith('url(')?a.cursor:a.cursor||'default';
     root.style.setProperty('--nova-cursor',cursor);
@@ -5505,10 +5554,9 @@ try{document.title='Home - Classroom'}catch(_){}
         <section class="nova-set-page" data-set-page="tabs"><h2>Tabs</h2><p class="nova-settings-sub">Choose how the Nova workspace handles apps.</p>
           <label>Tab width <output>${a.tabWidth}px</output><input id="nova-tab-width" type="range" min="120" max="260" step="10" value="${a.tabWidth}"></label>
           <label class="nova-switch-row"><span><b>Reuse app tabs</b><small>Return to an existing AI, Browser, Chat, or Settings tab instead of opening another</small></span><input type="checkbox" data-pref="reuseAppTabs" ${a.reuseAppTabs?'checked':''}></label>
-          <label>Open Nova with <select id="nova-startup"><option value="games" ${a.startup==='games'?'selected':''}>Games</option><option value="ai" ${a.startup==='ai'?'selected':''}>Nova AI</option><option value="youtube" ${a.startup==='youtube'?'selected':''}>YouTube</option><option value="browser" ${a.startup==='browser'?'selected':''}>Browser</option><option value="chat" ${a.startup==='chat'?'selected':''}>Chat</option><option value="settings" ${a.startup==='settings'?'selected':''}>Settings</option></select></label>
         </section>
         <section class="nova-set-page" data-set-page="ai"><h2>Nova AI</h2><p class="nova-settings-sub">Pick the model Nova uses for new conversations.</p>
-          <label>Default model <select id="nova-ai-model"><option value="gemini-3.6-flash" ${a.aiModel==='gemini-3.6-flash'?'selected':''}>Gemini 3.6 Flash</option><option value="gemini-3.5-flash" ${a.aiModel==='gemini-3.5-flash'?'selected':''}>Gemini 3.5 Flash</option><option value="gemini-3.5-flash-lite" ${a.aiModel==='gemini-3.5-flash-lite'?'selected':''}>Gemini 3.5 Flash Lite</option><option value="gemini-3.1-flash-lite" ${a.aiModel==='gemini-3.1-flash-lite'?'selected':''}>Gemini 3.1 Flash Lite</option></select></label>
+          <label>Default model <select id="nova-ai-model"><option value="gemini-3.8-flash" ${a.aiModel==='gemini-3.8-flash'?'selected':''}>Gemini 3.8 Flash</option><option value="gemini-3.5-flash" ${a.aiModel==='gemini-3.5-flash'?'selected':''}>Gemini 3.5 Flash</option><option value="gemini-3.5-flash-lite" ${a.aiModel==='gemini-3.5-flash-lite'?'selected':''}>Gemini 3.5 Flash Lite</option><option value="gemini-3.1-flash-lite" ${a.aiModel==='gemini-3.1-flash-lite'?'selected':''}>Gemini 3.1 Flash Lite</option><option value="gemini-2.5-flash" ${a.aiModel==='gemini-2.5-flash'?'selected':''}>Gemini 2.5 Flash</option><option value="gemini-2.5-flash-lite" ${a.aiModel==='gemini-2.5-flash-lite'?'selected':''}>Gemini 2.5 Flash Lite</option></select></label>
           <div class="nova-perf-card"><b>Saved conversations</b><span>Nova AI keeps chat history on this browser.</span><button id="nova-clear-ai">Clear chats</button></div>
         </section>
         <section class="nova-set-page" data-set-page="media"><h2>YouTube</h2><p class="nova-settings-sub">Control video playback and the read-only comment view.</p>
@@ -5574,7 +5622,6 @@ try{document.title='Home - Classroom'}catch(_){}
     if(t.id==='nova-card-size') update('cardSize',+t.value);
     if(t.id==='nova-tab-width') update('tabWidth',+t.value);
     if(t.id==='nova-density') update('density',t.value);
-    if(t.id==='nova-startup') update('startup',t.value);
     if(t.id==='nova-ai-model'){update('aiModel',t.value);nova._selectedModel=t.value;nova.aiRenderModelSelect?.();}
     if(t.id==='nova-youtube-region'){update('youtubeRegion',t.value);nova._ytLoaded=false;}
     if(t.id==='nova-dock') update('dockSize',+t.value);
@@ -5930,6 +5977,13 @@ body.nova-home-open:not(.os-mode) #app{height:100vh!important;height:100dvh!impo
 body.nova-home-open:not(.os-mode) #grid{flex:none!important;min-height:auto!important;overflow:visible!important}
 body.nova-home-open:not(.os-mode) .nova-library-toolbar,body.nova-home-open:not(.os-mode) .nova-dashboard,body.nova-home-open:not(.os-mode) .nova-section-title{flex-shrink:0}
 body.nova-home-open:not(.os-mode) #app::-webkit-scrollbar{width:9px}body.nova-home-open:not(.os-mode) #app::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border:2px solid transparent;border-radius:10px;background-clip:padding-box}
+body:not(.os-mode) .fpanel{visibility:hidden;pointer-events:none!important;will-change:transform,opacity}
+body:not(.os-mode) .fpanel.on{visibility:visible;pointer-events:auto!important}
+.nova-classic-pagination{width:min(1276px,calc(100% - 56px));margin:0 auto 70px;display:flex;align-items:center;justify-content:center;gap:14px;color:rgba(255,255,255,.42);font-size:11px}
+.nova-classic-pagination>button{min-height:38px;padding:0 16px;border:1px solid rgba(255,255,255,.11)!important;border-radius:10px!important;background:#14141b!important;color:#eee!important;box-shadow:none!important;cursor:pointer}
+.nova-classic-pagination>button:hover{border-color:rgba(168,129,255,.5)!important;background:#1b1727!important}
+.nova-classic-empty{width:100%;padding:34px;border:1px dashed rgba(255,255,255,.11);border-radius:16px;text-align:center;background:rgba(255,255,255,.025)}
+.nova-classic-empty strong,.nova-classic-empty span{display:block}.nova-classic-empty strong{margin-bottom:7px;color:#eee;font-size:15px}.nova-classic-empty span{color:rgba(255,255,255,.38)}
 body:not(.os-mode) .card{font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important;background:#0c0c10!important;border-color:rgba(255,255,255,.08)!important;border-radius:8px!important}
 body:not(.os-mode) .card h3{font-family:inherit!important;font-weight:650!important;letter-spacing:-.01em!important}
 body.nova-app-open:not(.os-mode) #tbr{display:flex!important;position:fixed!important;left:5px!important;top:112px!important;width:42px!important;max-height:calc(100vh - 440px)!important;height:auto!important;padding:0!important;gap:4px!important;flex-direction:column!important;background:transparent!important;border:0!important;z-index:7001!important}
@@ -5980,6 +6034,7 @@ body:not(.os-mode) #ai-panel .ai-drawer,body:not(.os-mode) .nova-chat-side{backg
  body:not(.os-mode) .nova-game-search{width:100%!important}
  body:not(.os-mode) .nova-home-actions{display:none!important}
  body.nova-home-open:not(.os-mode) #app{padding-top:39px!important;padding-bottom:72px!important}
+ .nova-classic-pagination{width:calc(100% - 20px);margin-bottom:24px;flex-direction:column}
  .nova-dashboard{width:calc(100% - 20px);margin:8px auto 16px;gap:12px}.nova-dashboard-hero{min-height:0;display:block;padding:24px 20px;border-radius:19px}.nova-dashboard h1{font-size:38px}.nova-dashboard-hero p{font-size:12px}.nova-dashboard-actions{min-width:0;margin-top:22px;grid-template-columns:1fr}.nova-dashboard-actions button{min-height:72px}.nova-dashboard-strip{grid-template-columns:repeat(3,minmax(0,1fr))}.nova-dashboard-strip button{padding:12px}.nova-dashboard-recents{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:4px}.nova-recent-chip{flex:0 0 180px;scroll-snap-align:start}.nova-dashboard-stats{overflow-x:auto;white-space:nowrap}.nova-dashboard-hero:after{display:none}
 }
 @media(min-width:761px) and (max-width:1050px){.nova-dashboard-hero{align-items:stretch;flex-direction:column}.nova-dashboard-actions{min-width:0;width:100%}.nova-dashboard-strip,.nova-dashboard-recents{grid-template-columns:repeat(3,minmax(0,1fr))}}
